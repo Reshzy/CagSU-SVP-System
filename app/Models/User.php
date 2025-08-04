@@ -6,11 +6,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasRoles;
 
     /**
      * The attributes that are mass assignable.
@@ -21,6 +22,11 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'department_id',
+        'employee_id',
+        'position',
+        'phone',
+        'is_active',
     ];
 
     /**
@@ -43,6 +49,70 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * Get the department that owns the user.
+     */
+    public function department()
+    {
+        return $this->belongsTo(Department::class);
+    }
+
+    /**
+     * Get purchase requests created by this user.
+     */
+    public function purchaseRequests()
+    {
+        return $this->hasMany(PurchaseRequest::class, 'requester_id');
+    }
+
+    /**
+     * Get workflow approvals assigned to this user.
+     */
+    public function approvals()
+    {
+        return $this->hasMany(WorkflowApproval::class, 'approver_id');
+    }
+
+    /**
+     * Check if user has specific role for CagSU SVP system.
+     */
+    public function isSVPRole($role)
+    {
+        return $this->hasRole($role);
+    }
+
+    /**
+     * Get user's primary SVP role for dashboard customization.
+     */
+    public function getPrimarySVPRole()
+    {
+        $roles = $this->getRoleNames();
+        
+        // Priority order for primary role determination
+        $rolePriority = [
+            'System Admin',
+            'Executive Officer', 
+            'Supply Officer',
+            'BAC Chair',
+            'Budget Office',
+            'BAC Members',
+            'BAC Secretariat',
+            'Canvassing Unit',
+            'Accounting Office',
+            'End User',
+            'Supplier'
+        ];
+        
+        foreach ($rolePriority as $role) {
+            if ($roles->contains($role)) {
+                return $role;
+            }
+        }
+        
+        return 'End User'; // Default role
     }
 }
