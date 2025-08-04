@@ -17,8 +17,20 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            
+            // CagSU SVP System specific fields
+            $table->unsignedBigInteger('department_id')->nullable(); // Foreign key added in separate migration
+            $table->string('employee_id')->nullable()->unique(); // CagSU employee ID
+            $table->string('position')->nullable(); // Job title/position
+            $table->string('phone')->nullable();
+            $table->boolean('is_active')->default(true);
+            
             $table->rememberToken();
             $table->timestamps();
+            
+            // Indexes for performance
+            $table->index(['department_id', 'is_active']);
+            $table->index('employee_id');
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {

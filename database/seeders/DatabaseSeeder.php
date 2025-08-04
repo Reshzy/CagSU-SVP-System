@@ -13,11 +13,9 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        // Seed the CagSU SVP System with roles, permissions, departments, and sample users
+        $this->call([
+            RolePermissionSeeder::class,
         ]);
     }
 }
