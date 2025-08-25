@@ -20,6 +20,9 @@ use App\Http\Controllers\SupplierCommunicationController;
 Route::get('/', function () {
     return view('welcome');
 });
+Route::get('/health', function () {
+    return response()->json(['status' => 'ok', 'time' => now()->toIso8601String()]);
+})->name('health');
 
 // Public Supplier Registration
 Route::get('/suppliers/register', [SupplierRegistrationController::class, 'create'])->name('suppliers.register');
