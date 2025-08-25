@@ -163,6 +163,38 @@ class ReportsController extends Controller
         return view('reports.suppliers', ['rows' => $rows]);
     }
 
+    public function suppliersExport(Request $request)
+    {
+        $rows = $this->suppliers($request)->getData()['rows'];
+
+        $filename = 'supplier_performance_' . now()->format('Ymd_His') . '.csv';
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control' => 'no-store, no-cache',
+        ];
+
+        $callback = function () use ($rows) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['Supplier','Quotes','Awards','Win Rate %','Awarded Value','POs','Completed POs','PO Value']);
+            foreach ($rows as $r) {
+                fputcsv($handle, [
+                    $r['supplier']->business_name,
+                    $r['total_quotes'],
+                    $r['awards'],
+                    $r['win_rate'],
+                    number_format($r['awarded_total'], 2, '.', ''),
+                    $r['po_count'],
+                    $r['po_completed'],
+                    number_format($r['po_total'], 2, '.', ''),
+                ]);
+            }
+            fclose($handle);
+        };
+
+        return \Illuminate\Support\Facades\Response::stream($callback, 200, $headers);
+    }
+
     public function budget(Request $request): View
     {
         $departments = Department::orderBy('name')->get();
@@ -199,6 +231,40 @@ class ReportsController extends Controller
         ];
 
         return view('reports.budget', compact('rows', 'totals'));
+    }
+
+    public function budgetExport(Request $request)
+    {
+        $view = $this->budget($request);
+        $rows = $view->getData()['rows'];
+        $totals = $view->getData()['totals'];
+
+        $filename = 'budget_utilization_' . now()->format('Ymd_His') . '.csv';
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control' => 'no-store, no-cache',
+        ];
+
+        $callback = function () use ($rows, $totals) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['Department','PR Count','PR Total','PO Count','PO Total','Utilization %']);
+            foreach ($rows as $r) {
+                fputcsv($handle, [
+                    $r['department']->name,
+                    $r['pr_count'],
+                    number_format($r['pr_total'], 2, '.', ''),
+                    $r['po_count'],
+                    number_format($r['po_total'], 2, '.', ''),
+                    $r['utilization_rate'],
+                ]);
+            }
+            fputcsv($handle, []);
+            fputcsv($handle, ['Totals','', number_format($totals['pr_total'], 2, '.', ''), '', number_format($totals['po_total'], 2, '.', ''), '']);
+            fclose($handle);
+        };
+
+        return \Illuminate\Support\Facades\Response::stream($callback, 200, $headers);
     }
 }
 

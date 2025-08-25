@@ -63,7 +63,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/reports/purchase-requests/export', [ReportsController::class, 'prExport'])->name('reports.pr.export');
         Route::get('/reports/analytics', [ReportsController::class, 'analytics'])->name('reports.analytics');
         Route::get('/reports/suppliers', [ReportsController::class, 'suppliers'])->name('reports.suppliers');
+        Route::get('/reports/suppliers/export', [ReportsController::class, 'suppliersExport'])->name('reports.suppliers.export');
         Route::get('/reports/budget', [ReportsController::class, 'budget'])->name('reports.budget');
+        Route::get('/reports/budget/export', [ReportsController::class, 'budgetExport'])->name('reports.budget.export');
     });
 
     // Budget Office
