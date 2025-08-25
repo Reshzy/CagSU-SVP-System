@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PurchaseRequestController;
 use App\Http\Controllers\SupplyPurchaseRequestController;
+use App\Http\Controllers\ReportsController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -26,6 +27,12 @@ Route::middleware('auth')->group(function () {
     Route::middleware('can:edit-purchase-request')->group(function () {
         Route::get('/supply/purchase-requests', [SupplyPurchaseRequestController::class, 'index'])->name('supply.purchase-requests.index');
         Route::put('/supply/purchase-requests/{purchaseRequest}/status', [SupplyPurchaseRequestController::class, 'updateStatus'])->name('supply.purchase-requests.status');
+    });
+
+    // Reports
+    Route::middleware('can:view-reports')->group(function () {
+        Route::get('/reports/purchase-requests', [ReportsController::class, 'pr'])->name('reports.pr');
+        Route::get('/reports/purchase-requests/export', [ReportsController::class, 'prExport'])->name('reports.pr.export');
     });
 });
 

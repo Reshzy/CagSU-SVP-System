@@ -74,7 +74,7 @@
                     @endcan
 
                     @can('view-reports')
-                        <a href="#" class="bg-white hover:bg-cagsu-maroon hover:text-white p-4 rounded-lg shadow-md transition-all duration-200 flex flex-col items-center text-center group">
+                        <a href="{{ route('reports.pr') }}" class="bg-white hover:bg-cagsu-maroon hover:text-white p-4 rounded-lg shadow-md transition-all duration-200 flex flex-col items-center text-center group">
                             <svg class="w-8 h-8 text-cagsu-maroon group-hover:text-white mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                             </svg>

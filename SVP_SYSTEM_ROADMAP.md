@@ -148,7 +148,7 @@
 -   [x] PR tracking and status system
 -   [x] Supply Officer PR management
 -   [x] Basic notification system
--   [ ] PR reporting
+-   [x] PR reporting
 
 **Key Features:**
 
