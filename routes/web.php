@@ -11,6 +11,7 @@ use App\Http\Controllers\BacQuotationController;
 use App\Http\Controllers\BacMeetingController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\AccountingDisbursementController;
+use App\Http\Controllers\InventoryReceiptController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -40,6 +41,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/supply/purchase-requests/{purchaseRequest}/purchase-orders', [PurchaseOrderController::class, 'store'])->name('supply.purchase-orders.store');
         Route::get('/supply/purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->name('supply.purchase-orders.show');
         Route::put('/supply/purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'update'])->name('supply.purchase-orders.show');
+
+        // Inventory Receipts
+        Route::get('/supply/inventory-receipts', [InventoryReceiptController::class, 'index'])->name('supply.inventory-receipts.index');
+        Route::get('/supply/purchase-orders/{purchaseOrder}/inventory-receipts/create', [InventoryReceiptController::class, 'create'])->name('supply.inventory-receipts.create');
+        Route::post('/supply/purchase-orders/{purchaseOrder}/inventory-receipts', [InventoryReceiptController::class, 'store'])->name('supply.inventory-receipts.store');
+        Route::get('/supply/inventory-receipts/{inventoryReceipt}', [InventoryReceiptController::class, 'show'])->name('supply.inventory-receipts.show');
     });
 
     // Accounting Office

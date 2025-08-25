@@ -195,7 +195,7 @@
 -   [x] Delivery tracking system
 -   [x] Inspection and acceptance
 -   [x] Integration with accounting
--   [ ] Inventory management basics
+-   [x] Inventory management basics
 
 ### Phase 7: Reporting & Analytics (Weeks 13-14)
 
