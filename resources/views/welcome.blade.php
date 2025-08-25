@@ -44,6 +44,11 @@
                                 class="inline-block px-5 py-1.5 dark:text-[#EDEDEC] border-[#19140035] hover:border-[#1915014a] border text-[#1b1b18] dark:border-[#3E3E3A] dark:hover:border-[#62605b] rounded-sm text-sm leading-normal">
                                 Register
                             </a>
+                            <a
+                                href="{{ route('suppliers.register') }}"
+                                class="inline-block px-5 py-1.5 dark:text-[#EDEDEC] border-[#19140035] hover:border-[#1915014a] border text-[#1b1b18] dark:border-[#3E3E3A] dark:hover:border-[#62605b] rounded-sm text-sm leading-normal">
+                                Supplier Register
+                            </a>
                         @endif
                     @endauth
                 </nav>
@@ -117,6 +122,23 @@
                             </a>
                         </li>
                     </ul>
+                    <div class="mt-6 p-4 border border-[#e3e3e0] rounded-sm">
+                        <h2 class="mb-2 font-medium">Supplier Portal</h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <a href="{{ route('suppliers.register') }}" class="inline-flex items-center justify-center px-4 py-2 border border-[#19140035] hover:border-black rounded-sm">
+                                Supplier Register
+                            </a>
+                            <a href="{{ route('login') }}" class="inline-flex items-center justify-center px-4 py-2 border border-[#19140035] hover:border-black rounded-sm">
+                                Supplier Login
+                            </a>
+                            <a href="{{ route('suppliers.quotations.submit') }}" class="inline-flex items-center justify-center px-4 py-2 border border-[#19140035] hover:border-black rounded-sm">
+                                Submit Quotation
+                            </a>
+                            <a href="{{ route('suppliers.po-status') }}" class="inline-flex items-center justify-center px-4 py-2 border border-[#19140035] hover:border-black rounded-sm">
+                                Check PO Status
+                            </a>
+                        </div>
+                    </div>
                 </div>
                 <div class="bg-[#fff2f2] dark:bg-[#1D0002] relative lg:-ml-px -mb-px lg:mb-0 rounded-t-lg lg:rounded-t-none lg:rounded-r-lg aspect-[335/376] lg:aspect-auto w-full lg:w-[438px] shrink-0 overflow-hidden">
                     {{-- Laravel Logo --}}

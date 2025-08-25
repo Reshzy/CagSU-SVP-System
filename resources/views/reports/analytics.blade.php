@@ -11,12 +11,16 @@
 				<div class="p-6 text-gray-900 space-y-8">
 					<div>
 						<h3 class="text-lg font-semibold mb-2">Monthly PR Counts</h3>
-						<canvas id="chartCounts" height="100"></canvas>
+						<div class="relative h-80">
+							<canvas id="chartCounts" class="w-full h-full"></canvas>
+						</div>
 					</div>
 
 					<div>
 						<h3 class="text-lg font-semibold mb-2">Average Cycle Time (days)</h3>
-						<canvas id="chartCycle" height="100"></canvas>
+						<div class="relative h-80">
+							<canvas id="chartCycle" class="w-full h-full"></canvas>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -29,7 +33,14 @@
 		const counts = @json($counts->values());
 		const cycle = @json($cycle->values());
 
-		new Chart(document.getElementById('chartCounts').getContext('2d'), {
+		// Destroy previously created charts (helps with client-side navigation frameworks)
+		if (window.analyticsCharts) {
+			try { window.analyticsCharts.countsChart?.destroy(); } catch (e) {}
+			try { window.analyticsCharts.cycleChart?.destroy(); } catch (e) {}
+		}
+
+		const countsCtx = document.getElementById('chartCounts').getContext('2d');
+		const countsChart = new Chart(countsCtx, {
 			type: 'bar',
 			data: {
 				labels,
@@ -42,7 +53,8 @@
 			options: { responsive: true, maintainAspectRatio: false }
 		});
 
-		new Chart(document.getElementById('chartCycle').getContext('2d'), {
+		const cycleCtx = document.getElementById('chartCycle').getContext('2d');
+		const cycleChart = new Chart(cycleCtx, {
 			type: 'line',
 			data: {
 				labels,
@@ -56,6 +68,8 @@
 			},
 			options: { responsive: true, maintainAspectRatio: false }
 		});
+
+		window.analyticsCharts = { countsChart, cycleChart };
 	</script>
 </x-app-layout>
 
