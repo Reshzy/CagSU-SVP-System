@@ -92,6 +92,38 @@ class ReportsController extends Controller
 
         return Response::stream($callback, 200, $headers);
     }
+
+    public function analytics(Request $request): View
+    {
+        // Monthly PR counts (last 12 months)
+        $labels = collect(range(0,11))->map(function ($i) {
+            return now()->startOfMonth()->subMonths(11 - $i)->format('Y-m');
+        });
+
+        $counts = $labels->map(function ($ym) {
+            return PurchaseRequest::whereBetween('created_at', [
+                \Carbon\Carbon::createFromFormat('Y-m', $ym)->startOfMonth(),
+                \Carbon\Carbon::createFromFormat('Y-m', $ym)->endOfMonth(),
+            ])->count();
+        });
+
+        // Average cycle time per month (days) for completed PRs
+        $cycle = $labels->map(function ($ym) {
+            $start = \Carbon\Carbon::createFromFormat('Y-m', $ym)->startOfMonth();
+            $end = \Carbon\Carbon::createFromFormat('Y-m', $ym)->endOfMonth();
+            return (float) PurchaseRequest::whereBetween('completed_at', [$start, $end])
+                ->whereNotNull('submitted_at')
+                ->whereNotNull('completed_at')
+                ->selectRaw('AVG(DATEDIFF(completed_at, submitted_at)) as avg_days')
+                ->value('avg_days');
+        });
+
+        return view('reports.analytics', [
+            'labels' => $labels,
+            'counts' => $counts,
+            'cycle' => $cycle,
+        ]);
+    }
 }
 
 

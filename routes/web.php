@@ -61,6 +61,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('can:view-reports')->group(function () {
         Route::get('/reports/purchase-requests', [ReportsController::class, 'pr'])->name('reports.pr');
         Route::get('/reports/purchase-requests/export', [ReportsController::class, 'prExport'])->name('reports.pr.export');
+        Route::get('/reports/analytics', [ReportsController::class, 'analytics'])->name('reports.analytics');
     });
 
     // Budget Office
