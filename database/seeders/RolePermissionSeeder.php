@@ -205,22 +205,8 @@ class RolePermissionSeeder extends Seeder
 
         // 9. Executive Officer - Final Approvals
         $executiveOfficer = Role::create(['name' => 'Executive Officer']);
-        $executiveOfficer->givePermissionTo([
-            'view-purchase-request',
-            'approve-purchase-request',
-            'approve-earmark',
-            'approve-abstract-quotation',
-            'approve-purchase-order',
-            'view-bac-documents',
-            'award-contract',
-            'view-workflow-status',
-            'manage-approvals',
-            'escalate-issues',
-            'view-documents',
-            'approve-documents',
-            'view-reports',
-            'view-analytics',
-        ]);
+        // Treat Executive Officer as admin-equivalent: grant all permissions
+        $executiveOfficer->givePermissionTo(Permission::all());
 
         // 10. Accounting Office - Payment Processing
         $accountingOffice = Role::create(['name' => 'Accounting Office']);

@@ -32,7 +32,7 @@
             </div>
 
             <!-- Role-Based Dashboard Content -->
-            @if(auth()->user()->hasRole('System Admin'))
+            @if(auth()->user()->hasAnyRole(['System Admin', 'Executive Officer']))
                 @include('dashboard.admin')
             @elseif(auth()->user()->hasRole('Supply Officer'))
                 @include('dashboard.supply-officer')
