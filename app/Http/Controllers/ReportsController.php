@@ -266,6 +266,112 @@ class ReportsController extends Controller
 
         return \Illuminate\Support\Facades\Response::stream($callback, 200, $headers);
     }
+
+    public function custom(Request $request): View
+    {
+        $available = [
+            'pr_number' => 'PR Number',
+            'created_at' => 'Created At',
+            'requester' => 'Requester',
+            'department' => 'Department',
+            'purpose' => 'Purpose',
+            'date_needed' => 'Date Needed',
+            'priority' => 'Priority',
+            'estimated_total' => 'Estimated Total',
+            'status' => 'Status',
+        ];
+
+        $selected = $request->input('columns', ['pr_number','created_at','requester','department','estimated_total','status']);
+
+        $query = PurchaseRequest::with(['requester','department'])->latest();
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->string('status'));
+        }
+        if ($request->filled('department_id')) {
+            $query->where('department_id', $request->integer('department_id'));
+        }
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date('date_from'));
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date('date_to'));
+        }
+
+        $requests = $query->paginate(25)->withQueryString();
+        $departments = Department::orderBy('name')->get();
+        $allStatuses = ['draft','submitted','supply_office_review','budget_office_review','ceo_approval','bac_evaluation','bac_approved','po_generation','po_approved','supplier_processing','delivered','completed','cancelled','rejected'];
+
+        return view('reports.custom', compact('available','selected','requests','departments','allStatuses'));
+    }
+
+    public function customExport(Request $request)
+    {
+        $available = [
+            'pr_number' => 'PR Number',
+            'created_at' => 'Created At',
+            'requester' => 'Requester',
+            'department' => 'Department',
+            'purpose' => 'Purpose',
+            'date_needed' => 'Date Needed',
+            'priority' => 'Priority',
+            'estimated_total' => 'Estimated Total',
+            'status' => 'Status',
+        ];
+        $selected = array_values(array_intersect(array_keys($available), (array)$request->input('columns', [])));
+        if (empty($selected)) {
+            $selected = ['pr_number','created_at','requester','department','estimated_total','status'];
+        }
+
+        $query = PurchaseRequest::with(['requester','department'])->latest();
+        if ($request->filled('status')) {
+            $query->where('status', $request->string('status'));
+        }
+        if ($request->filled('department_id')) {
+            $query->where('department_id', $request->integer('department_id'));
+        }
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date('date_from'));
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date('date_to'));
+        }
+
+        $filename = 'custom_report_' . now()->format('Ymd_His') . '.csv';
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control' => 'no-store, no-cache',
+        ];
+
+        $callback = function () use ($query, $selected, $available) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, array_map(fn($k) => $available[$k], $selected));
+            $query->chunk(500, function ($chunk) use ($handle, $selected) {
+                foreach ($chunk as $pr) {
+                    $row = [];
+                    foreach ($selected as $col) {
+                        $row[] = match ($col) {
+                            'pr_number' => $pr->pr_number,
+                            'created_at' => optional($pr->created_at)->format('Y-m-d H:i'),
+                            'requester' => $pr->requester?->name,
+                            'department' => $pr->department?->name,
+                            'purpose' => $pr->purpose,
+                            'date_needed' => optional($pr->date_needed)->format('Y-m-d'),
+                            'priority' => $pr->priority,
+                            'estimated_total' => number_format((float)$pr->estimated_total, 2, '.', ''),
+                            'status' => $pr->status,
+                            default => ''
+                        };
+                    }
+                    fputcsv($handle, $row);
+                }
+            });
+            fclose($handle);
+        };
+
+        return Response::stream($callback, 200, $headers);
+    }
 }
 
 
