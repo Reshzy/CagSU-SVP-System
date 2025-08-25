@@ -53,6 +53,40 @@ class AccountingDisbursementController extends Controller
 		$voucher->load(['purchaseOrder', 'supplier', 'preparedBy']);
 		return view('accounting.vouchers.show', compact('voucher'));
 	}
+
+	public function update(Request $request, DisbursementVoucher $voucher): RedirectResponse
+	{
+		$validated = $request->validate([
+			'action' => ['required', 'in:approve,release,mark_paid,cancel'],
+			'remarks' => ['nullable', 'string'],
+		]);
+
+		switch ($validated['action']) {
+			case 'approve':
+				$voucher->status = 'approved';
+				$voucher->approved_by = Auth::id();
+				$voucher->approved_at = now();
+				break;
+			case 'release':
+				$voucher->status = 'released';
+				$voucher->released_at = now();
+				break;
+			case 'mark_paid':
+				$voucher->status = 'paid';
+				$voucher->paid_at = now();
+				break;
+			case 'cancel':
+				$voucher->status = 'cancelled';
+				break;
+		}
+
+		if (!empty($validated['remarks'])) {
+			$voucher->remarks = trim((string)$validated['remarks']);
+		}
+		$voucher->save();
+
+		return back()->with('status', 'Voucher updated.');
+	}
 }
 
 

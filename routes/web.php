@@ -55,6 +55,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/accounting/purchase-orders/{purchaseOrder}/vouchers/create', [AccountingDisbursementController::class, 'create'])->name('accounting.vouchers.create');
         Route::post('/accounting/purchase-orders/{purchaseOrder}/vouchers', [AccountingDisbursementController::class, 'store'])->name('accounting.vouchers.store');
         Route::get('/accounting/vouchers/{voucher}', [AccountingDisbursementController::class, 'show'])->name('accounting.vouchers.show');
+        Route::put('/accounting/vouchers/{voucher}', [AccountingDisbursementController::class, 'update'])->name('accounting.vouchers.show');
     });
 
     // Reports
