@@ -212,8 +212,8 @@
 **Deliverables:**
 
 -   [ ] Comprehensive testing
--   [ ] User training materials
--   [ ] System documentation
+-   [x] User training materials
+-   [x] System documentation
 -   [ ] Production deployment
 -   [ ] Go-live support
 
