@@ -19,6 +19,9 @@
                 <h4 class="text-lg font-semibold text-gray-900">Pending Earmarks</h4>
                 <p class="text-3xl font-bold text-cagsu-maroon mt-2">0</p>
                 <p class="text-sm text-gray-600 mt-2">Requests waiting for budget allocation</p>
+                <div class="mt-4">
+                    <a href="{{ route('budget.purchase-requests.index') }}" class="px-3 py-2 bg-cagsu-yellow text-white rounded-md">Review requests</a>
+                </div>
             </div>
 
             <!-- Budget Utilization -->

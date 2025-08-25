@@ -5,6 +5,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PurchaseRequestController;
 use App\Http\Controllers\SupplyPurchaseRequestController;
 use App\Http\Controllers\ReportsController;
+use App\Http\Controllers\BudgetEarmarkController;
+use App\Http\Controllers\CeoApprovalController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -33,6 +35,19 @@ Route::middleware('auth')->group(function () {
     Route::middleware('can:view-reports')->group(function () {
         Route::get('/reports/purchase-requests', [ReportsController::class, 'pr'])->name('reports.pr');
         Route::get('/reports/purchase-requests/export', [ReportsController::class, 'prExport'])->name('reports.pr.export');
+    });
+
+    // Budget Office
+    Route::middleware('role:Budget Office')->group(function () {
+        Route::get('/budget/purchase-requests', [BudgetEarmarkController::class, 'index'])->name('budget.purchase-requests.index');
+        Route::get('/budget/purchase-requests/{purchaseRequest}/edit', [BudgetEarmarkController::class, 'edit'])->name('budget.purchase-requests.edit');
+        Route::put('/budget/purchase-requests/{purchaseRequest}', [BudgetEarmarkController::class, 'update'])->name('budget.purchase-requests.update');
+    });
+
+    // CEO Approval
+    Route::middleware('role:Executive Officer')->group(function () {
+        Route::get('/ceo/purchase-requests', [CeoApprovalController::class, 'index'])->name('ceo.purchase-requests.index');
+        Route::put('/ceo/purchase-requests/{purchaseRequest}', [CeoApprovalController::class, 'update'])->name('ceo.purchase-requests.update');
     });
 });
 
