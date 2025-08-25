@@ -184,7 +184,7 @@
 -   [x] Supplier registration system
 -   [x] Quotation submission portal
 -   [x] PO status visibility
--   [ ] Communication tools
+-   [x] Communication tools
 -   [ ] Supplier performance tracking
 
 ### Phase 6: Purchase Order & Delivery (Weeks 11-12)
