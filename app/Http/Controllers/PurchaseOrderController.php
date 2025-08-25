@@ -74,6 +74,60 @@ class PurchaseOrderController extends Controller
 		$purchaseOrder->load(['purchaseRequest', 'supplier', 'quotation']);
 		return view('supply.purchase_orders.show', compact('purchaseOrder'));
 	}
+
+	public function update(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse
+	{
+		$validated = $request->validate([
+			'action' => ['required', 'in:send_to_supplier,acknowledge,mark_delivered,complete'],
+			'notes' => ['nullable', 'string'],
+			'inspection_file' => ['nullable', 'file', 'max:10240'],
+		]);
+
+		switch ($validated['action']) {
+			case 'send_to_supplier':
+				$purchaseOrder->status = 'sent_to_supplier';
+				$purchaseOrder->sent_to_supplier_at = now();
+				break;
+			case 'acknowledge':
+				$purchaseOrder->status = 'acknowledged_by_supplier';
+				$purchaseOrder->acknowledged_at = now();
+				break;
+			case 'mark_delivered':
+				$purchaseOrder->status = 'delivered';
+				$purchaseOrder->actual_delivery_date = now()->toDateString();
+				break;
+			case 'complete':
+				$purchaseOrder->status = 'completed';
+				$purchaseOrder->delivery_complete = true;
+				break;
+		}
+
+		// Handle optional inspection report upload
+		if ($request->hasFile('inspection_file')) {
+			$path = $request->file('inspection_file')->store('documents', 'public');
+			\App\Models\Document::create([
+				'document_number' => 'DOC-' . now()->year . '-' . str_pad((string)\App\Models\Document::max('id') + 1, 4, '0', STR_PAD_LEFT),
+				'documentable_type' => \App\Models\PurchaseOrder::class,
+				'documentable_id' => $purchaseOrder->id,
+				'document_type' => 'inspection_report',
+				'title' => 'Inspection & Acceptance Report',
+				'description' => 'Uploaded upon completion',
+				'file_name' => $request->file('inspection_file')->getClientOriginalName(),
+				'file_path' => $path,
+				'file_extension' => $request->file('inspection_file')->getClientOriginalExtension(),
+				'file_size' => $request->file('inspection_file')->getSize(),
+				'mime_type' => $request->file('inspection_file')->getClientMimeType(),
+				'uploaded_by' => auth()->id(),
+				'is_public' => false,
+				'status' => 'approved',
+			]);
+				break;
+		}
+
+		$purchaseOrder->save();
+
+		return back()->with('status', 'PO updated.');
+	}
 }
 
 

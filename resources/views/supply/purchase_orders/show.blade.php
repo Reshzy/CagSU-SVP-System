@@ -46,7 +46,29 @@
 						<div class="whitespace-pre-wrap">{{ $purchaseOrder->terms_and_conditions }}</div>
 					</div>
 
-					<div class="flex justify-end">
+					<div class="border-t pt-4">
+						<div class="text-sm text-gray-600 mb-2">Inspection & Acceptance Report</div>
+						<form action="{{ route('supply.purchase-orders.show', $purchaseOrder) }}" method="POST" enctype="multipart/form-data" class="flex items-center space-x-2">
+							@csrf
+							@method('PUT')
+							<input type="hidden" name="action" value="complete" />
+							<input type="file" name="inspection_file" class="border-gray-300 rounded-md" />
+							<x-primary-button>Upload & Complete</x-primary-button>
+						</form>
+					</div>
+
+					<div class="flex justify-end mt-4">
+						<form action="{{ route('supply.purchase-orders.show', $purchaseOrder) }}" method="POST" class="inline-flex items-center space-x-2 mr-3">
+							@csrf
+							@method('PUT')
+							<select name="action" class="border-gray-300 rounded-md">
+								<option value="send_to_supplier">Send to Supplier</option>
+								<option value="acknowledge">Acknowledge</option>
+								<option value="mark_delivered">Mark Delivered</option>
+								<option value="complete">Complete</option>
+							</select>
+							<x-primary-button>Apply</x-primary-button>
+						</form>
 						<a href="{{ route('supply.purchase-orders.index') }}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md">Back</a>
 					</div>
 				</div>
