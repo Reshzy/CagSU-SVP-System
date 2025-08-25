@@ -205,7 +205,7 @@
 -   [x] Procurement analytics
 -   [x] Supplier performance reports
 -   [x] Budget utilization tracking
--   [ ] Custom report builder
+-   [x] Custom report builder
 
 ### Phase 8: Testing & Deployment (Weeks 15-16)
 

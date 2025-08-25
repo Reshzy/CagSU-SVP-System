@@ -67,6 +67,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/reports/suppliers/export', [ReportsController::class, 'suppliersExport'])->name('reports.suppliers.export');
         Route::get('/reports/budget', [ReportsController::class, 'budget'])->name('reports.budget');
         Route::get('/reports/budget/export', [ReportsController::class, 'budgetExport'])->name('reports.budget.export');
+        Route::get('/reports/custom', [ReportsController::class, 'custom'])->name('reports.custom');
+        Route::get('/reports/custom/export', [ReportsController::class, 'customExport'])->name('reports.custom.export');
     });
 
     // Budget Office
