@@ -163,7 +163,7 @@
 
 -   [x] Budget Office earmarking system
 -   [x] Executive approval workflow
--   [ ] Document routing automation
+-   [x] Document routing automation
 -   [x] Advanced notifications
 -   [x] Approval history tracking
 
