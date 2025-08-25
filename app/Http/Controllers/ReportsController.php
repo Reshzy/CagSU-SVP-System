@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Department;
 use App\Models\PurchaseRequest;
+use App\Models\Supplier;
+use App\Models\Quotation;
+use App\Models\PurchaseOrder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
 use Illuminate\View\View;
@@ -123,6 +126,79 @@ class ReportsController extends Controller
             'counts' => $counts,
             'cycle' => $cycle,
         ]);
+    }
+
+    public function suppliers(Request $request): View
+    {
+        $suppliers = Supplier::orderBy('business_name')->get();
+
+        $rows = $suppliers->map(function (Supplier $s) {
+            $quotes = Quotation::where('supplier_id', $s->id);
+            $totalQuotes = (clone $quotes)->count();
+            $awards = (clone $quotes)->where('is_winning_bid', true);
+            $awardsCount = (clone $awards)->count();
+            $awardedTotal = (clone $awards)->sum('total_amount');
+
+            $poQuery = PurchaseOrder::where('supplier_id', $s->id);
+            $poCount = (clone $poQuery)->count();
+            $poDelivered = (clone $poQuery)->whereIn('status', ['delivered','completed'])->count();
+            $poCompleted = (clone $poQuery)->where('status', 'completed')->count();
+            $poTotal = (clone $poQuery)->sum('total_amount');
+
+            $winRate = $totalQuotes > 0 ? round(($awardsCount / $totalQuotes) * 100, 1) : null;
+
+            return [
+                'supplier' => $s,
+                'total_quotes' => $totalQuotes,
+                'awards' => $awardsCount,
+                'win_rate' => $winRate,
+                'awarded_total' => (float) $awardedTotal,
+                'po_count' => $poCount,
+                'po_delivered' => $poDelivered,
+                'po_completed' => $poCompleted,
+                'po_total' => (float) $poTotal,
+            ];
+        });
+
+        return view('reports.suppliers', ['rows' => $rows]);
+    }
+
+    public function budget(Request $request): View
+    {
+        $departments = Department::orderBy('name')->get();
+
+        $rows = $departments->map(function (Department $d) {
+            $prTotal = PurchaseRequest::where('department_id', $d->id)->sum('estimated_total');
+            $prCount = PurchaseRequest::where('department_id', $d->id)->count();
+            $poTotal = PurchaseOrder::whereIn('purchase_request_id', function ($q) use ($d) {
+                $q->select('id')->from('purchase_requests')->where('department_id', $d->id);
+            })->sum('total_amount');
+            $poCount = PurchaseOrder::whereIn('purchase_request_id', function ($q) use ($d) {
+                $q->select('id')->from('purchase_requests')->where('department_id', $d->id);
+            })->count();
+            $poCompleted = PurchaseOrder::whereIn('purchase_request_id', function ($q) use ($d) {
+                $q->select('id')->from('purchase_requests')->where('department_id', $d->id);
+            })->where('status', 'completed')->count();
+
+            return [
+                'department' => $d,
+                'pr_total' => (float) $prTotal,
+                'pr_count' => $prCount,
+                'po_total' => (float) $poTotal,
+                'po_count' => $poCount,
+                'po_completed' => $poCompleted,
+                'utilization_rate' => $prTotal > 0 ? round(($poTotal / $prTotal) * 100, 1) : null,
+            ];
+        });
+
+        $totals = [
+            'pr_total' => (float) $rows->sum('pr_total'),
+            'po_total' => (float) $rows->sum('po_total'),
+            'pr_count' => (int) $rows->sum('pr_count'),
+            'po_count' => (int) $rows->sum('po_count'),
+        ];
+
+        return view('reports.budget', compact('rows', 'totals'));
     }
 }
 
