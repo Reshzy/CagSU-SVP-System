@@ -31,16 +31,21 @@
                         @endif
 
                         @if(auth()->user()->can('manage-suppliers'))
-                            <x-nav-link :href="route('dashboard')" :active="request()->routeIs('suppliers.*')" class="text-gray-700 hover:text-cagsu-maroon">
+                            <x-nav-link :href="route('supply.suppliers.index')" :active="request()->routeIs('supply.suppliers.*')" class="text-gray-700 hover:text-cagsu-maroon">
                                 <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h8m-6 4h6" />
                                 </svg>
-                                {{ __('Suppliers') }}
+                                {{ __('Manage Suppliers') }}
+                            </x-nav-link>
+                            <x-nav-link :href="route('reports.suppliers')" :active="request()->routeIs('reports.suppliers*')" class="text-gray-700 hover:text-cagsu-maroon">
+                                <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3v18m-4-8v8M3 13v8m16-14v14m-4-10v10" />
+                                </svg>
+                                {{ __('Suppliers Report') }}
                             </x-nav-link>
                         @endif
 
-                        @if(auth()->user()->can('view-reports'))
-                            <x-nav-link :href="route('reports.pr')" :active="request()->routeIs('reports.*')" class="text-gray-700 hover:text-cagsu-maroon">
+                        
                         @if(auth()->user()->hasRole('Supply Officer'))
                             <x-nav-link :href="route('supply.purchase-requests.index')" :active="request()->routeIs('supply.purchase-requests.*')" class="text-gray-700 hover:text-cagsu-maroon">
                                 <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -92,12 +97,6 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3v18m-4-8v8M3 13v8m16-14v14m-4-10v10" />
                                 </svg>
                                 {{ __('Analytics') }}
-                            </x-nav-link>
-                        @endif
-                                <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                                </svg>
-                                {{ __('Reports') }}
                             </x-nav-link>
                         @endif
 

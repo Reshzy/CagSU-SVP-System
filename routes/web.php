@@ -16,13 +16,17 @@ use App\Http\Controllers\SupplierRegistrationController;
 use App\Http\Controllers\SupplierQuotationPublicController;
 use App\Http\Controllers\SupplierPOStatusController;
 use App\Http\Controllers\SupplierCommunicationController;
+use App\Http\Controllers\DocumentController;
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('landing');
 });
 Route::get('/health', function () {
     return response()->json(['status' => 'ok', 'time' => now()->toIso8601String()]);
 })->name('health');
+
+// Public file access via controller (helps avoid web server 403 on symlinks)
+Route::get('/files/{document}', [DocumentController::class, 'show'])->name('files.show');
 
 // Public Supplier Registration
 Route::get('/suppliers/register', [SupplierRegistrationController::class, 'create'])->name('suppliers.register');
@@ -63,6 +67,20 @@ Route::middleware('auth')->group(function () {
         Route::get('/supply/purchase-orders/{purchaseOrder}/inventory-receipts/create', [InventoryReceiptController::class, 'create'])->name('supply.inventory-receipts.create');
         Route::post('/supply/purchase-orders/{purchaseOrder}/inventory-receipts', [InventoryReceiptController::class, 'store'])->name('supply.inventory-receipts.store');
         Route::get('/supply/inventory-receipts/{inventoryReceipt}', [InventoryReceiptController::class, 'show'])->name('supply.inventory-receipts.show');
+    });
+
+    // Canvassing Unit - Supplier management
+    Route::middleware('can:manage-suppliers')->group(function () {
+        Route::get('/supply/suppliers', [SupplierRegistrationController::class, 'indexInternal'])->name('supply.suppliers.index');
+        Route::get('/supply/suppliers/create', [SupplierRegistrationController::class, 'createInternal'])->name('supply.suppliers.create');
+        Route::post('/supply/suppliers', [SupplierRegistrationController::class, 'storeInternal'])->name('supply.suppliers.store');
+    });
+
+    // Executive Officer - Supplier admin (edit/approve)
+    Route::middleware('role:Executive Officer')->group(function () {
+        Route::get('/supply/suppliers/{supplier}/edit', [SupplierRegistrationController::class, 'editInternal'])->name('supply.suppliers.edit');
+        Route::put('/supply/suppliers/{supplier}', [SupplierRegistrationController::class, 'updateInternal'])->name('supply.suppliers.update');
+        Route::post('/supply/suppliers/{supplier}/approve', [SupplierRegistrationController::class, 'approveInternal'])->name('supply.suppliers.approve');
     });
 
     // Accounting Office

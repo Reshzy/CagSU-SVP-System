@@ -40,7 +40,7 @@
                     <div>
                         <div class="text-sm text-gray-600">Attachments</div>
                         @forelse($purchaseRequest->documents as $doc)
-                            <div class="text-sm"><a class="text-cagsu-maroon" href="{{ Storage::disk('public')->url($doc->file_path) }}" target="_blank">{{ $doc->file_name }}</a></div>
+                            <div class="text-sm"><a class="text-cagsu-maroon" href="{{ route('files.show', $doc) }}" target="_blank">{{ $doc->file_name }}</a></div>
                         @empty
                             <div class="text-sm text-gray-500">No attachments</div>
                         @endforelse
