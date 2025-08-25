@@ -191,7 +191,7 @@
 
 **Deliverables:**
 
--   [ ] Automated PO generation
+-   [x] Automated PO generation
 -   [ ] Delivery tracking system
 -   [ ] Inspection and acceptance
 -   [ ] Integration with accounting

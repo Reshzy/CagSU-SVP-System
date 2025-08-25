@@ -9,6 +9,7 @@ use App\Http\Controllers\BudgetEarmarkController;
 use App\Http\Controllers\CeoApprovalController;
 use App\Http\Controllers\BacQuotationController;
 use App\Http\Controllers\BacMeetingController;
+use App\Http\Controllers\PurchaseOrderController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -31,6 +32,12 @@ Route::middleware('auth')->group(function () {
     Route::middleware('can:edit-purchase-request')->group(function () {
         Route::get('/supply/purchase-requests', [SupplyPurchaseRequestController::class, 'index'])->name('supply.purchase-requests.index');
         Route::put('/supply/purchase-requests/{purchaseRequest}/status', [SupplyPurchaseRequestController::class, 'updateStatus'])->name('supply.purchase-requests.status');
+
+        // Purchase Orders
+        Route::get('/supply/purchase-orders', [PurchaseOrderController::class, 'index'])->name('supply.purchase-orders.index');
+        Route::get('/supply/purchase-requests/{purchaseRequest}/purchase-orders/create', [PurchaseOrderController::class, 'create'])->name('supply.purchase-orders.create');
+        Route::post('/supply/purchase-requests/{purchaseRequest}/purchase-orders', [PurchaseOrderController::class, 'store'])->name('supply.purchase-orders.store');
+        Route::get('/supply/purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->name('supply.purchase-orders.show');
     });
 
     // Reports

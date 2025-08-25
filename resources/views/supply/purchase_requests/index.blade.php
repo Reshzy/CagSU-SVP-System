@@ -42,6 +42,9 @@
                                     <td class="px-4 py-2">{{ $req->purpose }}</td>
                                     <td class="px-4 py-2 capitalize">{{ str_replace('_', ' ', $req->status) }}</td>
                                     <td class="px-4 py-2 text-right">
+                                        @if(in_array($req->status, ['bac_evaluation','bac_approved']))
+                                            <a href="{{ route('supply.purchase-orders.create', $req) }}" class="px-3 py-2 bg-cagsu-maroon text-white rounded-md mr-2">Create PO</a>
+                                        @endif
                                         <form action="{{ route('supply.purchase-requests.status', $req) }}" method="POST" class="inline-flex items-center space-x-2">
                                             @csrf
                                             @method('PUT')
