@@ -42,6 +42,18 @@
 					</div>
 
 					<div class="flex justify-end">
+						<form action="{{ route('accounting.vouchers.show', $voucher) }}" method="POST" class="inline-flex items-center space-x-2 mr-3">
+							@csrf
+							@method('PUT')
+							<select name="action" class="border-gray-300 rounded-md">
+								<option value="approve">Approve</option>
+								<option value="release">Release</option>
+								<option value="mark_paid">Mark Paid</option>
+								<option value="cancel">Cancel</option>
+							</select>
+							<input type="text" name="remarks" placeholder="Remarks" class="border-gray-300 rounded-md" />
+							<x-primary-button>Apply</x-primary-button>
+						</form>
 						<a href="{{ route('accounting.vouchers.index') }}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md">Back</a>
 					</div>
 				</div>
