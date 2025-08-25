@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use App\Notifications\PurchaseRequestSubmitted;
+use App\Services\WorkflowRouter;
 
 class PurchaseRequestController extends Controller
 {
@@ -116,6 +117,9 @@ class PurchaseRequestController extends Controller
                 foreach ($supplyUsers as $user) {
                     $user->notify(new PurchaseRequestSubmitted($purchaseRequest));
                 }
+
+                // Create pending approval for Supply step
+                WorkflowRouter::createPendingForRole($purchaseRequest, 'supply_office_review', 'Supply Officer');
             } catch (\Throwable $e) {
                 // silently ignore if roles not set yet
             }

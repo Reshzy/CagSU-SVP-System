@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
+use App\Services\WorkflowRouter;
 
 class BudgetEarmarkController extends Controller
 {
@@ -60,6 +61,9 @@ class BudgetEarmarkController extends Controller
         $purchaseRequest->status = 'ceo_approval';
         $purchaseRequest->status_updated_at = now();
         $purchaseRequest->save();
+
+        // Create pending approval for CEO
+        WorkflowRouter::createPendingForRole($purchaseRequest, 'ceo_initial_approval', 'Executive Officer');
 
         if ($purchaseRequest->requester) {
             $purchaseRequest->requester->notify(new PurchaseRequestStatusUpdated($purchaseRequest, 'budget_office_review', 'ceo_approval'));
