@@ -10,6 +10,7 @@ use App\Http\Controllers\CeoApprovalController;
 use App\Http\Controllers\BacQuotationController;
 use App\Http\Controllers\BacMeetingController;
 use App\Http\Controllers\PurchaseOrderController;
+use App\Http\Controllers\AccountingDisbursementController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -39,6 +40,14 @@ Route::middleware('auth')->group(function () {
         Route::post('/supply/purchase-requests/{purchaseRequest}/purchase-orders', [PurchaseOrderController::class, 'store'])->name('supply.purchase-orders.store');
         Route::get('/supply/purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->name('supply.purchase-orders.show');
         Route::put('/supply/purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'update'])->name('supply.purchase-orders.show');
+    });
+
+    // Accounting Office
+    Route::middleware('role:Accounting Office')->group(function () {
+        Route::get('/accounting/vouchers', [AccountingDisbursementController::class, 'index'])->name('accounting.vouchers.index');
+        Route::get('/accounting/purchase-orders/{purchaseOrder}/vouchers/create', [AccountingDisbursementController::class, 'create'])->name('accounting.vouchers.create');
+        Route::post('/accounting/purchase-orders/{purchaseOrder}/vouchers', [AccountingDisbursementController::class, 'store'])->name('accounting.vouchers.store');
+        Route::get('/accounting/vouchers/{voucher}', [AccountingDisbursementController::class, 'show'])->name('accounting.vouchers.show');
     });
 
     // Reports

@@ -194,7 +194,7 @@
 -   [x] Automated PO generation
 -   [x] Delivery tracking system
 -   [x] Inspection and acceptance
--   [ ] Integration with accounting
+-   [x] Integration with accounting
 -   [ ] Inventory management basics
 
 ### Phase 7: Reporting & Analytics (Weeks 13-14)
