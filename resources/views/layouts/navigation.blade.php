@@ -77,6 +77,15 @@
                             </x-nav-link>
                         @endif
 
+                        @if(auth()->user()->hasRole('Supplier'))
+                            <x-nav-link :href="route('suppliers.quotations.submit')" :active="request()->routeIs('suppliers.quotations.*')" class="text-gray-700 hover:text-cagsu-maroon">
+                                <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h12M3 17h8" />
+                                </svg>
+                                {{ __('Supplier') }}
+                            </x-nav-link>
+                        @endif
+
                         @if(auth()->user()->can('view-reports'))
                             <x-nav-link :href="route('reports.analytics')" :active="request()->routeIs('reports.analytics')" class="text-gray-700 hover:text-cagsu-maroon">
                                 <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
