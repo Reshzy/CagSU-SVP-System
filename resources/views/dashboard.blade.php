@@ -31,6 +31,24 @@
                 </div>
             </div>
 
+            <!-- System Status -->
+            <div class="bg-white overflow-hidden shadow-lg rounded-lg mb-8">
+                <div class="p-6">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <svg class="h-6 w-6 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <div>
+                                <div class="text-sm text-gray-600">System Status</div>
+                                <div id="system-status" class="font-medium">Checking...</div>
+                            </div>
+                        </div>
+                        <button id="refresh-health" class="px-3 py-2 bg-cagsu-yellow text-white rounded-md">Refresh</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Role-Based Dashboard Content -->
             @if(auth()->user()->hasAnyRole(['System Admin', 'Executive Officer']))
                 @include('dashboard.admin')
@@ -98,4 +116,24 @@
             </div>
         </div>
     </div>
+    <script>
+        async function fetchHealth() {
+            try {
+                const res = await fetch('/health', { headers: { 'Accept': 'application/json' } });
+                if (!res.ok) throw new Error('Health check failed');
+                const data = await res.json();
+                const el = document.getElementById('system-status');
+                el.textContent = `${data.status.toUpperCase()} • ${new Date(data.time).toLocaleString()}`;
+                el.classList.remove('text-red-600');
+                el.classList.add('text-green-700');
+            } catch (e) {
+                const el = document.getElementById('system-status');
+                el.textContent = 'UNAVAILABLE';
+                el.classList.remove('text-green-700');
+                el.classList.add('text-red-600');
+            }
+        }
+        document.getElementById('refresh-health')?.addEventListener('click', fetchHealth);
+        fetchHealth();
+    </script>
 </x-app-layout>
