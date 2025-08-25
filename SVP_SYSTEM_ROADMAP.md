@@ -203,8 +203,8 @@
 
 -   [x] Executive dashboards
 -   [x] Procurement analytics
--   [ ] Supplier performance reports
--   [ ] Budget utilization tracking
+-   [x] Supplier performance reports
+-   [x] Budget utilization tracking
 -   [ ] Custom report builder
 
 ### Phase 8: Testing & Deployment (Weeks 15-16)
