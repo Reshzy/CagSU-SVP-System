@@ -47,6 +47,7 @@ Route::middleware('auth')->group(function () {
     // CEO Approval
     Route::middleware('role:Executive Officer')->group(function () {
         Route::get('/ceo/purchase-requests', [CeoApprovalController::class, 'index'])->name('ceo.purchase-requests.index');
+        Route::get('/ceo/purchase-requests/{purchaseRequest}', [CeoApprovalController::class, 'show'])->name('ceo.purchase-requests.show');
         Route::put('/ceo/purchase-requests/{purchaseRequest}', [CeoApprovalController::class, 'update'])->name('ceo.purchase-requests.update');
     });
 });
