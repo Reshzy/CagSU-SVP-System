@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use App\Notifications\PurchaseRequestSubmitted;
 
 class PurchaseRequestController extends Controller
 {
@@ -106,6 +107,17 @@ class PurchaseRequestController extends Controller
                         'status' => 'approved',
                     ]);
                 }
+            }
+
+            // Notify Supply Officer role users
+            try {
+                \Spatie\Permission\Models\Role::findByName('Supply Officer');
+                $supplyUsers = \App\Models\User::role('Supply Officer')->get();
+                foreach ($supplyUsers as $user) {
+                    $user->notify(new PurchaseRequestSubmitted($purchaseRequest));
+                }
+            } catch (\Throwable $e) {
+                // silently ignore if roles not set yet
             }
         });
 

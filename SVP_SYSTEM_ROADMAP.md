@@ -146,8 +146,8 @@
 
 -   [x] PR submission form with file uploads
 -   [x] PR tracking and status system
--   [ ] Supply Officer PR management
--   [ ] Basic notification system
+-   [x] Supply Officer PR management
+-   [x] Basic notification system
 -   [ ] PR reporting
 
 **Key Features:**
