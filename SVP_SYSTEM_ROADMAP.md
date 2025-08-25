@@ -181,8 +181,8 @@
 
 **Deliverables:**
 
--   [ ] Supplier registration system
--   [ ] Quotation submission portal
+-   [x] Supplier registration system
+-   [x] Quotation submission portal
 -   [ ] PO status visibility
 -   [ ] Communication tools
 -   [ ] Supplier performance tracking

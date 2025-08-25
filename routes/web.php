@@ -12,10 +12,18 @@ use App\Http\Controllers\BacMeetingController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\AccountingDisbursementController;
 use App\Http\Controllers\InventoryReceiptController;
+use App\Http\Controllers\SupplierRegistrationController;
+use App\Http\Controllers\SupplierQuotationPublicController;
 
 Route::get('/', function () {
     return view('welcome');
 });
+
+// Public Supplier Registration
+Route::get('/suppliers/register', [SupplierRegistrationController::class, 'create'])->name('suppliers.register');
+Route::post('/suppliers/register', [SupplierRegistrationController::class, 'store'])->name('suppliers.register.store');
+Route::get('/suppliers/quotations/submit', [SupplierQuotationPublicController::class, 'create'])->name('suppliers.quotations.submit');
+Route::post('/suppliers/quotations/submit', [SupplierQuotationPublicController::class, 'store'])->name('suppliers.quotations.submit.store');
 
 Route::get('/dashboard', function () {
     return view('dashboard');
