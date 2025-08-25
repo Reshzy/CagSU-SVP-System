@@ -174,7 +174,7 @@
 -   [x] BAC member portal
 -   [x] Digital quotation management
 -   [x] Abstract of Quotation tools
--   [ ] Meeting management system
+-   [x] Meeting management system
 -   [x] Decision tracking
 
 ### Phase 5: Supplier Portal (Weeks 9-10)
