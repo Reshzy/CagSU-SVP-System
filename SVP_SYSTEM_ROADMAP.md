@@ -171,11 +171,11 @@
 
 **Deliverables:**
 
--   [ ] BAC member portal
--   [ ] Digital quotation management
--   [ ] Abstract of Quotation tools
+-   [x] BAC member portal
+-   [x] Digital quotation management
+-   [x] Abstract of Quotation tools
 -   [ ] Meeting management system
--   [ ] Decision tracking
+-   [x] Decision tracking
 
 ### Phase 5: Supplier Portal (Weeks 9-10)
 

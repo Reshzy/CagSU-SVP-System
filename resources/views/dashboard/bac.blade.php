@@ -20,7 +20,7 @@
         </div>
         <div class="bg-gray-50 px-6 py-3">
             <div class="text-sm">
-                <a href="#" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">Review requests</a>
+                <a href="{{ route('bac.quotations.index') }}" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">Review requests</a>
             </div>
         </div>
     </div>
