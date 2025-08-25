@@ -7,6 +7,7 @@ use App\Http\Controllers\SupplyPurchaseRequestController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\BudgetEarmarkController;
 use App\Http\Controllers\CeoApprovalController;
+use App\Http\Controllers\BacQuotationController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -49,6 +50,15 @@ Route::middleware('auth')->group(function () {
         Route::get('/ceo/purchase-requests', [CeoApprovalController::class, 'index'])->name('ceo.purchase-requests.index');
         Route::get('/ceo/purchase-requests/{purchaseRequest}', [CeoApprovalController::class, 'show'])->name('ceo.purchase-requests.show');
         Route::put('/ceo/purchase-requests/{purchaseRequest}', [CeoApprovalController::class, 'update'])->name('ceo.purchase-requests.update');
+    });
+
+    // BAC Quotations
+    Route::middleware('role:BAC Chair|role:BAC Members|role:BAC Secretariat')->group(function () {
+        Route::get('/bac/quotations', [BacQuotationController::class, 'index'])->name('bac.quotations.index');
+        Route::get('/bac/quotations/{purchaseRequest}/manage', [BacQuotationController::class, 'manage'])->name('bac.quotations.manage');
+        Route::post('/bac/quotations/{purchaseRequest}', [BacQuotationController::class, 'store'])->name('bac.quotations.store');
+        Route::put('/bac/quotations/{quotation}/evaluate', [BacQuotationController::class, 'evaluate'])->name('bac.quotations.evaluate');
+        Route::put('/bac/quotations/{purchaseRequest}/finalize', [BacQuotationController::class, 'finalize'])->name('bac.quotations.finalize');
     });
 });
 
