@@ -33,7 +33,7 @@
                         @method('PUT')
                         <div>
                             <x-input-label for="approved_budget_total" value="Approved Budget Total" />
-                            <x-text-input id="approved_budget_total" name="approved_budget_total" type="number" step="0.01" class="mt-1 block w-full" required />
+                            <x-text-input id="approved_budget_total" name="approved_budget_total" type="number" step="0.01" class="mt-1 block w-full" value="{{ number_format((float)$purchaseRequest->estimated_total,2,'.','') }}" required />
                             <x-input-error :messages="$errors->get('approved_budget_total')" class="mt-2" />
                         </div>
                         <div>

@@ -22,6 +22,13 @@ class CeoApprovalController extends Controller
         return view('ceo.purchase_requests.index', compact('requests'));
     }
 
+    public function show(PurchaseRequest $purchaseRequest): View
+    {
+        abort_unless($purchaseRequest->status === 'ceo_approval', 403);
+        $purchaseRequest->load(['requester', 'department', 'items', 'documents']);
+        return view('ceo.purchase_requests.show', compact('purchaseRequest'));
+    }
+
     public function update(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
     {
         abort_unless($purchaseRequest->status === 'ceo_approval', 403);
