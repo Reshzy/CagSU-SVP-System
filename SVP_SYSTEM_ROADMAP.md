@@ -161,11 +161,11 @@
 
 **Deliverables:**
 
--   [ ] Budget Office earmarking system
--   [ ] Executive approval workflow
+-   [x] Budget Office earmarking system
+-   [x] Executive approval workflow
 -   [ ] Document routing automation
--   [ ] Advanced notifications
--   [ ] Approval history tracking
+-   [x] Advanced notifications
+-   [x] Approval history tracking
 
 ### Phase 4: BAC System (Weeks 7-8)
 
