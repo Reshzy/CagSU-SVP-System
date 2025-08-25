@@ -183,7 +183,7 @@
 
 -   [x] Supplier registration system
 -   [x] Quotation submission portal
--   [ ] PO status visibility
+-   [x] PO status visibility
 -   [ ] Communication tools
 -   [ ] Supplier performance tracking
 

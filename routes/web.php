@@ -14,6 +14,7 @@ use App\Http\Controllers\AccountingDisbursementController;
 use App\Http\Controllers\InventoryReceiptController;
 use App\Http\Controllers\SupplierRegistrationController;
 use App\Http\Controllers\SupplierQuotationPublicController;
+use App\Http\Controllers\SupplierPOStatusController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -24,6 +25,7 @@ Route::get('/suppliers/register', [SupplierRegistrationController::class, 'creat
 Route::post('/suppliers/register', [SupplierRegistrationController::class, 'store'])->name('suppliers.register.store');
 Route::get('/suppliers/quotations/submit', [SupplierQuotationPublicController::class, 'create'])->name('suppliers.quotations.submit');
 Route::post('/suppliers/quotations/submit', [SupplierQuotationPublicController::class, 'store'])->name('suppliers.quotations.submit.store');
+Route::get('/suppliers/po-status', [SupplierPOStatusController::class, 'show'])->name('suppliers.po-status');
 
 Route::get('/dashboard', function () {
     return view('dashboard');
