@@ -202,7 +202,7 @@
 **Deliverables:**
 
 -   [x] Executive dashboards
--   [ ] Procurement analytics
+-   [x] Procurement analytics
 -   [ ] Supplier performance reports
 -   [ ] Budget utilization tracking
 -   [ ] Custom report builder
