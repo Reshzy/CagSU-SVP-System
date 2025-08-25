@@ -20,7 +20,7 @@
         </div>
         <div class="bg-gray-50 px-6 py-3">
             <div class="text-sm">
-                <a href="#" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">Review PRs</a>
+                <a href="{{ route('supply.purchase-requests.index') }}" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">Review PRs</a>
             </div>
         </div>
     </div>
