@@ -144,8 +144,8 @@
 
 **Deliverables:**
 
--   [ ] PR submission form with file uploads
--   [ ] PR tracking and status system
+-   [x] PR submission form with file uploads
+-   [x] PR tracking and status system
 -   [ ] Supply Officer PR management
 -   [ ] Basic notification system
 -   [ ] PR reporting

@@ -13,6 +13,13 @@ return new class extends Migration
     {
         Schema::create('departments', function (Blueprint $table) {
             $table->id();
+            $table->string('name')->unique(); // e.g., "Administrative Office", "Academic Affairs"
+            $table->string('code', 10)->unique(); // e.g., "ADMIN", "ACAD"
+            $table->text('description')->nullable();
+            $table->string('head_name')->nullable(); // Department head name
+            $table->string('contact_email')->nullable();
+            $table->string('contact_phone')->nullable();
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }
