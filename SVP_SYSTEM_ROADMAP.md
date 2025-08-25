@@ -192,8 +192,8 @@
 **Deliverables:**
 
 -   [x] Automated PO generation
--   [ ] Delivery tracking system
--   [ ] Inspection and acceptance
+-   [x] Delivery tracking system
+-   [x] Inspection and acceptance
 -   [ ] Integration with accounting
 -   [ ] Inventory management basics
 
