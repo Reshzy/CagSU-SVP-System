@@ -55,6 +55,10 @@
 							<input type="file" name="inspection_file" class="border-gray-300 rounded-md" />
 							<x-primary-button>Upload & Complete</x-primary-button>
 						</form>
+
+						<div class="mt-3">
+							<a href="{{ route('supply.inventory-receipts.create', $purchaseOrder) }}" class="px-3 py-2 bg-cagsu-maroon text-white rounded-md">Record Inventory Receipt</a>
+						</div>
 					</div>
 
 					<div class="flex justify-end mt-4">
