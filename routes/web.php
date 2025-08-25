@@ -79,7 +79,7 @@ Route::middleware('auth')->group(function () {
     });
 
     // BAC Quotations & Meetings
-    Route::middleware('role:BAC Chair|role:BAC Members|role:BAC Secretariat')->group(function () {
+    Route::middleware('role:BAC Chair|BAC Members|BAC Secretariat')->group(function () {
         Route::get('/bac/quotations', [BacQuotationController::class, 'index'])->name('bac.quotations.index');
         Route::get('/bac/quotations/{purchaseRequest}/manage', [BacQuotationController::class, 'manage'])->name('bac.quotations.manage');
         Route::post('/bac/quotations/{purchaseRequest}', [BacQuotationController::class, 'store'])->name('bac.quotations.store');
