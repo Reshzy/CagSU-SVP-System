@@ -64,8 +64,7 @@ return new class extends Migration
             
             $table->timestamps();
             
-            // Indexes
-            $table->index(['documentable_type', 'documentable_id']);
+            // Indexes (morphs already creates documentable index)
             $table->index(['document_type', 'status']);
             $table->index(['uploaded_by', 'created_at']);
         });
