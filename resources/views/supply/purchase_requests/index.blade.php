@@ -12,10 +12,12 @@
                     <form method="GET" class="mb-4">
                         <label class="text-sm text-gray-600 mr-2">Status:</label>
                         <select name="status" class="border-gray-300 rounded-md" onchange="this.form.submit()">
-                            <option value="">Submitted & In Review</option>
+                            <option value="">Submitted, In Review & BAC-ready</option>
                             <option value="submitted" @selected($statusFilter==='submitted')>Submitted</option>
                             <option value="supply_office_review" @selected($statusFilter==='supply_office_review')>Supply Office Review</option>
                             <option value="budget_office_review" @selected($statusFilter==='budget_office_review')>Budget Office Review</option>
+                            <option value="bac_evaluation" @selected($statusFilter==='bac_evaluation')>BAC Evaluation</option>
+                            <option value="bac_approved" @selected($statusFilter==='bac_approved')>BAC Approved</option>
                             <option value="rejected" @selected($statusFilter==='rejected')>Rejected</option>
                             <option value="cancelled" @selected($statusFilter==='cancelled')>Cancelled</option>
                         </select>

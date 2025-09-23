@@ -49,6 +49,16 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        // Reject login if user is not yet approved/active
+        $user = Auth::user();
+        if (method_exists($user, 'getAttribute') && (!$user->is_active || ($user->approval_status ?? 'approved') !== 'approved')) {
+            Auth::logout();
+            RateLimiter::hit($this->throttleKey());
+            throw ValidationException::withMessages([
+                'email' => 'Your account is pending approval or inactive.',
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

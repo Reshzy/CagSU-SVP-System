@@ -1,5 +1,5 @@
 <x-guest-layout>
-    <form method="POST" action="{{ route('register') }}">
+    <form method="POST" action="{{ route('register') }}" enctype="multipart/form-data">
         @csrf
 
         <!-- Name -->
@@ -37,6 +37,49 @@
                             name="password_confirmation" required autocomplete="new-password" />
 
             <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
+        </div>
+
+        <!-- Department -->
+        <div class="mt-4">
+            <x-input-label for="department_id" :value="__('Department (optional)')" />
+            <select id="department_id" name="department_id" class="block mt-1 w-full border-gray-300 rounded-md shadow-sm">
+                <option value="">-- Select department --</option>
+                @isset($departments)
+                    @foreach($departments as $dept)
+                        <option value="{{ $dept->id }}" @selected(old('department_id')==$dept->id)>{{ $dept->name }}</option>
+                    @endforeach
+                @endisset
+            </select>
+            <x-input-error :messages="$errors->get('department_id')" class="mt-2" />
+        </div>
+
+        <!-- Employee ID -->
+        <div class="mt-4">
+            <x-input-label for="employee_id" :value="__('Employee ID (optional)')" />
+            <x-text-input id="employee_id" class="block mt-1 w-full" type="text" name="employee_id" :value="old('employee_id')" autocomplete="employee-id" />
+            <x-input-error :messages="$errors->get('employee_id')" class="mt-2" />
+        </div>
+
+        <!-- Position -->
+        <div class="mt-4">
+            <x-input-label for="position" :value="__('Position (optional)')" />
+            <x-text-input id="position" class="block mt-1 w-full" type="text" name="position" :value="old('position')" autocomplete="organization-title" />
+            <x-input-error :messages="$errors->get('position')" class="mt-2" />
+        </div>
+
+        <!-- Phone -->
+        <div class="mt-4">
+            <x-input-label for="phone" :value="__('Phone (optional)')" />
+            <x-text-input id="phone" class="block mt-1 w-full" type="text" name="phone" :value="old('phone')" autocomplete="tel" />
+            <x-input-error :messages="$errors->get('phone')" class="mt-2" />
+        </div>
+
+        <!-- ID Proof Upload -->
+        <div class="mt-4">
+            <x-input-label for="id_proof" :value="__('Upload University ID or Valid ID (PDF/JPG/PNG/DOC)')" />
+            <input id="id_proof" class="block mt-1 w-full" type="file" name="id_proof" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" required />
+            <x-input-error :messages="$errors->get('id_proof')" class="mt-2" />
+            <p class="text-sm text-gray-600 mt-1">Max 10MB. Accepted: PDF, JPG, PNG, DOC, DOCX.</p>
         </div>
 
         <div class="flex items-center justify-end mt-4">

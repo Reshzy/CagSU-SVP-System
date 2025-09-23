@@ -1,4 +1,12 @@
 <!-- Budget Office Dashboard -->
+@php
+    $year = now()->year;
+    $pendingEarmarks = \App\Models\PurchaseRequest::where('status', 'budget_office_review')->count();
+    $prYtd = (float) \App\Models\PurchaseRequest::whereYear('created_at', $year)->sum('estimated_total');
+    $poYtd = (float) \App\Models\PurchaseOrder::whereYear('created_at', $year)->sum('total_amount');
+    $utilization = $prYtd > 0 ? round(($poYtd / $prYtd) * 100, 1) : 0;
+    $available = max($prYtd - $poYtd, 0);
+@endphp
 <div class="bg-white shadow rounded-lg">
     <div class="px-6 py-4 border-b border-gray-200">
         <h3 class="text-lg leading-6 font-medium text-gray-900 flex items-center">
@@ -17,7 +25,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
                 <h4 class="text-lg font-semibold text-gray-900">Pending Earmarks</h4>
-                <p class="text-3xl font-bold text-cagsu-maroon mt-2">0</p>
+                <p class="text-3xl font-bold text-cagsu-maroon mt-2">{{ $pendingEarmarks }}</p>
                 <p class="text-sm text-gray-600 mt-2">Requests waiting for budget allocation</p>
                 <div class="mt-4">
                     <a href="{{ route('budget.purchase-requests.index') }}" class="px-3 py-2 bg-cagsu-yellow text-white rounded-md">Review requests</a>
@@ -30,7 +38,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                 </svg>
                 <h4 class="text-lg font-semibold text-gray-900">Budget Utilization</h4>
-                <p class="text-3xl font-bold text-green-600 mt-2">0%</p>
+                <p class="text-3xl font-bold text-green-600 mt-2">{{ $utilization }}%</p>
                 <p class="text-sm text-gray-600 mt-2">Year-to-date spending</p>
             </div>
 
@@ -40,7 +48,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
                 </svg>
                 <h4 class="text-lg font-semibold text-gray-900">Available Budget</h4>
-                <p class="text-3xl font-bold text-blue-600 mt-2">₱0.00</p>
+                <p class="text-3xl font-bold text-blue-600 mt-2">₱{{ number_format($available, 2) }}</p>
                 <p class="text-sm text-gray-600 mt-2">Remaining allocation</p>
             </div>
 

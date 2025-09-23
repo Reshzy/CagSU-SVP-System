@@ -80,7 +80,7 @@ class CeoApprovalController extends Controller
             $purchaseRequest->requester->notify(new PurchaseRequestStatusUpdated($purchaseRequest, $oldStatus, $newStatus));
         }
 
-        return back()->with('status', 'Decision recorded.');
+        return redirect()->route('ceo.purchase-requests.index')->with('status', 'Decision recorded.');
     }
 }
 

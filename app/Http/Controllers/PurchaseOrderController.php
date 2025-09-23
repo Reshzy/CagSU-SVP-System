@@ -87,18 +87,43 @@ class PurchaseOrderController extends Controller
 			case 'send_to_supplier':
 				$purchaseOrder->status = 'sent_to_supplier';
 				$purchaseOrder->sent_to_supplier_at = now();
+				// Update related PR status to supplier_processing
+				if ($purchaseOrder->purchaseRequest) {
+					$purchaseOrder->purchaseRequest->status = 'supplier_processing';
+					$purchaseOrder->purchaseRequest->status_updated_at = now();
+					$purchaseOrder->purchaseRequest->save();
+				}
 				break;
 			case 'acknowledge':
 				$purchaseOrder->status = 'acknowledged_by_supplier';
 				$purchaseOrder->acknowledged_at = now();
+				// Keep PR in supplier_processing
+				if ($purchaseOrder->purchaseRequest && $purchaseOrder->purchaseRequest->status !== 'supplier_processing') {
+					$purchaseOrder->purchaseRequest->status = 'supplier_processing';
+					$purchaseOrder->purchaseRequest->status_updated_at = now();
+					$purchaseOrder->purchaseRequest->save();
+				}
 				break;
 			case 'mark_delivered':
 				$purchaseOrder->status = 'delivered';
 				$purchaseOrder->actual_delivery_date = now()->toDateString();
+				// Update PR to delivered
+				if ($purchaseOrder->purchaseRequest) {
+					$purchaseOrder->purchaseRequest->status = 'delivered';
+					$purchaseOrder->purchaseRequest->status_updated_at = now();
+					$purchaseOrder->purchaseRequest->save();
+				}
 				break;
 			case 'complete':
 				$purchaseOrder->status = 'completed';
 				$purchaseOrder->delivery_complete = true;
+				// Update PR to completed
+				if ($purchaseOrder->purchaseRequest) {
+					$purchaseOrder->purchaseRequest->status = 'completed';
+					$purchaseOrder->purchaseRequest->completed_at = now();
+					$purchaseOrder->purchaseRequest->status_updated_at = now();
+					$purchaseOrder->purchaseRequest->save();
+				}
 				break;
 		}
 
@@ -121,7 +146,6 @@ class PurchaseOrderController extends Controller
 				'is_public' => false,
 				'status' => 'approved',
 			]);
-				break;
 		}
 
 		$purchaseOrder->save();

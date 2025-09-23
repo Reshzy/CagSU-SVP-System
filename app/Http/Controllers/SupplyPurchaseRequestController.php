@@ -22,7 +22,7 @@ class SupplyPurchaseRequestController extends Controller
         if ($statusFilter) {
             $query->where('status', $statusFilter);
         } else {
-            $query->whereIn('status', ['submitted', 'supply_office_review']);
+            $query->whereIn('status', ['submitted', 'supply_office_review', 'bac_evaluation', 'bac_approved']);
         }
 
         $requests = $query->paginate(15)->withQueryString();

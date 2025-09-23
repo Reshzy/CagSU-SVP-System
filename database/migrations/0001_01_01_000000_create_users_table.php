@@ -24,12 +24,19 @@ return new class extends Migration
             $table->string('position')->nullable(); // Job title/position
             $table->string('phone')->nullable();
             $table->boolean('is_active')->default(true);
+            // Approval lifecycle
+            $table->enum('approval_status', ['pending','approved','rejected'])->default('pending');
+            $table->timestamp('approved_at')->nullable();
+            $table->timestamp('rejected_at')->nullable();
+            $table->foreignId('approved_by')->nullable()->constrained('users');
+            $table->foreignId('rejected_by')->nullable()->constrained('users');
             
             $table->rememberToken();
             $table->timestamps();
             
             // Indexes for performance
             $table->index(['department_id', 'is_active']);
+            $table->index(['approval_status', 'created_at']);
             $table->index('employee_id');
         });
 

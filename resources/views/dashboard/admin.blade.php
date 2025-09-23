@@ -20,7 +20,7 @@
         </div>
         <div class="bg-gray-50 px-6 py-3">
             <div class="text-sm">
-                <a href="#" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">Manage users</a>
+                <a href="{{route('ceo.users.index')}}" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">Manage users</a>
             </div>
         </div>
     </div>

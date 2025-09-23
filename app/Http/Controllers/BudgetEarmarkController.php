@@ -57,7 +57,11 @@ class BudgetEarmarkController extends Controller
             ]
         );
 
-        // Update PR and forward to CEO approval
+        // Update PR with approved budget and forward to CEO approval
+        $purchaseRequest->estimated_total = (float) $validated['approved_budget_total'];
+        if (!empty($validated['comments'])) {
+            $purchaseRequest->current_step_notes = $validated['comments'];
+        }
         $purchaseRequest->status = 'ceo_approval';
         $purchaseRequest->status_updated_at = now();
         $purchaseRequest->save();

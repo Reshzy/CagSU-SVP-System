@@ -28,6 +28,13 @@
                         </div>
                     </div>
 
+                    @if($purchaseRequest->current_step_notes)
+                        <div class="bg-yellow-50 border border-yellow-200 rounded p-3">
+                            <div class="text-sm text-yellow-800">Budget Office Notes</div>
+                            <div class="text-sm text-yellow-900">{{ $purchaseRequest->current_step_notes }}</div>
+                        </div>
+                    @endif
+
                     <div>
                         <div class="text-sm text-gray-600">Items</div>
                         <ul class="list-disc ml-5">

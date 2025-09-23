@@ -27,6 +27,7 @@ class User extends Authenticatable
         'position',
         'phone',
         'is_active',
+        'approval_status',
     ];
 
     /**
@@ -50,6 +51,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'approved_at' => 'datetime',
+            'rejected_at' => 'datetime',
         ];
     }
 
@@ -75,6 +78,14 @@ class User extends Authenticatable
     public function approvals()
     {
         return $this->hasMany(WorkflowApproval::class, 'approver_id');
+    }
+
+    /**
+     * Polymorphic documents attached to the user (e.g., ID proofs).
+     */
+    public function documents()
+    {
+        return $this->morphMany(Document::class, 'documentable');
     }
 
     /**

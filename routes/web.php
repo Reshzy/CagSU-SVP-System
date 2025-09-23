@@ -17,6 +17,7 @@ use App\Http\Controllers\SupplierQuotationPublicController;
 use App\Http\Controllers\SupplierPOStatusController;
 use App\Http\Controllers\SupplierCommunicationController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\CeoUserManagementController;
 
 Route::get('/', function () {
     return view('landing');
@@ -117,6 +118,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/ceo/purchase-requests', [CeoApprovalController::class, 'index'])->name('ceo.purchase-requests.index');
         Route::get('/ceo/purchase-requests/{purchaseRequest}', [CeoApprovalController::class, 'show'])->name('ceo.purchase-requests.show');
         Route::put('/ceo/purchase-requests/{purchaseRequest}', [CeoApprovalController::class, 'update'])->name('ceo.purchase-requests.update');
+
+        // CEO User Management
+        Route::get('/ceo/users', [CeoUserManagementController::class, 'index'])->name('ceo.users.index');
+        Route::get('/ceo/users/{user}', [CeoUserManagementController::class, 'show'])->name('ceo.users.show');
+        Route::post('/ceo/users/{user}/approve', [CeoUserManagementController::class, 'approve'])->name('ceo.users.approve');
+        Route::post('/ceo/users/{user}/reject', [CeoUserManagementController::class, 'reject'])->name('ceo.users.reject');
     });
 
     // BAC Quotations & Meetings

@@ -1,4 +1,16 @@
 <!-- Supply Officer Dashboard -->
+@php
+    $pendingPrCount = \App\Models\PurchaseRequest::whereIn('status', ['submitted','supply_office_review'])->count();
+    $activePoCount = \App\Models\PurchaseOrder::whereIn('status', ['pending_approval','approved','sent_to_supplier','acknowledged_by_supplier','in_progress'])->count();
+    $pendingDeliveryCount = \App\Models\PurchaseOrder::whereIn('status', ['sent_to_supplier','acknowledged_by_supplier','in_progress'])->count();
+
+    $countSubmitted = \App\Models\PurchaseRequest::where('status','submitted')->count();
+    $countBudget = \App\Models\PurchaseRequest::where('status','budget_office_review')->count();
+    $countBac = \App\Models\PurchaseRequest::whereIn('status',['bac_evaluation','bac_approved'])->count();
+    $countPoGen = \App\Models\PurchaseRequest::where('status','po_generation')->count();
+    $countDelivery = \App\Models\PurchaseRequest::whereIn('status',['supplier_processing','delivered'])->count();
+    $countCompleted = \App\Models\PurchaseRequest::where('status','completed')->count();
+@endphp
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
     
     <!-- Pending PRs -->
@@ -13,7 +25,7 @@
                 <div class="ml-5 w-0 flex-1">
                     <dl>
                         <dt class="text-sm font-medium text-gray-500 truncate">Pending Review</dt>
-                        <dd class="text-lg font-medium text-gray-900">0</dd>
+                        <dd class="text-lg font-medium text-gray-900">{{ $pendingPrCount }}</dd>
                     </dl>
                 </div>
             </div>
@@ -37,14 +49,14 @@
                 <div class="ml-5 w-0 flex-1">
                     <dl>
                         <dt class="text-sm font-medium text-gray-500 truncate">Active POs</dt>
-                        <dd class="text-lg font-medium text-gray-900">0</dd>
+                        <dd class="text-lg font-medium text-gray-900">{{ $activePoCount }}</dd>
                     </dl>
                 </div>
             </div>
         </div>
         <div class="bg-gray-50 px-6 py-3">
             <div class="text-sm">
-                <a href="#" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">Manage POs</a>
+                <a href="{{ route('supply.purchase-orders.index') }}" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">Manage POs</a>
             </div>
         </div>
     </div>
@@ -61,14 +73,14 @@
                 <div class="ml-5 w-0 flex-1">
                     <dl>
                         <dt class="text-sm font-medium text-gray-500 truncate">Pending Delivery</dt>
-                        <dd class="text-lg font-medium text-gray-900">0</dd>
+                        <dd class="text-lg font-medium text-gray-900">{{ $pendingDeliveryCount }}</dd>
                     </dl>
                 </div>
             </div>
         </div>
         <div class="bg-gray-50 px-6 py-3">
             <div class="text-sm">
-                <a href="#" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">Track deliveries</a>
+                <a href="{{ route('supply.inventory-receipts.index') }}" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">Track deliveries</a>
             </div>
         </div>
     </div>
@@ -92,7 +104,7 @@
         </div>
         <div class="bg-gray-50 px-6 py-3">
             <div class="text-sm">
-                <a href="#" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">Manage suppliers</a>
+                <a href="{{ route('supply.suppliers.index') }}" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">Manage suppliers</a>
             </div>
         </div>
     </div>
@@ -116,7 +128,7 @@
                     </div>
                     <h4 class="text-sm font-medium text-gray-900">PR Submission</h4>
                     <p class="text-xs text-gray-500 mt-1">Control Number Assignment</p>
-                    <div class="mt-2 text-lg font-bold text-cagsu-maroon">0</div>
+                    <div class="mt-2 text-lg font-bold text-cagsu-maroon">{{ $countSubmitted }}</div>
                 </div>
 
                 <!-- Step 2: Budget Review -->
@@ -126,7 +138,7 @@
                     </div>
                     <h4 class="text-sm font-medium text-gray-900">Budget Review</h4>
                     <p class="text-xs text-gray-500 mt-1">Earmarking Process</p>
-                    <div class="mt-2 text-lg font-bold text-cagsu-maroon">0</div>
+                    <div class="mt-2 text-lg font-bold text-cagsu-maroon">{{ $countBudget }}</div>
                 </div>
 
                 <!-- Step 3: BAC Evaluation -->
@@ -136,7 +148,7 @@
                     </div>
                     <h4 class="text-sm font-medium text-gray-900">BAC Evaluation</h4>
                     <p class="text-xs text-gray-500 mt-1">Quotation Review</p>
-                    <div class="mt-2 text-lg font-bold text-cagsu-maroon">0</div>
+                    <div class="mt-2 text-lg font-bold text-cagsu-maroon">{{ $countBac }}</div>
                 </div>
 
                 <!-- Step 4: PO Generation -->
@@ -146,7 +158,7 @@
                     </div>
                     <h4 class="text-sm font-medium text-gray-900">PO Generation</h4>
                     <p class="text-xs text-gray-500 mt-1">Order Processing</p>
-                    <div class="mt-2 text-lg font-bold text-cagsu-maroon">0</div>
+                    <div class="mt-2 text-lg font-bold text-cagsu-maroon">{{ $countPoGen }}</div>
                 </div>
 
                 <!-- Step 5: Delivery -->
@@ -156,7 +168,7 @@
                     </div>
                     <h4 class="text-sm font-medium text-gray-900">Delivery</h4>
                     <p class="text-xs text-gray-500 mt-1">Supplier Processing</p>
-                    <div class="mt-2 text-lg font-bold text-cagsu-maroon">0</div>
+                    <div class="mt-2 text-lg font-bold text-cagsu-maroon">{{ $countDelivery }}</div>
                 </div>
 
                 <!-- Step 6: Distribution -->
@@ -166,7 +178,7 @@
                     </div>
                     <h4 class="text-sm font-medium text-gray-900">Distribution</h4>
                     <p class="text-xs text-gray-500 mt-1">End User Receipt</p>
-                    <div class="mt-2 text-lg font-bold text-cagsu-maroon">0</div>
+                    <div class="mt-2 text-lg font-bold text-cagsu-maroon">{{ $countCompleted }}</div>
                 </div>
 
             </div>
