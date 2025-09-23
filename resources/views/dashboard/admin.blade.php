@@ -44,7 +44,7 @@
         </div>
         <div class="bg-gray-50 px-6 py-3">
             <div class="text-sm">
-                <a href="#" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">View departments</a>
+                <a href="{{route('ceo.departments.index')}}" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">View departments</a>
             </div>
         </div>
     </div>

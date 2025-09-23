@@ -18,6 +18,7 @@ use App\Http\Controllers\SupplierPOStatusController;
 use App\Http\Controllers\SupplierCommunicationController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\CeoUserManagementController;
+use App\Http\Controllers\CeoDepartmentController;
 
 Route::get('/', function () {
     return view('landing');
@@ -124,6 +125,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/ceo/users/{user}', [CeoUserManagementController::class, 'show'])->name('ceo.users.show');
         Route::post('/ceo/users/{user}/approve', [CeoUserManagementController::class, 'approve'])->name('ceo.users.approve');
         Route::post('/ceo/users/{user}/reject', [CeoUserManagementController::class, 'reject'])->name('ceo.users.reject');
+
+        // CEO Department Management
+        Route::get('/ceo/departments', [CeoDepartmentController::class, 'index'])->name('ceo.departments.index');
+        Route::get('/ceo/departments/create', [CeoDepartmentController::class, 'create'])->name('ceo.departments.create');
+        Route::post('/ceo/departments', [CeoDepartmentController::class, 'store'])->name('ceo.departments.store');
+        Route::get('/ceo/departments/{department}/edit', [CeoDepartmentController::class, 'edit'])->name('ceo.departments.edit');
+        Route::put('/ceo/departments/{department}', [CeoDepartmentController::class, 'update'])->name('ceo.departments.update');
     });
 
     // BAC Quotations & Meetings

@@ -17,6 +17,7 @@
 				<div class="text-sm uppercase tracking-wider text-gray-300">CagSU • Small Value Procurement</div>
 			</div>
 			<nav class="hidden md:flex items-center gap-3">
+				<a href="{{ route('register') }}" class="px-4 py-2 rounded-full border border-white/15 hover:border-white/30 hover:bg-white/5 transition">University Register</a>
 				<a href="{{ route('suppliers.register') }}" class="px-4 py-2 rounded-full border border-white/15 hover:border-white/30 hover:bg-white/5 transition">Supplier Register</a>
 				<a href="{{ route('suppliers.quotations.submit') }}" class="px-4 py-2 rounded-full border border-white/15 hover:border-white/30 hover:bg-white/5 transition">Submit Quotation</a>
 				<a href="{{ route('suppliers.po-status') }}" class="px-4 py-2 rounded-full border border-white/15 hover:border-white/30 hover:bg-white/5 transition">PO Status</a>
@@ -38,8 +39,9 @@
 					</h1>
 					<p class="mt-5 text-lg text-gray-300 max-w-2xl">End-to-end Small Value Procurement, from request to delivery. Designed for clarity, speed, and accountability.</p>
 					<div class="mt-8 flex flex-wrap gap-3">
-						<a href="{{ route('suppliers.register') }}" class="px-5 py-3 rounded-full bg-white text-black hover:bg-gray-100 transition">Supplier Register</a>
+						<a href="{{ route('register') }}" class="px-5 py-3 rounded-full bg-white text-black hover:bg-gray-100 transition">University Register</a>
 						<a href="{{ route('login') }}" class="px-5 py-3 rounded-full border border-white/20 hover:border-white/40 hover:bg-white/5 transition">University Login</a>
+						<a href="{{ route('suppliers.register') }}" class="px-5 py-3 rounded-full border border-white/20 hover:border-white/40 hover:bg-white/5 transition">Supplier Register</a>
 					</div>
 					<div class="mt-6 flex items-center gap-6 text-sm text-gray-400">
 						<div>Secure file uploads</div>

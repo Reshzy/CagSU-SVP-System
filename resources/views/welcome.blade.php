@@ -123,13 +123,13 @@
                         </li>
                     </ul>
                     <div class="mt-6 p-4 border border-[#e3e3e0] rounded-sm">
-                        <h2 class="mb-2 font-medium">University Portal</h2>
+                        <h2 class="mb-2 font-medium">Employee Portal</h2>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                             <a href="{{ route('register') }}" class="inline-flex items-center justify-center px-4 py-2 border border-[#19140035] hover:border-black rounded-sm">
-                                University Register
+                                Employee Register
                             </a>
                             <a href="{{ route('login') }}" class="inline-flex items-center justify-center px-4 py-2 border border-[#19140035] hover:border-black rounded-sm">
-                                University Login
+                                Employee Login
                             </a>
                         </div>
                         <h2 class="mb-2 font-medium">Supplier Portal</h2>
