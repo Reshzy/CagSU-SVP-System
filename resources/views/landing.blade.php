@@ -10,18 +10,41 @@
 </head>
 <body class="min-h-screen bg-[#0a0a0a] text-white">
 	<!-- Header -->
-	<header class="relative z-20">
+	<header class="sticky top-0 z-20 bg-[#0a0a0a]/60 backdrop-blur">
 		<div class="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
 			<div class="flex items-center gap-3">
 				<x-application-logo class="block h-10 w-auto" />
 				<div class="text-sm uppercase tracking-wider text-gray-300">CagSU • Small Value Procurement</div>
 			</div>
-			<nav class="hidden md:flex items-center gap-3">
-				<a href="{{ route('register') }}" class="px-4 py-2 rounded-full border border-white/15 hover:border-white/30 hover:bg-white/5 transition">University Register</a>
-				<a href="{{ route('suppliers.register') }}" class="px-4 py-2 rounded-full border border-white/15 hover:border-white/30 hover:bg-white/5 transition">Supplier Register</a>
-				<a href="{{ route('suppliers.quotations.submit') }}" class="px-4 py-2 rounded-full border border-white/15 hover:border-white/30 hover:bg-white/5 transition">Submit Quotation</a>
-				<a href="{{ route('suppliers.po-status') }}" class="px-4 py-2 rounded-full border border-white/15 hover:border-white/30 hover:bg-white/5 transition">PO Status</a>
-				<a href="{{ route('login') }}" class="px-4 py-2 rounded-full bg-cagsu-maroon text-white hover:bg-cagsu-orange transition">Login</a>
+			<nav class="hidden md:flex items-center gap-4">
+				<div class="relative" x-data="{ open: false }">
+					<button @click="open = !open" :aria-expanded="open" aria-haspopup="true" class="px-4 py-2 rounded-full border border-white/15 hover:border-white/30 hover:bg-white/5 transition flex items-center gap-2">
+						<span>University</span>
+						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 opacity-70">
+							<path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 011.08 1.04l-4.25 4.25a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+						</svg>
+					</button>
+					<div x-show="open" x-cloak @click.outside="open = false" @keydown.escape.window="open = false" x-transition.origin.top.right class="absolute right-0 mt-2 w-56 rounded-xl border border-white/10 bg-[#0a0a0a]/95 backdrop-blur p-2 shadow-lg" role="menu" aria-orientation="vertical" tabindex="-1">
+						<a href="{{ route('register') }}" class="block rounded-lg px-3 py-2 hover:bg-white/5">Register</a>
+						<a href="{{ route('login') }}" class="block rounded-lg px-3 py-2 hover:bg-white/5">Login</a>
+						<a href="{{ route('purchase-requests.create') }}" class="block rounded-lg px-3 py-2 hover:bg-white/5">New Purchase Request</a>
+						<a href="{{ route('purchase-requests.index') }}" class="block rounded-lg px-3 py-2 hover:bg-white/5">Track Requests</a>
+					</div>
+				</div>
+				<div class="relative" x-data="{ open: false }">
+					<button @click="open = !open" :aria-expanded="open" aria-haspopup="true" class="px-4 py-2 rounded-full border border-white/15 hover:border-white/30 hover:bg-white/5 transition flex items-center gap-2">
+						<span>Suppliers</span>
+						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 opacity-70">
+							<path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 011.08 1.04l-4.25 4.25a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+						</svg>
+					</button>
+					<div x-show="open" x-cloak @click.outside="open = false" @keydown.escape.window="open = false" x-transition.origin.top.right class="absolute right-0 mt-2 w-56 rounded-xl border border-white/10 bg-[#0a0a0a]/95 backdrop-blur p-2 shadow-lg" role="menu" aria-orientation="vertical" tabindex="-1">
+						<a href="{{ route('suppliers.register') }}" class="block rounded-lg px-3 py-2 hover:bg-white/5">Register</a>
+						<a href="{{ route('suppliers.quotations.submit') }}" class="block rounded-lg px-3 py-2 hover:bg-white/5">Submit Quotation</a>
+						<a href="{{ route('suppliers.po-status') }}" class="block rounded-lg px-3 py-2 hover:bg-white/5">PO Status</a>
+					</div>
+				</div>
+				<a href="{{ route('login') }}" class="px-4 py-2 rounded-full bg-cagsu-maroon text-white hover:bg-cagsu-orange transition">Sign in</a>
 			</nav>
 		</div>
 	</header>
@@ -39,9 +62,14 @@
 					</h1>
 					<p class="mt-5 text-lg text-gray-300 max-w-2xl">End-to-end Small Value Procurement, from request to delivery. Designed for clarity, speed, and accountability.</p>
 					<div class="mt-8 flex flex-wrap gap-3">
-						<a href="{{ route('register') }}" class="px-5 py-3 rounded-full bg-white text-black hover:bg-gray-100 transition">University Register</a>
-						<a href="{{ route('login') }}" class="px-5 py-3 rounded-full border border-white/20 hover:border-white/40 hover:bg-white/5 transition">University Login</a>
-						<a href="{{ route('suppliers.register') }}" class="px-5 py-3 rounded-full border border-white/20 hover:border-white/40 hover:bg-white/5 transition">Supplier Register</a>
+						<a href="{{ route('login') }}" class="px-5 py-3 rounded-full bg-white text-black hover:bg-gray-100 transition">University Portal</a>
+						<a href="{{ route('suppliers.quotations.submit') }}" class="px-5 py-3 rounded-full border border-white/20 hover:border-white/40 hover:bg-white/5 transition">Supplier Portal</a>
+					</div>
+					<div class="mt-3 text-sm text-gray-400">
+						<span class="mr-2">Quick links:</span>
+						<a href="{{ route('register') }}" class="underline-offset-2 hover:underline">University Register</a>
+						<span class="mx-2">·</span>
+						<a href="{{ route('suppliers.register') }}" class="underline-offset-2 hover:underline">Supplier Register</a>
 					</div>
 					<div class="mt-6 flex items-center gap-6 text-sm text-gray-400">
 						<div>Secure file uploads</div>
@@ -52,23 +80,29 @@
 				<div class="lg:col-span-5">
 					<div class="relative rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur">
 						<div class="text-sm text-gray-300">Quick Access</div>
-						<div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-							<a href="{{ route('suppliers.quotations.submit') }}" class="group rounded-xl border border-white/10 p-4 hover:bg-white/5 transition">
-								<div class="font-medium">Submit Quotation</div>
-								<div class="text-xs text-gray-400 group-hover:text-gray-300">Fast, simple upload flow</div>
-							</a>
-							<a href="{{ route('suppliers.po-status') }}" class="group rounded-xl border border-white/10 p-4 hover:bg-white/5 transition">
-								<div class="font-medium">Check PO Status</div>
-								<div class="text-xs text-gray-400 group-hover:text-gray-300">Live delivery status</div>
-							</a>
-							<a href="{{ route('purchase-requests.create') }}" class="group rounded-xl border border-white/10 p-4 hover:bg-white/5 transition">
-								<div class="font-medium">New PR</div>
-								<div class="text-xs text-gray-400 group-hover:text-gray-300">Create Purchase Request</div>
-							</a>
-							<a href="{{ route('purchase-requests.index') }}" class="group rounded-xl border border-white/10 p-4 hover:bg-white/5 transition">
-								<div class="font-medium">Track Status</div>
-								<div class="text-xs text-gray-400 group-hover:text-gray-300">Follow approvals</div>
-							</a>
+						<div class="mt-4">
+							<div class="text-xs uppercase tracking-wide text-gray-400">Suppliers</div>
+							<div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+								<a href="{{ route('suppliers.quotations.submit') }}" class="group rounded-xl border border-white/10 p-4 hover:bg-white/5 transition">
+									<div class="font-medium">Submit Quotation</div>
+									<div class="text-xs text-gray-400 group-hover:text-gray-300">Fast, simple upload flow</div>
+								</a>
+								<a href="{{ route('suppliers.po-status') }}" class="group rounded-xl border border-white/10 p-4 hover:bg-white/5 transition">
+									<div class="font-medium">Check PO Status</div>
+									<div class="text-xs text-gray-400 group-hover:text-gray-300">Live delivery status</div>
+								</a>
+							</div>
+							<div class="mt-5 text-xs uppercase tracking-wide text-gray-400">University</div>
+							<div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+								<a href="{{ route('purchase-requests.create') }}" class="group rounded-xl border border-white/10 p-4 hover:bg-white/5 transition">
+									<div class="font-medium">New PR</div>
+									<div class="text-xs text-gray-400 group-hover:text-gray-300">Create Purchase Request</div>
+								</a>
+								<a href="{{ route('purchase-requests.index') }}" class="group rounded-xl border border-white/10 p-4 hover:bg-white/5 transition">
+									<div class="font-medium">Track Status</div>
+									<div class="text-xs text-gray-400 group-hover:text-gray-300">Follow approvals</div>
+								</a>
+							</div>
 						</div>
 					</div>
 				</div>

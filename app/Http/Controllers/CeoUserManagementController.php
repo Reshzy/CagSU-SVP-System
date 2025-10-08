@@ -20,24 +20,28 @@ class CeoUserManagementController extends Controller
 
         $allowedStatuses = ['pending', 'approved', 'rejected'];
 
-        // Pull filters from query or session
-        $filters = [
-            'status' => $request->query('status'),
-            'department_id' => $request->query('department_id'),
-        ];
+        // Start with saved filters from session
+        $saved = $request->session()->get('ceo.users.filters', [
+            'status' => null,
+            'department_id' => null,
+        ]);
 
-        if ($filters['status'] === null && $filters['department_id'] === null) {
-            $filters = $request->session()->get('ceo.users.filters', [
-                'status' => null,
-                'department_id' => null,
-            ]);
-        } else {
-            $request->session()->put('ceo.users.filters', $filters);
+        // Normalize and apply incoming query params only for provided keys
+        if ($request->has('status')) {
+            $incomingStatus = $request->query('status');
+            $saved['status'] = $incomingStatus !== '' ? $incomingStatus : null;
+        }
+        if ($request->has('department_id')) {
+            $incomingDept = $request->query('department_id');
+            $saved['department_id'] = $incomingDept !== '' ? $incomingDept : null;
         }
 
+        // Persist merged filters
+        $request->session()->put('ceo.users.filters', $saved);
+
         // Validate status filter
-        $status = in_array($filters['status'], $allowedStatuses, true) ? $filters['status'] : null;
-        $departmentId = $filters['department_id'] ?: null;
+        $status = in_array($saved['status'], $allowedStatuses, true) ? $saved['status'] : null;
+        $departmentId = $saved['department_id'] ?: null;
 
         $query = User::query()->with('department')->orderByDesc('created_at');
         if ($status) {
