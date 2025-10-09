@@ -1,13 +1,15 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>CagSU SVP Portal</title>
 	@if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
-		@vite(['resources/css/app.css', 'resources/js/app.js'])
+	@vite(['resources/css/app.css', 'resources/js/app.js'])
 	@endif
 </head>
+
 <body class="min-h-screen bg-[#0a0a0a] text-white">
 	<!-- Header -->
 	<header class="sticky top-0 z-20 bg-[#0a0a0a]/60 backdrop-blur">
@@ -44,7 +46,7 @@
 						<a href="{{ route('suppliers.po-status') }}" class="block rounded-lg px-3 py-2 hover:bg-white/5">PO Status</a>
 					</div>
 				</div>
-				<a href="{{ route('login') }}" class="px-4 py-2 rounded-full bg-cagsu-maroon text-white hover:bg-cagsu-orange transition">Sign in</a>
+				<!-- <a href="{{ route('login') }}" class="px-4 py-2 rounded-full bg-cagsu-maroon text-white hover:bg-cagsu-orange transition">Sign in</a> -->
 			</nav>
 		</div>
 	</header>
@@ -163,6 +165,5 @@
 		</div>
 	</footer>
 </body>
+
 </html>
-
-
