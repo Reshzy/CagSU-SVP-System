@@ -7,13 +7,11 @@
         </svg>
     </div> -->
     <div class="mr-3 flex-shrink-0">
-        <a href="https://commons.wikimedia.org/wiki/File:Cagayan_State_University_Logo.png#/media/File:Cagayan_State_University_Logo.png">
-            <img
-                src="https://upload.wikimedia.org/wikipedia/commons/d/d1/Cagayan_State_University_Logo.png"
-                alt="File:Cagayan State University Logo.png"
-                style="height: 48px; width: 48px; max-width: none; max-height: none;"
-                class="block">
-        </a>
+        <img
+            src="https://upload.wikimedia.org/wikipedia/commons/d/d1/Cagayan_State_University_Logo.png"
+            alt="File:Cagayan State University Logo.png"
+            style="height: 48px; width: 48px; max-width: none; max-height: none;"
+            class="block">
     </div>
     <!-- CagSU Text Logo -->
     <div class="text-left">
