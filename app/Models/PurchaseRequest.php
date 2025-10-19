@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Carbon\Carbon;
+use Illuminate\Support\Carbon;
 
 class PurchaseRequest extends Model
 {
@@ -67,6 +67,53 @@ class PurchaseRequest extends Model
 
         return $prefix . str_pad((string)$nextSequence, 4, '0', STR_PAD_LEFT);
     }
+
+    /**
+     * Calculate total cost of all items in this PR
+     */
+    public function calculateTotalCost(): float
+    {
+        return (float) $this->items->sum(function ($item) {
+            return $item->quantity_requested * $item->estimated_unit_cost;
+        });
+    }
+
+    /**
+     * Reserve budget for this PR
+     */
+    public function reserveDepartmentBudget(): bool
+    {
+        $fiscalYear = $this->created_at->year;
+        $budget = DepartmentBudget::getOrCreateForDepartment($this->department_id, $fiscalYear);
+
+        $totalCost = $this->calculateTotalCost();
+
+        return $budget->reserveBudget($totalCost);
+    }
+
+    /**
+     * Utilize budget when PR is completed
+     */
+    public function utilizeDepartmentBudget(): bool
+    {
+        $fiscalYear = $this->created_at->year;
+        $budget = DepartmentBudget::getOrCreateForDepartment($this->department_id, $fiscalYear);
+
+        $totalCost = $this->calculateTotalCost();
+
+        return $budget->utilizeBudget($totalCost);
+    }
+
+    /**
+     * Release reserved budget when PR is cancelled/rejected
+     */
+    public function releaseReservedBudget(): bool
+    {
+        $fiscalYear = $this->created_at->year;
+        $budget = DepartmentBudget::getOrCreateForDepartment($this->department_id, $fiscalYear);
+
+        $totalCost = $this->calculateTotalCost();
+
+        return $budget->releaseReservedBudget($totalCost);
+    }
 }
-
-

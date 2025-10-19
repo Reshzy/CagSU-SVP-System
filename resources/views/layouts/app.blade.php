@@ -52,5 +52,7 @@
                 {{ $slot }}
             </main>
         </div>
+        {{-- Stack for page-specific scripts pushed from views --}}
+        @stack('scripts')
     </body>
 </html>

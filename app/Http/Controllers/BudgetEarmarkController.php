@@ -36,6 +36,11 @@ class BudgetEarmarkController extends Controller
 
         $validated = $request->validate([
             'approved_budget_total' => ['required', 'numeric', 'min:0'],
+            'date_needed' => ['required', 'date'],
+            'funding_source' => ['nullable', 'string', 'max:255'],
+            'budget_code' => ['nullable', 'string', 'max:255'],
+            'procurement_type' => ['required', 'in:supplies_materials,equipment,infrastructure,services,consulting_services'],
+            'procurement_method' => ['nullable', 'in:small_value_procurement,public_bidding,direct_contracting,negotiated_procurement'],
             'comments' => ['nullable', 'string'],
         ]);
 
@@ -57,8 +62,14 @@ class BudgetEarmarkController extends Controller
             ]
         );
 
-        // Update PR with approved budget and forward to CEO approval
+        // Update PR with approved budget, procurement details, and forward to CEO approval
         $purchaseRequest->estimated_total = (float) $validated['approved_budget_total'];
+        $purchaseRequest->date_needed = $validated['date_needed'];
+        $purchaseRequest->funding_source = $validated['funding_source'] ?? null;
+        $purchaseRequest->budget_code = $validated['budget_code'] ?? null;
+        $purchaseRequest->procurement_type = $validated['procurement_type'];
+        $purchaseRequest->procurement_method = $validated['procurement_method'] ?? null;
+
         if (!empty($validated['comments'])) {
             $purchaseRequest->current_step_notes = $validated['comments'];
         }
@@ -76,5 +87,3 @@ class BudgetEarmarkController extends Controller
         return redirect()->route('budget.purchase-requests.index')->with('status', 'Earmark approved and forwarded to CEO.');
     }
 }
-
-

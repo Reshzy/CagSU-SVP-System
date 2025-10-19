@@ -19,6 +19,8 @@ use App\Http\Controllers\SupplierCommunicationController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\CeoUserManagementController;
 use App\Http\Controllers\CeoDepartmentController;
+use App\Http\Controllers\BudgetManagementController;
+use App\Http\Controllers\Api\BudgetCheckController;
 
 Route::get('/', function () {
     return view('landing');
@@ -112,6 +114,18 @@ Route::middleware('auth')->group(function () {
         Route::get('/budget/purchase-requests', [BudgetEarmarkController::class, 'index'])->name('budget.purchase-requests.index');
         Route::get('/budget/purchase-requests/{purchaseRequest}/edit', [BudgetEarmarkController::class, 'edit'])->name('budget.purchase-requests.edit');
         Route::put('/budget/purchase-requests/{purchaseRequest}', [BudgetEarmarkController::class, 'update'])->name('budget.purchase-requests.update');
+
+        // Department Budget Management
+        Route::get('/budget/departments', [BudgetManagementController::class, 'index'])->name('budget.index');
+        Route::get('/budget/departments/{department}/edit', [BudgetManagementController::class, 'edit'])->name('budget.edit');
+        Route::put('/budget/departments/{department}', [BudgetManagementController::class, 'update'])->name('budget.update');
+        Route::get('/budget/departments/{department}', [BudgetManagementController::class, 'show'])->name('budget.show');
+    });
+
+    // Budget Check API (for all authenticated users)
+    Route::prefix('api')->group(function () {
+        Route::get('/budget/check', [BudgetCheckController::class, 'check'])->name('api.budget.check');
+        Route::post('/budget/validate', [BudgetCheckController::class, 'validate'])->name('api.budget.validate');
     });
 
     // CEO Approval
@@ -150,4 +164,4 @@ Route::middleware('auth')->group(function () {
     });
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

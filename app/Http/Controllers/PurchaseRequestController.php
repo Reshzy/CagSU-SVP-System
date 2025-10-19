@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestItem;
 use App\Models\Document;
+use App\Models\PpmpItem;
+use App\Models\DepartmentBudget;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,7 +30,35 @@ class PurchaseRequestController extends Controller
 
     public function create(Request $request): View
     {
-        return view('purchase_requests.create');
+        $user = Auth::user();
+
+        // Get PPMP items grouped by category
+        $ppmpCategories = PpmpItem::active()
+            ->select('category')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category');
+
+        $ppmpItems = PpmpItem::active()
+            ->orderBy('category')
+            ->orderBy('item_name')
+            ->get()
+            ->groupBy('category');
+
+        // Get department budget information
+        $fiscalYear = date('Y');
+        $departmentBudget = null;
+
+        if ($user->department_id) {
+            $departmentBudget = DepartmentBudget::getOrCreateForDepartment($user->department_id, $fiscalYear);
+        }
+
+        return view('purchase_requests.create', [
+            'ppmpCategories' => $ppmpCategories,
+            'ppmpItems' => $ppmpItems,
+            'departmentBudget' => $departmentBudget,
+            'fiscalYear' => $fiscalYear,
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -36,57 +66,76 @@ class PurchaseRequestController extends Controller
         $validated = $request->validate([
             'purpose' => ['required', 'string', 'max:255'],
             'justification' => ['nullable', 'string'],
-            'date_needed' => ['required', 'date'],
-            'priority' => ['required', 'in:low,medium,high,urgent'],
-            'estimated_total' => ['required', 'numeric', 'min:0'],
-            'funding_source' => ['nullable', 'string', 'max:255'],
-            'budget_code' => ['nullable', 'string', 'max:255'],
-            'procurement_type' => ['required', 'in:supplies_materials,equipment,infrastructure,services,consulting_services'],
-            'procurement_method' => ['nullable', 'in:small_value_procurement,public_bidding,direct_contracting,negotiated_procurement'],
 
-            // One simple item for MVP
-            'item_name' => ['required', 'string', 'max:255'],
-            'detailed_specifications' => ['required', 'string'],
-            'unit_of_measure' => ['required', 'string', 'max:50'],
-            'quantity_requested' => ['required', 'integer', 'min:1'],
-            'estimated_unit_cost' => ['required', 'numeric', 'min:0'],
+            // Multiple items from PPMP or custom
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.ppmp_item_id' => ['nullable', 'exists:ppmp_items,id'],
+            'items.*.item_name' => ['required', 'string', 'max:255'],
+            'items.*.detailed_specifications' => ['nullable', 'string'],
+            'items.*.unit_of_measure' => ['required', 'string', 'max:50'],
+            'items.*.quantity_requested' => ['required', 'integer', 'min:1'],
+            'items.*.estimated_unit_cost' => ['required', 'numeric', 'min:0'],
 
             // Attachments (optional)
             'attachments.*' => ['file', 'max:10240'],
         ]);
 
-        DB::transaction(function () use ($validated, $request) {
+        $user = Auth::user();
+
+        // Calculate total cost
+        $totalCost = 0;
+        foreach ($validated['items'] as $item) {
+            $totalCost += (float)$item['estimated_unit_cost'] * (int)$item['quantity_requested'];
+        }
+
+        // Check budget availability
+        if ($user->department_id) {
+            $fiscalYear = date('Y');
+            $budget = DepartmentBudget::getOrCreateForDepartment($user->department_id, $fiscalYear);
+
+            if (!$budget->canReserve($totalCost)) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['budget' => 'Insufficient budget. Available: ₱' . number_format($budget->getAvailableBudget(), 2) . ', Required: ₱' . number_format($totalCost, 2)]);
+            }
+        }
+
+        DB::transaction(function () use ($validated, $request, $totalCost, $user) {
             $purchaseRequest = PurchaseRequest::create([
                 'pr_number' => PurchaseRequest::generateNextPrNumber(),
                 'requester_id' => Auth::id(),
-                'department_id' => optional(Auth::user()->department)->id,
+                'department_id' => $user->department_id,
                 'purpose' => $validated['purpose'],
                 'justification' => $validated['justification'] ?? null,
-                'date_needed' => $validated['date_needed'],
-                'priority' => $validated['priority'],
-                'estimated_total' => $validated['estimated_total'],
-                'funding_source' => $validated['funding_source'] ?? null,
-                'budget_code' => $validated['budget_code'] ?? null,
-                'procurement_type' => $validated['procurement_type'],
-                'procurement_method' => $validated['procurement_method'] ?? null,
+                'date_needed' => null, // Will be filled by Budget Office
+                'estimated_total' => $totalCost,
+                'funding_source' => null, // Will be filled by Budget Office
+                'budget_code' => null, // Will be filled by Budget Office
+                'procurement_type' => null, // Will be filled by Budget Office
+                'procurement_method' => null, // Will be filled by Budget Office
                 'status' => 'submitted',
                 'submitted_at' => now(),
                 'status_updated_at' => now(),
                 'current_handler_id' => null,
+                'has_ppmp' => true,
             ]);
 
-            $estimatedTotal = (float)$validated['estimated_unit_cost'] * (int)$validated['quantity_requested'];
+            // Create items
+            foreach ($validated['items'] as $itemData) {
+                $estimatedTotal = (float)$itemData['estimated_unit_cost'] * (int)$itemData['quantity_requested'];
 
-            PurchaseRequestItem::create([
-                'purchase_request_id' => $purchaseRequest->id,
-                'item_name' => $validated['item_name'],
-                'detailed_specifications' => $validated['detailed_specifications'],
-                'unit_of_measure' => $validated['unit_of_measure'],
-                'quantity_requested' => $validated['quantity_requested'],
-                'estimated_unit_cost' => $validated['estimated_unit_cost'],
-                'estimated_total_cost' => $estimatedTotal,
-                'item_category' => 'other',
-            ]);
+                PurchaseRequestItem::create([
+                    'purchase_request_id' => $purchaseRequest->id,
+                    'ppmp_item_id' => $itemData['ppmp_item_id'] ?? null,
+                    'item_name' => $itemData['item_name'] ?? null,
+                    'detailed_specifications' => $itemData['detailed_specifications'] ?? null,
+                    'unit_of_measure' => $itemData['unit_of_measure'] ?? null,
+                    'quantity_requested' => $itemData['quantity_requested'],
+                    'estimated_unit_cost' => $itemData['estimated_unit_cost'],
+                    'estimated_total_cost' => $estimatedTotal,
+                    'item_category' => 'ppmp',
+                ]);
+            }
 
             if ($request->hasFile('attachments')) {
                 foreach ($request->file('attachments') as $file) {
@@ -147,5 +196,3 @@ class PurchaseRequestController extends Controller
         return $prefix . str_pad((string)$nextSequence, 4, '0', STR_PAD_LEFT);
     }
 }
-
-

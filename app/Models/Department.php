@@ -55,4 +55,29 @@ class Department extends Model
     {
         return $query->where('is_active', true);
     }
+
+    /**
+     * Get department budgets
+     */
+    public function budgets(): HasMany
+    {
+        return $this->hasMany(DepartmentBudget::class);
+    }
+
+    /**
+     * Get current fiscal year budget
+     */
+    public function currentBudget()
+    {
+        return $this->hasOne(DepartmentBudget::class)
+            ->where('fiscal_year', date('Y'));
+    }
+
+    /**
+     * Get budget for a specific fiscal year
+     */
+    public function getBudgetForYear(int $fiscalYear)
+    {
+        return DepartmentBudget::getOrCreateForDepartment($this->id, $fiscalYear);
+    }
 }

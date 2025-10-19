@@ -26,6 +26,38 @@ class PurchaseRequestItem extends Model
     {
         return $this->belongsTo(PurchaseRequest::class);
     }
+
+    /**
+     * Get the PPMP item associated with this PR item
+     */
+    public function ppmpItem()
+    {
+        return $this->belongsTo(PpmpItem::class);
+    }
+
+    /**
+     * Get the item name (from PPMP or custom)
+     */
+    public function getItemNameAttribute($value)
+    {
+        // If item_name is set, return it
+        if ($value) {
+            return $value;
+        }
+
+        // Otherwise, get from PPMP item
+        return $this->ppmpItem ? $this->ppmpItem->item_name : null;
+    }
+
+    /**
+     * Get unit of measure (from PPMP or custom)
+     */
+    public function getUnitOfMeasureAttribute($value)
+    {
+        if ($value) {
+            return $value;
+        }
+
+        return $this->ppmpItem ? $this->ppmpItem->unit_of_measure : null;
+    }
 }
-
-
