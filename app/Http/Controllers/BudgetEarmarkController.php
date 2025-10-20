@@ -62,7 +62,7 @@ class BudgetEarmarkController extends Controller
             ]
         );
 
-        // Update PR with approved budget, procurement details, and forward to CEO approval
+        // Update PR with approved budget, procurement details, and forward to BAC evaluation
         $purchaseRequest->estimated_total = (float) $validated['approved_budget_total'];
         $purchaseRequest->date_needed = $validated['date_needed'];
         $purchaseRequest->funding_source = $validated['funding_source'] ?? null;
@@ -73,17 +73,17 @@ class BudgetEarmarkController extends Controller
         if (!empty($validated['comments'])) {
             $purchaseRequest->current_step_notes = $validated['comments'];
         }
-        $purchaseRequest->status = 'ceo_approval';
+        $purchaseRequest->status = 'bac_evaluation';
         $purchaseRequest->status_updated_at = now();
         $purchaseRequest->save();
 
-        // Create pending approval for CEO
-        WorkflowRouter::createPendingForRole($purchaseRequest, 'ceo_initial_approval', 'Executive Officer');
+        // Create pending approval for BAC
+        WorkflowRouter::createPendingForRole($purchaseRequest, 'bac_evaluation', 'BAC Secretariat');
 
         if ($purchaseRequest->requester) {
-            $purchaseRequest->requester->notify(new PurchaseRequestStatusUpdated($purchaseRequest, 'budget_office_review', 'ceo_approval'));
+            $purchaseRequest->requester->notify(new PurchaseRequestStatusUpdated($purchaseRequest, 'budget_office_review', 'bac_evaluation'));
         }
 
-        return redirect()->route('budget.purchase-requests.index')->with('status', 'Earmark approved and forwarded to CEO.');
+        return redirect()->route('budget.purchase-requests.index')->with('status', 'Earmark approved and forwarded to BAC.');
     }
 }

@@ -41,7 +41,7 @@ class CeoApprovalController extends Controller
         ]);
 
         $decision = $validated['decision'];
-        $newStatus = $decision === 'approve' ? 'bac_evaluation' : 'rejected';
+        $newStatus = $decision === 'approve' ? 'budget_office_review' : 'rejected';
 
         WorkflowApproval::updateOrCreate(
             [
@@ -49,7 +49,7 @@ class CeoApprovalController extends Controller
                 'step_name' => 'ceo_initial_approval',
             ],
             [
-                'step_order' => 3,
+                'step_order' => 1,
                 'approver_id' => Auth::id(),
                 'approved_by' => $decision === 'approve' ? Auth::id() : null,
                 'status' => $decision === 'approve' ? 'approved' : 'rejected',
@@ -71,9 +71,9 @@ class CeoApprovalController extends Controller
         $purchaseRequest->status_updated_at = now();
         $purchaseRequest->save();
 
-        // Create pending approval for BAC
-        if ($newStatus === 'bac_evaluation') {
-            WorkflowRouter::createPendingForRole($purchaseRequest, 'bac_evaluation', 'BAC Secretariat');
+        // Create pending approval for Budget Office
+        if ($newStatus === 'budget_office_review') {
+            WorkflowRouter::createPendingForRole($purchaseRequest, 'budget_office_earmarking', 'Budget Office');
         }
 
         if ($purchaseRequest->requester) {

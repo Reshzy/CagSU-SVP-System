@@ -611,6 +611,7 @@
                             </div>
                         </div>
                         <input type="hidden" name="items[${item.id}][ppmp_item_id]" value="${item.ppmp_item_id || ''}">
+                        <input type="hidden" name="items[${item.id}][item_code]" value="${escapeHtml(item.code || '')}">
                         <input type="hidden" name="items[${item.id}][item_name]" value="${escapeHtml(item.name)}">
                         <input type="hidden" name="items[${item.id}][unit_of_measure]" value="${escapeHtml(item.unit)}">
                         <input type="hidden" name="items[${item.id}][detailed_specifications]" value="${escapeHtml(item.specs)}">

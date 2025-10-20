@@ -70,6 +70,7 @@ class PurchaseRequestController extends Controller
             // Multiple items from PPMP or custom
             'items' => ['required', 'array', 'min:1'],
             'items.*.ppmp_item_id' => ['nullable', 'exists:ppmp_items,id'],
+            'items.*.item_code' => ['nullable', 'string', 'max:100'],
             'items.*.item_name' => ['required', 'string', 'max:255'],
             'items.*.detailed_specifications' => ['nullable', 'string'],
             'items.*.unit_of_measure' => ['required', 'string', 'max:50'],
@@ -113,7 +114,7 @@ class PurchaseRequestController extends Controller
                 'budget_code' => null, // Will be filled by Budget Office
                 'procurement_type' => null, // Will be filled by Budget Office
                 'procurement_method' => null, // Will be filled by Budget Office
-                'status' => 'submitted',
+                'status' => 'ceo_approval',
                 'submitted_at' => now(),
                 'status_updated_at' => now(),
                 'current_handler_id' => null,
@@ -124,16 +125,28 @@ class PurchaseRequestController extends Controller
             foreach ($validated['items'] as $itemData) {
                 $estimatedTotal = (float)$itemData['estimated_unit_cost'] * (int)$itemData['quantity_requested'];
 
+                // Determine item category
+                $itemCategory = null;
+                if (!empty($itemData['ppmp_item_id'])) {
+                    // Get PPMP item to extract category
+                    $ppmpItem = PpmpItem::find($itemData['ppmp_item_id']);
+                    if ($ppmpItem) {
+                        // Store the PPMP category as-is
+                        $itemCategory = $ppmpItem->category;
+                    }
+                }
+
                 PurchaseRequestItem::create([
                     'purchase_request_id' => $purchaseRequest->id,
                     'ppmp_item_id' => $itemData['ppmp_item_id'] ?? null,
+                    'item_code' => $itemData['item_code'] ?? null,
                     'item_name' => $itemData['item_name'] ?? null,
                     'detailed_specifications' => $itemData['detailed_specifications'] ?? null,
                     'unit_of_measure' => $itemData['unit_of_measure'] ?? null,
                     'quantity_requested' => $itemData['quantity_requested'],
                     'estimated_unit_cost' => $itemData['estimated_unit_cost'],
                     'estimated_total_cost' => $estimatedTotal,
-                    'item_category' => 'ppmp',
+                    'item_category' => $itemCategory,
                 ]);
             }
 
@@ -159,16 +172,16 @@ class PurchaseRequestController extends Controller
                 }
             }
 
-            // Notify Supply Officer role users
+            // Notify CEO role users for initial approval
             try {
-                \Spatie\Permission\Models\Role::findByName('Supply Officer');
-                $supplyUsers = \App\Models\User::role('Supply Officer')->get();
-                foreach ($supplyUsers as $user) {
+                \Spatie\Permission\Models\Role::findByName('CEO');
+                $ceoUsers = \App\Models\User::role('CEO')->get();
+                foreach ($ceoUsers as $user) {
                     $user->notify(new PurchaseRequestSubmitted($purchaseRequest));
                 }
 
-                // Create pending approval for Supply step
-                WorkflowRouter::createPendingForRole($purchaseRequest, 'supply_office_review', 'Supply Officer');
+                // Create pending approval for CEO initial review
+                WorkflowRouter::createPendingForRole($purchaseRequest, 'ceo_initial_approval', 'CEO');
             } catch (\Throwable $e) {
                 // silently ignore if roles not set yet
             }
