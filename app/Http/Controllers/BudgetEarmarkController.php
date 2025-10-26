@@ -26,8 +26,14 @@ class BudgetEarmarkController extends Controller
     public function edit(PurchaseRequest $purchaseRequest): View
     {
         abort_unless($purchaseRequest->status === 'budget_office_review', 403);
-        $purchaseRequest->load('items');
-        return view('budget.purchase_requests.edit', compact('purchaseRequest'));
+        $purchaseRequest->load(['items', 'requester']);
+        
+        // Get CEO approval details
+        $ceoApproval = WorkflowApproval::where('purchase_request_id', $purchaseRequest->id)
+            ->where('step_name', 'ceo_initial_approval')
+            ->first();
+        
+        return view('budget.purchase_requests.edit', compact('purchaseRequest', 'ceoApproval'));
     }
 
     public function update(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
@@ -41,8 +47,13 @@ class BudgetEarmarkController extends Controller
             'budget_code' => ['nullable', 'string', 'max:255'],
             'procurement_type' => ['required', 'in:supplies_materials,equipment,infrastructure,services,consulting_services'],
             'procurement_method' => ['nullable', 'in:small_value_procurement,public_bidding,direct_contracting,negotiated_procurement'],
-            'comments' => ['nullable', 'string'],
+            'remarks' => ['required', 'string', 'min:1'],
         ]);
+
+        // Additional validation to check remarks is not just whitespace
+        if (empty(trim($validated['remarks']))) {
+            return back()->withErrors(['remarks' => 'Remarks cannot be empty or contain only spaces.'])->withInput();
+        }
 
         // Record approval log
         WorkflowApproval::updateOrCreate(
@@ -55,7 +66,7 @@ class BudgetEarmarkController extends Controller
                 'approver_id' => Auth::id(),
                 'approved_by' => Auth::id(),
                 'status' => 'approved',
-                'comments' => $validated['comments'] ?? null,
+                'remarks' => $validated['remarks'] ?? null,
                 'assigned_at' => now()->subDay(),
                 'responded_at' => now(),
                 'days_to_respond' => 1,
@@ -70,8 +81,8 @@ class BudgetEarmarkController extends Controller
         $purchaseRequest->procurement_type = $validated['procurement_type'];
         $purchaseRequest->procurement_method = $validated['procurement_method'] ?? null;
 
-        if (!empty($validated['comments'])) {
-            $purchaseRequest->current_step_notes = $validated['comments'];
+        if (!empty($validated['remarks'])) {
+            $purchaseRequest->current_step_notes = $validated['remarks'];
         }
         $purchaseRequest->status = 'bac_evaluation';
         $purchaseRequest->status_updated_at = now();
@@ -85,5 +96,52 @@ class BudgetEarmarkController extends Controller
         }
 
         return redirect()->route('budget.purchase-requests.index')->with('status', 'Earmark approved and forwarded to BAC.');
+    }
+
+    public function reject(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
+    {
+        abort_unless($purchaseRequest->status === 'budget_office_review', 403);
+
+        $validated = $request->validate([
+            'rejection_reason' => ['required', 'string', 'min:10'],
+            'remarks' => ['nullable', 'string'],
+        ]);
+
+        // Record rejection in workflow
+        WorkflowApproval::updateOrCreate(
+            [
+                'purchase_request_id' => $purchaseRequest->id,
+                'step_name' => 'budget_office_earmarking',
+            ],
+            [
+                'step_order' => 2,
+                'approver_id' => Auth::id(),
+                'approved_by' => null,
+                'status' => 'rejected',
+                'remarks' => $validated['remarks'] ?? null,
+                'rejection_reason' => $validated['rejection_reason'],
+                'assigned_at' => now()->subDay(),
+                'responded_at' => now(),
+                'days_to_respond' => 1,
+            ]
+        );
+
+        $oldStatus = $purchaseRequest->status;
+        $purchaseRequest->status = 'rejected';
+        $purchaseRequest->rejection_reason = $validated['rejection_reason'];
+        $purchaseRequest->rejected_by = Auth::id();
+        $purchaseRequest->rejected_at = now();
+        if (!empty($validated['remarks'])) {
+            $purchaseRequest->current_step_notes = $validated['remarks'];
+        }
+        $purchaseRequest->status_updated_at = now();
+        $purchaseRequest->save();
+
+        // Notify requester of rejection
+        if ($purchaseRequest->requester) {
+            $purchaseRequest->requester->notify(new PurchaseRequestStatusUpdated($purchaseRequest, $oldStatus, 'rejected'));
+        }
+
+        return redirect()->route('budget.purchase-requests.index')->with('status', 'Purchase request has been rejected.');
     }
 }

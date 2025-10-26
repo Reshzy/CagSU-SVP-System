@@ -23,7 +23,7 @@
                                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PR #</th>
                                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purpose</th>
                                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Needed</th>
-                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                                    <!-- <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th> -->
                                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                     <th class="px-4 py-2"></th>
                                 </tr>
@@ -34,7 +34,7 @@
                                     <td class="px-4 py-2 font-mono">{{ $req->pr_number }}</td>
                                     <td class="px-4 py-2">{{ $req->purpose }}</td>
                                     <td class="px-4 py-2">{{ $req->date_needed?->format('M d, Y') }}</td>
-                                    <td class="px-4 py-2 capitalize">{{ $req->priority }}</td>
+                                    <!-- <td class="px-4 py-2 capitalize">{{ $req->priority }}</td> -->
                                     <td class="px-4 py-2 capitalize">{{ str_replace('_', ' ', $req->status) }}</td>
                                     <td class="px-4 py-2 text-right">
                                         <span class="text-xs text-gray-500">Updated {{ $req->updated_at->diffForHumans() }}</span>

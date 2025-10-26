@@ -114,6 +114,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/budget/purchase-requests', [BudgetEarmarkController::class, 'index'])->name('budget.purchase-requests.index');
         Route::get('/budget/purchase-requests/{purchaseRequest}/edit', [BudgetEarmarkController::class, 'edit'])->name('budget.purchase-requests.edit');
         Route::put('/budget/purchase-requests/{purchaseRequest}', [BudgetEarmarkController::class, 'update'])->name('budget.purchase-requests.update');
+        Route::post('/budget/purchase-requests/{purchaseRequest}/reject', [BudgetEarmarkController::class, 'reject'])->name('budget.purchase-requests.reject');
 
         // Department Budget Management
         Route::get('/budget/departments', [BudgetManagementController::class, 'index'])->name('budget.index');
