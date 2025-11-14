@@ -14,12 +14,13 @@ mysqldump -u root -p --routines --triggers --single-transaction cagsu_svp_system
 mysqldump -u root --routines --triggers --single-transaction cagsu_svp_system > cagsu_svp_system_backup.sql
 ```
 
-### 2. Create Archive (Windows - 7-Zip)
+### 2. Create Archive (Windows/macOS - tar.gz)
 
 ```bash
-cd C:\xampp\htdocs\
-7z a -t7z CapstoneLatest_Migration.7z CapstoneLatest\ -x@CapstoneLatest\exclude_list.txt -mx=9
+cd /path/to/xampp/htdocs/
+tar --exclude-from=CapstoneLatest/exclude_list.txt -czvf CapstoneLatest_Migration.tar.gz CapstoneLatest/
 ```
+
 
 ### 3. Target System Setup
 

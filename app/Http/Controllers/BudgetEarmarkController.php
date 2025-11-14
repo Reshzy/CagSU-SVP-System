@@ -5,11 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\PurchaseRequest;
 use App\Models\WorkflowApproval;
 use App\Notifications\PurchaseRequestStatusUpdated;
+use App\Services\BacResolutionService;
+use App\Services\WorkflowRouter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
-use App\Services\WorkflowRouter;
 
 class BudgetEarmarkController extends Controller
 {
@@ -73,6 +74,14 @@ class BudgetEarmarkController extends Controller
             ]
         );
 
+        // Generate earmark ID and resolution number if not already set
+        if (empty($purchaseRequest->earmark_id)) {
+            $purchaseRequest->earmark_id = PurchaseRequest::generateNextEarmarkId();
+        }
+        if (empty($purchaseRequest->resolution_number)) {
+            $purchaseRequest->resolution_number = PurchaseRequest::generateNextResolutionNumber();
+        }
+
         // Update PR with approved budget, procurement details, and forward to BAC evaluation
         $purchaseRequest->estimated_total = (float) $validated['approved_budget_total'];
         $purchaseRequest->date_needed = $validated['date_needed'];
@@ -87,6 +96,15 @@ class BudgetEarmarkController extends Controller
         $purchaseRequest->status = 'bac_evaluation';
         $purchaseRequest->status_updated_at = now();
         $purchaseRequest->save();
+
+        // Auto-generate BAC Resolution document
+        try {
+            $resolutionService = new BacResolutionService();
+            $resolutionService->generateResolution($purchaseRequest);
+        } catch (\Exception $e) {
+            \Log::error('Failed to generate BAC resolution for PR ' . $purchaseRequest->pr_number . ': ' . $e->getMessage());
+            // Continue with workflow even if resolution generation fails
+        }
 
         // Create pending approval for BAC
         WorkflowRouter::createPendingForRole($purchaseRequest, 'bac_evaluation', 'BAC Secretariat');

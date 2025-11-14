@@ -13,6 +13,59 @@
                         <div class="mb-4 p-3 rounded-md bg-green-50 text-green-700">{{ session('status') }}</div>
                     @endif
 
+                    @if(session('error'))
+                        <div class="mb-4 p-3 rounded-md bg-red-50 text-red-700">{{ session('error') }}</div>
+                    @endif
+
+                    {{-- BAC Resolution Section --}}
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <h3 class="font-semibold text-lg text-gray-800 mb-2">BAC Resolution</h3>
+                                @if($resolution && $purchaseRequest->resolution_number)
+                                    <div class="space-y-2">
+                                        <div class="flex items-center space-x-2">
+                                            <span class="text-sm text-gray-600">Resolution Number:</span>
+                                            <span class="font-mono font-semibold text-gray-800">{{ $purchaseRequest->resolution_number }}</span>
+                                        </div>
+                                        <div class="flex items-center space-x-2">
+                                            <span class="text-sm text-gray-600">Earmark ID:</span>
+                                            <span class="font-mono text-gray-800">{{ $purchaseRequest->earmark_id ?? 'N/A' }}</span>
+                                        </div>
+                                        <div class="flex items-center space-x-2">
+                                            <span class="text-sm text-gray-600">Generated:</span>
+                                            <span class="text-sm text-gray-800">{{ $resolution->created_at->format('M d, Y h:i A') }}</span>
+                                        </div>
+                                    </div>
+                                @else
+                                    <p class="text-gray-600">Resolution is being generated or not yet available.</p>
+                                @endif
+                            </div>
+                            <div class="flex flex-col space-y-2 ml-4">
+                                @if($resolution && $purchaseRequest->resolution_number)
+                                    <a href="{{ route('bac.quotations.resolution.download', $purchaseRequest) }}" 
+                                       class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                        </svg>
+                                        Download Resolution
+                                    </a>
+                                    <form action="{{ route('bac.quotations.resolution.regenerate', $purchaseRequest) }}" method="POST">
+                                        @csrf
+                                        <button type="submit" 
+                                                class="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 w-full"
+                                                onclick="return confirm('Are you sure you want to regenerate the resolution? This will create a new version.')">
+                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                            </svg>
+                                            Regenerate
+                                        </button>
+                                    </form>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="text-sm text-gray-600">Purpose</div>
                     <div class="font-medium mb-4">{{ $purchaseRequest->purpose }}</div>
 

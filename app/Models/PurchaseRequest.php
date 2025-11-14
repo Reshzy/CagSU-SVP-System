@@ -49,6 +49,11 @@ class PurchaseRequest extends Model
         return $this->morphMany(Document::class, 'documentable');
     }
 
+    public function workflowApprovals()
+    {
+        return $this->hasMany(WorkflowApproval::class);
+    }
+
     public static function generateNextPrNumber(?Carbon $asOf = null): string
     {
         $asOf = $asOf ?: now();
@@ -115,5 +120,54 @@ class PurchaseRequest extends Model
         $totalCost = $this->calculateTotalCost();
 
         return $budget->releaseReservedBudget($totalCost);
+    }
+
+    /**
+     * Generate next earmark ID in format: EM01-MMDDYY-####
+     * Example: EM01-102025-0042 (October 20, 2025)
+     */
+    public static function generateNextEarmarkId(?Carbon $asOf = null): string
+    {
+        $asOf = $asOf ?: now();
+        $dateStr = $asOf->format('mdy'); // MMDDYY format
+        $prefix = 'EM01-' . $dateStr . '-';
+        
+        $last = static::where('earmark_id', 'like', $prefix . '%')
+            ->orderByDesc('earmark_id')
+            ->value('earmark_id');
+
+        $nextSequence = 1;
+        if ($last) {
+            $parts = explode('-', $last);
+            $seqStr = end($parts);
+            $nextSequence = intval($seqStr) + 1;
+        }
+
+        return $prefix . str_pad((string)$nextSequence, 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Generate next resolution number in format: SV-YYYY-MM-####
+     * Example: SV-2025-10-0252 (October 2025)
+     */
+    public static function generateNextResolutionNumber(?Carbon $asOf = null): string
+    {
+        $asOf = $asOf ?: now();
+        $year = $asOf->year;
+        $month = $asOf->format('m');
+        $prefix = 'SV-' . $year . '-' . $month . '-';
+        
+        $last = static::where('resolution_number', 'like', $prefix . '%')
+            ->orderByDesc('resolution_number')
+            ->value('resolution_number');
+
+        $nextSequence = 1;
+        if ($last) {
+            $parts = explode('-', $last);
+            $seqStr = end($parts);
+            $nextSequence = intval($seqStr) + 1;
+        }
+
+        return $prefix . str_pad((string)$nextSequence, 4, '0', STR_PAD_LEFT);
     }
 }

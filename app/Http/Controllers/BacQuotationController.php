@@ -5,15 +5,21 @@ namespace App\Http\Controllers;
 use App\Models\PurchaseRequest;
 use App\Models\Quotation;
 use App\Models\Supplier;
+use App\Services\BacResolutionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class BacQuotationController extends Controller
 {
     public function index(Request $request): View
     {
         $requests = PurchaseRequest::withCount('items')
+            ->with(['documents' => function($query) {
+                $query->where('document_type', 'bac_resolution')->latest();
+            }])
             ->where('status', 'bac_evaluation')
             ->latest()
             ->paginate(15);
@@ -24,10 +30,18 @@ class BacQuotationController extends Controller
     public function manage(PurchaseRequest $purchaseRequest): View
     {
         abort_unless($purchaseRequest->status === 'bac_evaluation', 403);
-        $purchaseRequest->load(['items']);
+        $purchaseRequest->load(['items', 'documents']);
+        
+        // Get the BAC resolution document if it exists
+        $resolution = $purchaseRequest->documents()
+            ->where('document_type', 'bac_resolution')
+            ->latest()
+            ->first();
+        
         $suppliers = Supplier::where('status', 'active')->orderBy('business_name')->get();
         $quotations = Quotation::where('purchase_request_id', $purchaseRequest->id)->with('supplier')->get();
-        return view('bac.quotations.manage', compact('purchaseRequest', 'suppliers', 'quotations'));
+        
+        return view('bac.quotations.manage', compact('purchaseRequest', 'suppliers', 'quotations', 'resolution'));
     }
 
     public function store(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
@@ -110,6 +124,48 @@ class BacQuotationController extends Controller
             $next = intval(end($parts)) + 1;
         }
         return $prefix . str_pad((string)$next, 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Download BAC Resolution document
+     */
+    public function downloadResolution(PurchaseRequest $purchaseRequest): StreamedResponse
+    {
+        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+
+        // Get the resolution document
+        $resolution = $purchaseRequest->documents()
+            ->where('document_type', 'bac_resolution')
+            ->latest()
+            ->first();
+
+        if (!$resolution) {
+            abort(404, 'Resolution document not found.');
+        }
+
+        if (!Storage::exists($resolution->file_path)) {
+            abort(404, 'Resolution file not found in storage.');
+        }
+
+        return Storage::download($resolution->file_path, $resolution->file_name);
+    }
+
+    /**
+     * Regenerate BAC Resolution document
+     */
+    public function regenerateResolution(PurchaseRequest $purchaseRequest): RedirectResponse
+    {
+        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+
+        try {
+            $resolutionService = new BacResolutionService();
+            $resolutionService->generateResolution($purchaseRequest);
+
+            return back()->with('status', 'Resolution has been regenerated successfully.');
+        } catch (\Exception $e) {
+            \Log::error('Failed to regenerate BAC resolution for PR ' . $purchaseRequest->pr_number . ': ' . $e->getMessage());
+            return back()->with('error', 'Failed to regenerate resolution. Please try again.');
+        }
     }
 }
 

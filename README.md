@@ -1,66 +1,417 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# CAGSU Small Value Procurement System
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A comprehensive Purchase Request and Procurement Management System built for Cagayan State University - Sanchez Mira Campus.
 
-## About Laravel
+[![Laravel](https://img.shields.io/badge/Laravel-12.x-red.svg)](https://laravel.com)
+[![PHP](https://img.shields.io/badge/PHP-8.2%2B-blue.svg)](https://php.net)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
--   [Simple, fast routing engine](https://laravel.com/docs/routing).
--   [Powerful dependency injection container](https://laravel.com/docs/container).
--   Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
--   Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
--   Database agnostic [schema migrations](https://laravel.com/docs/migrations).
--   [Robust background job processing](https://laravel.com/docs/queues).
--   [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Overview
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+The CAGSU SVP System is a complete end-to-end procurement management solution designed to streamline the purchase request workflow from creation to completion. Built with Laravel 12.x, the system implements best practices in government procurement while maintaining compliance with Philippine procurement laws.
 
-## Learning Laravel
+### Key Features
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- **📋 Purchase Request Management** - PPMP-integrated request creation and tracking
+- **✅ Multi-Level Approval Workflow** - CEO → Budget Office → BAC evaluation → Approval
+- **📄 Automatic BAC Resolution Generation** - PHPWord-powered document creation
+- **💰 Budget Tracking & Earmarking** - Real-time budget monitoring and allocation
+- **🏢 Supplier Management** - Quotation comparison and supplier evaluation
+- **📊 Document Management** - Secure storage with version control
+- **🔐 Role-Based Access Control** - 8 distinct user roles with granular permissions
+- **📧 Automated Notifications** - Status updates and action reminders
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+---
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Technology Stack
 
-## Laravel Sponsors
+### Backend
+- **Framework:** Laravel 12.x
+- **Language:** PHP 8.2+
+- **Database:** MySQL 5.7+ / MariaDB 10.3+
+- **Document Generation:** PHPWord 1.4
+- **Number Conversion:** NumberToWords 2.12
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+### Frontend
+- **Templating:** Blade
+- **CSS Framework:** Tailwind CSS 3.x
+- **JavaScript:** Vanilla JS + Alpine.js
+- **Build Tool:** Vite
 
-### Premium Partners
+### Development Tools
+- Composer 2.x
+- Node.js 18.x+
+- XAMPP (Apache + MySQL)
 
--   **[Vehikl](https://vehikl.com)**
--   **[Tighten Co.](https://tighten.co)**
--   **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
--   **[64 Robots](https://64robots.com)**
--   **[Curotec](https://www.curotec.com/services/technologies/laravel)**
--   **[DevSquad](https://devsquad.com/hire-laravel-developers)**
--   **[Redberry](https://redberry.international/laravel-development)**
--   **[Active Logic](https://activelogic.com)**
+---
 
-## Contributing
+## Quick Start
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### Prerequisites
+- PHP 8.2 or higher
+- Composer 2.x
+- Node.js 18.x+
+- MySQL 5.7+ or MariaDB 10.3+
 
-## Code of Conduct
+### Installation
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+1. **Clone or extract the project**
+   ```bash
+   cd C:\xampp\htdocs\CapstoneLatest
+   ```
 
-## Security Vulnerabilities
+2. **Install dependencies**
+   ```bash
+   composer install
+   npm install
+   ```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+3. **Configure environment**
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
 
-## License
+4. **Setup database**
+   - Create database: `cagsu_svp_system`
+   - Import SQL: `cagsu_svp_system_backup.sql`
+   - Or run migrations: `php artisan migrate --seed`
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+5. **Build assets**
+   ```bash
+   npm run build
+   ```
+
+6. **Start server**
+   ```bash
+   php artisan serve
+   ```
+
+7. **Access application**
+   - URL: `http://localhost:8000`
+   - Default login: `ceo@cagsu.edu.ph` / `password`
+
+**For detailed installation instructions, see [PROJECT_TRANSFER_GUIDE.md](PROJECT_TRANSFER_GUIDE.md)**
+
+---
+
+## System Workflow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    PURCHASE REQUEST WORKFLOW                    │
+└─────────────────────────────────────────────────────────────────┘
+
+1. User Creates PR
+   └─> Selects items from PPMP catalog
+   └─> Status: ceo_approval
+
+2. CEO Approval
+   └─> Reviews and approves PR
+   └─> Status: budget_office_review
+
+3. Budget Office Earmarking ⚡ NEW FEATURE
+   └─> Generates Earmark ID (EM01-MMDDYY-####)
+   └─> Auto-creates BAC Resolution (SV-YYYY-MM-####.docx)
+   └─> Sets funding source and budget code
+   └─> Status: bac_evaluation
+
+4. BAC Evaluation
+   └─> Downloads/regenerates resolution document
+   └─> Collects supplier quotations
+   └─> Evaluates and recommends winner
+   └─> Status: bac_approved
+
+5. Purchase Order Generation
+   └─> Supply office creates PO
+   └─> Status: po_approved
+
+6. Delivery & Completion
+   └─> Goods received and inspected
+   └─> Status: completed
+```
+
+---
+
+## BAC Resolution System (New)
+
+### Automatic Document Generation
+
+The system now features **automatic BAC Resolution document generation** using PHPWord:
+
+- **Auto-generation:** When Budget Office earmarks funds, resolution is instantly created
+- **Format:** Professional 2-page Word documents with official formatting
+- **Resolution Numbers:** Auto-generated in `SV-YYYY-MM-####` format
+- **Earmark IDs:** Auto-generated in `EM01-MMDDYY-####` format
+- **Features:**
+  - Download resolution as DOCX
+  - Regenerate with updated data
+  - Includes header/footer images (letterhead)
+  - Proper signatures and certifications
+  - Compliant with procurement regulations
+
+### Setup Requirements
+
+Place official header and footer images:
+```
+public/images/
+  ├── header.png  (6.5" × 1", 300 DPI)
+  └── footer.png  (6.5" × 1", 300 DPI)
+```
+
+Generated documents stored in: `storage/app/resolutions/`
+
+---
+
+## User Roles & Permissions
+
+| Role | Primary Responsibilities |
+|------|-------------------------|
+| **CEO** | Final approval authority, executive oversight |
+| **Budget Officer** | Fund earmarking, budget allocation, resolution generation |
+| **BAC Secretariat** | Quotation management, resolution handling, evaluation |
+| **BAC Chair/Members** | Bid evaluation, award recommendations |
+| **Supply Officer** | Inventory, purchase orders, delivery tracking |
+| **Department Head** | Department oversight, PR approval |
+| **Accounting** | Financial records, disbursement vouchers |
+| **End User** | PR creation, request tracking |
+
+---
+
+## System Architecture
+
+### MVC Pattern
+```
+┌─────────────┐
+│   Routes    │ ← web.php defines URL endpoints
+└──────┬──────┘
+       │
+┌──────▼──────┐
+│ Controllers │ ← Handle HTTP requests
+└──────┬──────┘
+       │
+┌──────▼──────┐
+│  Services   │ ← Business logic (BacResolutionService, etc.)
+└──────┬──────┘
+       │
+┌──────▼──────┐
+│   Models    │ ← Database interactions (Eloquent ORM)
+└──────┬──────┘
+       │
+┌──────▼──────┐
+│   Views     │ ← Blade templates (HTML)
+└─────────────┘
+```
+
+### Key Services
+- **BacResolutionService** - Generates BAC resolution documents
+- **WorkflowRouter** - Manages approval workflow transitions
+- **BudgetService** - Handles budget calculations and tracking
+
+---
+
+## Database Schema
+
+### Core Tables
+- `users` - User accounts and authentication
+- `departments` - Organizational structure
+- `purchase_requests` - Main PR records with earmark_id and resolution_number
+- `purchase_request_items` - PR line items linked to PPMP
+- `ppmp_items` - Pre-approved procurement items catalog
+- `workflow_approvals` - Approval tracking by step
+- `documents` - File storage with polymorphic relations
+- `suppliers` - Vendor information
+- `quotations` - Supplier price quotes
+- `purchase_orders` - Generated POs
+- `disbursement_vouchers` - Payment records
+
+For detailed schema, see `SYSTEM_ARCHITECTURE.md`
+
+---
 
 ## Documentation
 
--   Deployment: see `DEPLOYMENT.md`
--   User Guide: see `USER_GUIDE.md`
+- **[PROJECT_TRANSFER_GUIDE.md](PROJECT_TRANSFER_GUIDE.md)** - Complete setup and transfer instructions
+- **[SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md)** - Technical architecture details
+- **[WORKFLOW_REROUTE_SUMMARY.md](WORKFLOW_REROUTE_SUMMARY.md)** - Workflow documentation
+- **[README_FOR_TEACHER.md](README_FOR_TEACHER.md)** - Presentation guide
+
+---
+
+## Development
+
+### Running Development Server
+```bash
+# Start Laravel server
+php artisan serve
+
+# Watch for asset changes
+npm run dev
+
+# Run queue worker (for notifications)
+php artisan queue:work
+```
+
+### Database Migrations
+```bash
+# Run all pending migrations
+php artisan migrate
+
+# Rollback last migration
+php artisan migrate:rollback
+
+# Fresh install with seed data
+php artisan migrate:fresh --seed
+```
+
+### Clearing Caches
+```bash
+# Clear all caches
+php artisan optimize:clear
+
+# Or individually
+php artisan config:clear
+php artisan cache:clear
+php artisan view:clear
+php artisan route:clear
+```
+
+---
+
+## Testing
+
+### Login Credentials (Development)
+
+| Email | Password | Role |
+|-------|----------|------|
+| ceo@cagsu.edu.ph | password | CEO |
+| budget@cagsu.edu.ph | password | Budget Officer |
+| bac@cagsu.edu.ph | password | BAC Secretariat |
+| supply@cagsu.edu.ph | password | Supply Officer |
+| depthead@cagsu.edu.ph | password | Department Head |
+| user@cagsu.edu.ph | password | End User |
+
+**⚠️ Change all passwords before production deployment!**
+
+---
+
+## Compliance
+
+This system is designed to comply with:
+- **Republic Act No. 9184** - Government Procurement Reform Act
+- **2016 Revised IRR of RA 9184** - Implementing Rules and Regulations
+- **COA Circulars** - Commission on Audit procurement guidelines
+- **DBM Budget Circulars** - Department of Budget and Management
+
+---
+
+## Security Features
+
+- ✅ Password hashing (bcrypt)
+- ✅ CSRF protection
+- ✅ SQL injection prevention (Eloquent ORM)
+- ✅ XSS protection (Blade escaping)
+- ✅ Role-based access control
+- ✅ Session management
+- ✅ File upload validation
+- ✅ Audit logging
+
+---
+
+## Performance
+
+### Optimization Tips
+```bash
+# Cache configuration for production
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+# Optimize Composer autoloader
+composer install --optimize-autoloader --no-dev
+
+# Build production assets
+npm run build
+```
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+**Database connection failed**
+- Verify MySQL is running
+- Check credentials in `.env`
+- Ensure database exists
+
+**Assets not loading**
+```bash
+npm run build
+php artisan view:clear
+```
+
+**Permission errors**
+```bash
+chmod -R 775 storage bootstrap/cache
+```
+
+**Resolution generation fails**
+- Check PHPWord is installed: `composer show phpoffice/phpword`
+- Verify storage permissions: `storage/app/resolutions/`
+- Check logs: `storage/logs/laravel.log`
+
+For more troubleshooting, see [PROJECT_TRANSFER_GUIDE.md](PROJECT_TRANSFER_GUIDE.md#troubleshooting)
+
+---
+
+## Contributing
+
+This project is developed for Cagayan State University. For modifications or enhancements:
+
+1. Follow Laravel coding standards
+2. Write clear commit messages
+3. Update documentation
+4. Test thoroughly before deployment
+
+---
+
+## License
+
+This project is proprietary software developed for Cagayan State University - Sanchez Mira Campus.
+
+---
+
+## Support
+
+For questions, issues, or support:
+- Check documentation in this repository
+- Review Laravel logs: `storage/logs/laravel.log`
+- Consult Laravel documentation: [https://laravel.com/docs](https://laravel.com/docs)
+
+---
+
+## Changelog
+
+### Version 2.0 (Current)
+- ✨ Added automatic BAC Resolution generation with PHPWord
+- ✨ Added earmark ID auto-generation
+- ✨ Added resolution download and regeneration
+- ✨ Added header/footer image support for documents
+- 🔄 Updated workflow: CEO → Budget → BAC
+- 🔧 Improved document management system
+- 📝 Enhanced documentation
+
+### Version 1.0
+- Initial release with core procurement features
+- PPMP integration
+- Multi-level workflow
+- Supplier management
+
+---
+
+**System Status:** ✅ Production Ready
+
+Built with ❤️ for Cagayan State University - Sanchez Mira Campus

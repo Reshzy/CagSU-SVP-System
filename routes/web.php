@@ -156,6 +156,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/bac/quotations/{purchaseRequest}', [BacQuotationController::class, 'store'])->name('bac.quotations.store');
         Route::put('/bac/quotations/{quotation}/evaluate', [BacQuotationController::class, 'evaluate'])->name('bac.quotations.evaluate');
         Route::put('/bac/quotations/{purchaseRequest}/finalize', [BacQuotationController::class, 'finalize'])->name('bac.quotations.finalize');
+        
+        // BAC Resolution
+        Route::get('/bac/quotations/{purchaseRequest}/resolution/download', [BacQuotationController::class, 'downloadResolution'])->name('bac.quotations.resolution.download');
+        Route::post('/bac/quotations/{purchaseRequest}/resolution/regenerate', [BacQuotationController::class, 'regenerateResolution'])->name('bac.quotations.resolution.regenerate');
 
         // Meetings
         Route::get('/bac/meetings', [BacMeetingController::class, 'index'])->name('bac.meetings.index');

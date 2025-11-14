@@ -18,6 +18,7 @@
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PR #</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resolution</th>
                                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
                                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purpose</th>
                                     <th class="px-4 py-2"></th>
@@ -27,15 +28,31 @@
                                 @forelse($requests as $req)
                                 <tr>
                                     <td class="px-4 py-2 font-mono">{{ $req->pr_number }}</td>
+                                    <td class="px-4 py-2">
+                                        @php
+                                            $resolution = $req->documents->where('document_type', 'bac_resolution')->first();
+                                        @endphp
+                                        @if($resolution && $req->resolution_number)
+                                            <a href="{{ route('bac.quotations.resolution.download', $req) }}" 
+                                               class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800">
+                                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                                </svg>
+                                                {{ $req->resolution_number }}
+                                            </a>
+                                        @else
+                                            <span class="text-gray-400 text-sm">Pending</span>
+                                        @endif
+                                    </td>
                                     <td class="px-4 py-2">{{ $req->items_count }}</td>
                                     <td class="px-4 py-2">{{ $req->purpose }}</td>
                                     <td class="px-4 py-2 text-right">
-                                        <a href="{{ route('bac.quotations.manage', $req) }}" class="px-3 py-2 bg-cagsu-maroon text-white rounded-md">Manage Quotations</a>
+                                        <a href="{{ route('bac.quotations.manage', $req) }}" class="px-3 py-2 bg-cagsu-maroon text-white rounded-md hover:bg-red-900">Manage Quotations</a>
                                     </td>
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="4" class="px-4 py-6 text-center text-gray-500">No PRs awaiting BAC evaluation.</td>
+                                    <td colspan="5" class="px-4 py-6 text-center text-gray-500">No PRs awaiting BAC evaluation.</td>
                                 </tr>
                                 @endforelse
                             </tbody>
