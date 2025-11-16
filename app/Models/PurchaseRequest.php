@@ -54,6 +54,11 @@ class PurchaseRequest extends Model
         return $this->hasMany(WorkflowApproval::class);
     }
 
+    public function resolutionSignatories()
+    {
+        return $this->hasMany(ResolutionSignatory::class);
+    }
+
     public static function generateNextPrNumber(?Carbon $asOf = null): string
     {
         $asOf = $asOf ?: now();

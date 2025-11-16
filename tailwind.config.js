@@ -21,6 +21,7 @@ export default {
                     'orange': '#FF8C00',      // Secondary Dark Orange  
                     'maroon': '#800000',      // Accent Maroon
                     'gold': '#FFD700',        // Alias for yellow
+                    'blue': '#1D4ED8',        // CagSU Blue
                 },
                 // Additional government system colors
                 'gov': {

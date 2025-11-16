@@ -24,11 +24,13 @@ class BacResolutionService
 
     /**
      * Generate BAC Resolution document for a Purchase Request
+     * 
+     * @param array|null $signatories Array of signatory data (position, name, prefix, suffix)
      */
-    public function generateResolution(PurchaseRequest $purchaseRequest): ?Document
+    public function generateResolution(PurchaseRequest $purchaseRequest, ?array $signatories = null): ?Document
     {
         $this->purchaseRequest = $purchaseRequest;
-        $this->loadData();
+        $this->loadData($signatories);
         $this->initializeDocument();
         $this->buildDocument();
 
@@ -45,9 +47,9 @@ class BacResolutionService
     /**
      * Load data from Purchase Request
      */
-    private function loadData(): void
+    private function loadData(?array $signatories = null): void
     {
-        $this->purchaseRequest->load(['requester', 'department']);
+        $this->purchaseRequest->load(['requester', 'department', 'resolutionSignatories']);
 
         // Get CEO who approved (from ceo_initial_approval workflow)
         $ceoApproval = $this->purchaseRequest->workflowApprovals()
@@ -60,6 +62,9 @@ class BacResolutionService
             $ceoName = $ceoApproval->approvedBy->name;
         }
 
+        // Load signatories data - either from parameter or from database
+        $signatoryData = $this->loadSignatories($signatories);
+
         $this->data = [
             'resolution_no' => $this->purchaseRequest->resolution_number,
             'purchase_request_no' => $this->purchaseRequest->pr_number,
@@ -68,7 +73,60 @@ class BacResolutionService
             'budget' => number_format($this->purchaseRequest->estimated_total, 2),
             'purpose' => $this->purchaseRequest->purpose ?? 'N/A',
             'mode_of_procurement' => $this->getProcurementMethodName(),
+            'signatories' => $signatoryData,
         ];
+    }
+
+    /**
+     * Load signatories from parameter or database, with fallback to defaults
+     */
+    private function loadSignatories(?array $signatories = null): array
+    {
+        $defaultSignatories = [
+            'bac_chairman' => ['name' => 'Christopher R. Garingan', 'prefix' => null, 'suffix' => null],
+            'bac_vice_chairman' => ['name' => 'ATTY. Jan Leandro P. Verzon', 'prefix' => null, 'suffix' => null],
+            'bac_member_1' => ['name' => 'Melvin S. Atayan', 'prefix' => null, 'suffix' => null],
+            'bac_member_2' => ['name' => 'Valentin M. Apostol', 'prefix' => null, 'suffix' => null],
+            'bac_member_3' => ['name' => 'Chris Ian T. Rodriguez', 'prefix' => null, 'suffix' => null],
+            'head_bac_secretariat' => ['name' => 'Chanda T. Aquino', 'prefix' => null, 'suffix' => null],
+            'ceo' => ['name' => $this->data['approved_by'] ?? 'Dr. Rodel Francisco T. Alegado', 'prefix' => null, 'suffix' => 'Ph.D.'],
+        ];
+
+        // If signatories parameter is provided, use it
+        if ($signatories) {
+            return array_merge($defaultSignatories, $signatories);
+        }
+
+        // Otherwise, try to load from resolution_signatories table
+        if ($this->purchaseRequest->resolutionSignatories && $this->purchaseRequest->resolutionSignatories->isNotEmpty()) {
+            $result = [];
+            foreach ($this->purchaseRequest->resolutionSignatories as $sig) {
+                \Log::debug('Loading signatory from DB', [
+                    'position' => $sig->position,
+                    'display_name' => $sig->display_name,
+                    'prefix' => $sig->prefix,
+                    'suffix' => $sig->suffix,
+                    'user_id' => $sig->user_id,
+                    'name' => $sig->name
+                ]);
+                
+                $result[$sig->position] = [
+                    'name' => $sig->display_name,
+                    'prefix' => $sig->prefix,
+                    'suffix' => $sig->suffix,
+                ];
+            }
+            
+            \Log::info('Loaded signatories from DB', [
+                'count' => count($result),
+                'positions' => array_keys($result)
+            ]);
+            
+            return array_merge($defaultSignatories, $result);
+        }
+
+        // Fall back to defaults
+        return $defaultSignatories;
     }
 
     /**
@@ -112,8 +170,9 @@ class BacResolutionService
         $this->phpWord->addFontStyle('CenterBold', ['bold' => true, 'allCaps' => true]);
         $this->phpWord->addFontStyle('UnderlineBold', ['bold' => true, 'allCaps' => true, 'underline' => 'single']);
         $this->phpWord->addFontStyle('UnderlineBoldSmall', ['bold' => true, 'underline' => 'single']);
+        $this->phpWord->addFontStyle('SignatureCenterBold', ['bold' => true]);
     }
-
+        
     /**
      * Set document properties
      */
@@ -412,16 +471,17 @@ class BacResolutionService
     private function addBACSignatures(): void
     {
         $table = $this->createSignatureTable();
+        $sigs = $this->data['signatories'];
 
         $signatures = [
-            [['name' => 'Christopher R. Garingan', 'title' => 'BAC Chairman', 'span' => 2]],
+            [['name' => $this->formatSignatoryName($sigs['bac_chairman']), 'title' => 'BAC Chairman', 'span' => 2]],
             [
-                ['name' => 'ATTY. Jan Leandro P. Verzon', 'title' => 'BAC Vice Chairman'],
-                ['name' => 'Melvin S. Atayan', 'title' => 'BAC Member']
+                ['name' => $this->formatSignatoryName($sigs['bac_vice_chairman']), 'title' => 'BAC Vice Chairman'],
+                ['name' => $this->formatSignatoryName($sigs['bac_member_1']), 'title' => 'BAC Member']
             ],
             [
-                ['name' => 'Valentin M. Apostol', 'title' => 'BAC Member'],
-                ['name' => 'Chris Ian T. Rodriguez', 'title' => 'BAC Member']
+                ['name' => $this->formatSignatoryName($sigs['bac_member_2']), 'title' => 'BAC Member'],
+                ['name' => $this->formatSignatoryName($sigs['bac_member_3']), 'title' => 'BAC Member']
             ],
         ];
 
@@ -449,8 +509,10 @@ class BacResolutionService
     private function addSecretariatSignature(): void
     {
         $table = $this->createSignatureTable();
+        $sigs = $this->data['signatories'];
+        
         $this->addSignatureRow($table, [
-            ['name' => 'Chanda T. Aquino', 'title' => 'Head, BAC Secretariat', 'span' => 2]
+            ['name' => $this->formatSignatoryName($sigs['head_bac_secretariat']), 'title' => 'Head, BAC Secretariat', 'span' => 2]
         ]);
     }
 
@@ -461,22 +523,58 @@ class BacResolutionService
     {
         $this->section->addTextBreak(2);
         $this->section->addText('APPROVED:');
+        
+        $sigs = $this->data['signatories'];
+        $ceoName = $this->formatSignatoryName($sigs['ceo']);
 
         $run = $this->section->addTextRun();
         $run->addTextBreak();
-        $run->addText($this->data['approved_by'] . ', ', ['bold' => true, 'allCaps' => true]);
-        $run->addText('Ph.D.', ['bold' => true]);
+        $run->addText($ceoName, ['bold' => true, 'allCaps' => false]);
         $run->addTextBreak();
         $run->addText('Campus Executive Officer');
         $run->addTextBreak();
         $run->addText('Cagayan State University – Sanchez Mira Campus');
         $run->addTextBreak(2);
-        $run->addText('Date: ___________________________');
+        $run->addText('Date: ㅤㅤㅤ______________________________');
     }
 
     // ========================================================================
     // HELPER METHODS
     // ========================================================================
+
+    /**
+     * Format signatory name with prefix and suffix
+     * Name and prefix are uppercase, suffix keeps original case
+     */
+    private function formatSignatoryName(array $signatory): string
+    {
+        $name = $signatory['name'] ?? 'N/A';
+        $prefix = $signatory['prefix'] ?? '';
+        $suffix = $signatory['suffix'] ?? '';
+        
+        \Log::debug('Formatting signatory name', [
+            'name' => $name,
+            'prefix' => $prefix,
+            'suffix' => $suffix,
+            'has_prefix' => !empty($prefix)
+        ]);
+        
+        // Build the uppercase part (prefix + name)
+        $uppercasePart = $name;
+        if (!empty($prefix)) {
+            $uppercasePart = $prefix . ' ' . $name;
+        }
+        
+        // Convert to uppercase
+        $uppercasePart = strtoupper($uppercasePart);
+        
+        // Add suffix in original case
+        if (!empty($suffix)) {
+            $uppercasePart .= ', ' . $suffix;
+        }
+        
+        return $uppercasePart;
+    }
 
     /**
      * Add justified text paragraph
@@ -585,7 +683,7 @@ class BacResolutionService
             }
 
             $cell->addTextBreak(1);
-            $cell->addText($sig['name'], 'CenterBold', ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
+            $cell->addText($sig['name'], 'SignatureCenterBold', ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
             $cell->addText($sig['title'], null, ['alignment' => Jc::CENTER, 'spaceBefore' => 0]);
         }
     }

@@ -150,6 +150,16 @@ Route::middleware('auth')->group(function () {
         Route::put('/ceo/departments/{department}', [CeoDepartmentController::class, 'update'])->name('ceo.departments.update');
     });
 
+    // BAC Signatory Management (Admin/BAC Chair only)
+    Route::middleware('role:System Admin|BAC Chair')->prefix('bac/signatories')->name('bac.signatories.')->group(function () {
+        Route::get('/', [App\Http\Controllers\BacSignatoryController::class, 'index'])->name('index');
+        Route::get('/create', [App\Http\Controllers\BacSignatoryController::class, 'create'])->name('create');
+        Route::post('/', [App\Http\Controllers\BacSignatoryController::class, 'store'])->name('store');
+        Route::get('/{signatory}/edit', [App\Http\Controllers\BacSignatoryController::class, 'edit'])->name('edit');
+        Route::put('/{signatory}', [App\Http\Controllers\BacSignatoryController::class, 'update'])->name('update');
+        Route::delete('/{signatory}', [App\Http\Controllers\BacSignatoryController::class, 'destroy'])->name('destroy');
+    });
+
     // BAC Quotations & Meetings
     Route::middleware('role:BAC Chair|BAC Members|BAC Secretariat')->group(function () {
         // BAC Procurement Method Determination

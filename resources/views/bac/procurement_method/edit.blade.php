@@ -148,6 +148,12 @@
                             <x-input-error :messages="$errors->get('remarks')" class="mt-2" />
                         </div>
 
+                        <!-- Signatory Selection -->
+                        @include('bac.partials.signatory_form', [
+                            'signatories' => $purchaseRequest->resolutionSignatories ?? null,
+                            'bacSignatories' => $bacSignatories ?? []
+                        ])
+
                         <div class="flex justify-end space-x-3">
                             <a href="{{ route('bac.procurement-method.index') }}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors">Cancel</a>
                             <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
