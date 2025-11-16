@@ -59,6 +59,11 @@ class PurchaseRequest extends Model
         return $this->hasMany(ResolutionSignatory::class);
     }
 
+    public function rfqSignatories()
+    {
+        return $this->hasMany(RfqSignatory::class);
+    }
+
     public static function generateNextPrNumber(?Carbon $asOf = null): string
     {
         $asOf = $asOf ?: now();
@@ -165,6 +170,30 @@ class PurchaseRequest extends Model
         $last = static::where('resolution_number', 'like', $prefix . '%')
             ->orderByDesc('resolution_number')
             ->value('resolution_number');
+
+        $nextSequence = 1;
+        if ($last) {
+            $parts = explode('-', $last);
+            $seqStr = end($parts);
+            $nextSequence = intval($seqStr) + 1;
+        }
+
+        return $prefix . str_pad((string)$nextSequence, 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Generate next RFQ number in format: RFQ-YYYY-####
+     * Example: RFQ-2025-0042
+     */
+    public static function generateNextRfqNumber(?Carbon $asOf = null): string
+    {
+        $asOf = $asOf ?: now();
+        $year = $asOf->year;
+        $prefix = 'RFQ-' . $year . '-';
+        
+        $last = static::where('rfq_number', 'like', $prefix . '%')
+            ->orderByDesc('rfq_number')
+            ->value('rfq_number');
 
         $nextSequence = 1;
         if ($last) {

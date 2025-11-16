@@ -28,10 +28,15 @@ class BacSignatoryController extends Controller
      */
     public function create(): View
     {
-        // Get users with BAC-related roles
+        // Get users with BAC-related roles, including Canvassing Unit
         $bacUsers = User::whereHas('roles', function ($query) {
-            $query->whereIn('name', ['BAC Chair', 'BAC Members', 'BAC Secretariat', 'Executive Officer', 'System Admin']);
+            $query->whereIn('name', ['BAC Chair', 'BAC Members', 'BAC Secretariat', 'Executive Officer', 'System Admin', 'Canvassing Unit']);
         })->orderBy('name')->get();
+        
+        // If no users found with roles, get all users as fallback
+        if ($bacUsers->isEmpty()) {
+            $bacUsers = User::orderBy('name')->get();
+        }
 
         return view('bac.signatories.create', compact('bacUsers'));
     }
@@ -45,7 +50,7 @@ class BacSignatoryController extends Controller
             'input_type' => ['required', 'in:user,manual'],
             'user_id' => ['nullable', 'required_if:input_type,user', 'exists:users,id'],
             'manual_name' => ['nullable', 'required_if:input_type,manual', 'string', 'max:255'],
-            'position' => ['required', 'in:bac_chairman,bac_vice_chairman,bac_member,head_bac_secretariat,ceo'],
+            'position' => ['required', 'in:bac_chairman,bac_vice_chairman,bac_member,head_bac_secretariat,ceo,canvassing_officer'],
             'prefix' => ['nullable', 'string', 'max:50'],
             'suffix' => ['nullable', 'string', 'max:50'],
             'is_active' => ['boolean'],
@@ -93,10 +98,15 @@ class BacSignatoryController extends Controller
     {
         $signatory->load('user');
         
-        // Get users with BAC-related roles
+        // Get users with BAC-related roles, including Canvassing Unit
         $bacUsers = User::whereHas('roles', function ($query) {
-            $query->whereIn('name', ['BAC Chair', 'BAC Members', 'BAC Secretariat', 'Executive Officer', 'System Admin']);
+            $query->whereIn('name', ['BAC Chair', 'BAC Members', 'BAC Secretariat', 'Executive Officer', 'System Admin', 'Canvassing Unit']);
         })->orderBy('name')->get();
+        
+        // If no users found with roles, get all users as fallback
+        if ($bacUsers->isEmpty()) {
+            $bacUsers = User::orderBy('name')->get();
+        }
 
         return view('bac.signatories.edit', compact('signatory', 'bacUsers'));
     }
@@ -110,7 +120,7 @@ class BacSignatoryController extends Controller
             'input_type' => ['required', 'in:user,manual'],
             'user_id' => ['nullable', 'required_if:input_type,user', 'exists:users,id'],
             'manual_name' => ['nullable', 'required_if:input_type,manual', 'string', 'max:255'],
-            'position' => ['required', 'in:bac_chairman,bac_vice_chairman,bac_member,head_bac_secretariat,ceo'],
+            'position' => ['required', 'in:bac_chairman,bac_vice_chairman,bac_member,head_bac_secretariat,ceo,canvassing_officer'],
             'prefix' => ['nullable', 'string', 'max:50'],
             'suffix' => ['nullable', 'string', 'max:50'],
             'is_active' => ['boolean'],

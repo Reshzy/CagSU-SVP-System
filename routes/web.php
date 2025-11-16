@@ -177,6 +177,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/bac/quotations/{purchaseRequest}/resolution/download', [BacQuotationController::class, 'downloadResolution'])->name('bac.quotations.resolution.download');
         Route::post('/bac/quotations/{purchaseRequest}/resolution/regenerate', [BacQuotationController::class, 'regenerateResolution'])->name('bac.quotations.resolution.regenerate');
 
+        // RFQ (Request for Quotation)
+        Route::post('/bac/quotations/{purchaseRequest}/rfq/generate', [BacQuotationController::class, 'generateRfq'])->name('bac.quotations.rfq.generate');
+        Route::get('/bac/quotations/{purchaseRequest}/rfq/download', [BacQuotationController::class, 'downloadRfq'])->name('bac.quotations.rfq.download');
+        Route::post('/bac/quotations/{purchaseRequest}/rfq/regenerate', [BacQuotationController::class, 'regenerateRfq'])->name('bac.quotations.rfq.regenerate');
+
         // Meetings
         Route::get('/bac/meetings', [BacMeetingController::class, 'index'])->name('bac.meetings.index');
         Route::get('/bac/meetings/create', [BacMeetingController::class, 'create'])->name('bac.meetings.create');

@@ -81,6 +81,7 @@
                                 <option value="bac_member" {{ old('position') == 'bac_member' ? 'selected' : '' }}>BAC Member</option>
                                 <option value="head_bac_secretariat" {{ old('position') == 'head_bac_secretariat' ? 'selected' : '' }}>Head, BAC Secretariat</option>
                                 <option value="ceo" {{ old('position') == 'ceo' ? 'selected' : '' }}>CEO</option>
+                                <option value="canvassing_officer" {{ old('position') == 'canvassing_officer' ? 'selected' : '' }}>Canvassing Officer</option>
                             </select>
                             @error('position')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>

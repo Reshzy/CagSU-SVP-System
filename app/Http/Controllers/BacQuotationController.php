@@ -6,10 +6,13 @@ use App\Models\BacSignatory;
 use App\Models\PurchaseRequest;
 use App\Models\Quotation;
 use App\Models\ResolutionSignatory;
+use App\Models\RfqSignatory;
 use App\Models\Supplier;
 use App\Services\BacResolutionService;
+use App\Services\BacRfqService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -39,11 +42,17 @@ class BacQuotationController extends Controller
                 ->with('error', 'Please set the procurement method first before managing quotations.');
         }
         
-        $purchaseRequest->load(['items', 'documents', 'resolutionSignatories']);
+        $purchaseRequest->load(['items', 'documents', 'resolutionSignatories', 'rfqSignatories']);
         
         // Get the BAC resolution document if it exists
         $resolution = $purchaseRequest->documents()
             ->where('document_type', 'bac_resolution')
+            ->latest()
+            ->first();
+        
+        // Get the RFQ document if it exists
+        $rfq = $purchaseRequest->documents()
+            ->where('document_type', 'bac_rfq')
             ->latest()
             ->first();
         
@@ -53,7 +62,7 @@ class BacQuotationController extends Controller
         // Get BAC signatories for regeneration form
         $bacSignatories = BacSignatory::with('user')->active()->get()->groupBy('position');
         
-        return view('bac.quotations.manage', compact('purchaseRequest', 'suppliers', 'quotations', 'resolution', 'bacSignatories'));
+        return view('bac.quotations.manage', compact('purchaseRequest', 'suppliers', 'quotations', 'resolution', 'rfq', 'bacSignatories'));
     }
 
     public function store(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
@@ -231,7 +240,7 @@ class BacQuotationController extends Controller
             
             // If signatories are provided, save them and prepare data
             if (!empty($validated['signatories'])) {
-                \Log::info('Regenerating resolution with signatories', [
+                Log::info('Regenerating resolution with signatories', [
                     'pr_number' => $purchaseRequest->pr_number,
                     'signatory_count' => count($validated['signatories'])
                 ]);
@@ -243,12 +252,12 @@ class BacQuotationController extends Controller
                 $purchaseRequest->refresh();
                 $purchaseRequest->load('resolutionSignatories');
                 
-                \Log::info('Signatories saved and loaded', [
+                Log::info('Signatories saved and loaded', [
                     'pr_number' => $purchaseRequest->pr_number,
                     'loaded_count' => $purchaseRequest->resolutionSignatories->count()
                 ]);
             } else {
-                \Log::info('No signatories provided, will use existing or defaults', [
+                Log::info('No signatories provided, will use existing or defaults', [
                     'pr_number' => $purchaseRequest->pr_number
                 ]);
             }
@@ -258,7 +267,7 @@ class BacQuotationController extends Controller
 
             return back()->with('status', 'Resolution has been regenerated successfully.');
         } catch (\Exception $e) {
-            \Log::error('Failed to regenerate BAC resolution for PR ' . $purchaseRequest->pr_number . ': ' . $e->getMessage());
+            Log::error('Failed to regenerate BAC resolution for PR ' . $purchaseRequest->pr_number . ': ' . $e->getMessage());
             return back()->with('error', 'Failed to regenerate resolution. Please try again: ' . $e->getMessage());
         }
     }
@@ -271,7 +280,7 @@ class BacQuotationController extends Controller
         // Delete existing signatories
         $purchaseRequest->resolutionSignatories()->delete();
 
-        \Log::info('Saving signatories', [
+        Log::info('Saving signatories', [
             'pr_number' => $purchaseRequest->pr_number,
             'positions' => array_keys($signatories)
         ]);
@@ -279,7 +288,7 @@ class BacQuotationController extends Controller
         // Save new signatories
         $savedCount = 0;
         foreach ($signatories as $position => $data) {
-            \Log::debug("Processing signatory", [
+            Log::debug("Processing signatory", [
                 'position' => $position,
                 'input_mode' => $data['input_mode'] ?? 'not set',
                 'has_user_id' => !empty($data['user_id']),
@@ -298,7 +307,7 @@ class BacQuotationController extends Controller
                     'suffix' => $data['suffix'] ?? null,
                 ]);
                 $savedCount++;
-                \Log::debug("Saved user-based signatory for position: {$position}");
+                Log::debug("Saved user-based signatory for position: {$position}");
             } elseif ($data['input_mode'] === 'select' && !empty($data['selected_name'])) {
                 // Pre-configured signatory with manual name (no user account)
                 ResolutionSignatory::create([
@@ -310,7 +319,7 @@ class BacQuotationController extends Controller
                     'suffix' => $data['suffix'] ?? null,
                 ]);
                 $savedCount++;
-                \Log::debug("Saved pre-configured manual signatory for position: {$position}");
+                Log::debug("Saved pre-configured manual signatory for position: {$position}");
             } elseif ($data['input_mode'] === 'manual' && !empty($data['name'])) {
                 // Manually entered name
                 ResolutionSignatory::create([
@@ -322,13 +331,13 @@ class BacQuotationController extends Controller
                     'suffix' => $data['suffix'] ?? null,
                 ]);
                 $savedCount++;
-                \Log::debug("Saved manual signatory for position: {$position}");
+                Log::debug("Saved manual signatory for position: {$position}");
             } else {
-                \Log::warning("Skipped signatory for position: {$position}", $data);
+                Log::warning("Skipped signatory for position: {$position}", $data);
             }
         }
         
-        \Log::info("Total signatories saved: {$savedCount}");
+        Log::info("Total signatories saved: {$savedCount}");
     }
 
     /**
@@ -365,6 +374,187 @@ class BacQuotationController extends Controller
         }
         
         return $result;
+    }
+
+    /**
+     * Generate RFQ document
+     */
+    public function generateRfq(PurchaseRequest $purchaseRequest): RedirectResponse
+    {
+        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        abort_if(empty($purchaseRequest->resolution_number), 403, 'Resolution must be generated before creating RFQ.');
+
+        try {
+            // Generate RFQ number if not already set
+            if (empty($purchaseRequest->rfq_number)) {
+                $purchaseRequest->rfq_number = PurchaseRequest::generateNextRfqNumber();
+                $purchaseRequest->save();
+            }
+
+            $rfqService = new BacRfqService();
+            $rfqService->generateRfq($purchaseRequest);
+
+            return back()->with('status', 'RFQ has been generated successfully.');
+        } catch (\Exception $e) {
+            Log::error('Failed to generate RFQ for PR ' . $purchaseRequest->pr_number . ': ' . $e->getMessage());
+            return back()->with('error', 'Failed to generate RFQ. Please try again: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Download RFQ document
+     */
+    public function downloadRfq(PurchaseRequest $purchaseRequest): StreamedResponse
+    {
+        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+
+        // Get the RFQ document
+        $rfq = $purchaseRequest->documents()
+            ->where('document_type', 'bac_rfq')
+            ->latest()
+            ->first();
+
+        if (!$rfq) {
+            abort(404, 'RFQ document not found.');
+        }
+
+        if (!Storage::exists($rfq->file_path)) {
+            abort(404, 'RFQ file not found in storage.');
+        }
+
+        return Storage::download($rfq->file_path, $rfq->file_name);
+    }
+
+    /**
+     * Regenerate RFQ document
+     */
+    public function regenerateRfq(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
+    {
+        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        abort_if(empty($purchaseRequest->resolution_number), 403, 'Resolution must be generated before creating RFQ.');
+
+        // Validate signatory data if provided
+        $validated = $request->validate([
+            'signatories' => ['nullable', 'array'],
+            'signatories.bac_chairperson' => ['nullable', 'array'],
+            'signatories.bac_chairperson.input_mode' => ['required_with:signatories.bac_chairperson', 'in:select,manual'],
+            'signatories.bac_chairperson.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.bac_chairperson.name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_chairperson.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_chairperson.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.bac_chairperson.suffix' => ['nullable', 'string', 'max:50'],
+            'signatories.canvassing_officer' => ['nullable', 'array'],
+            'signatories.canvassing_officer.input_mode' => ['required_with:signatories.canvassing_officer', 'in:select,manual'],
+            'signatories.canvassing_officer.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.canvassing_officer.name' => ['nullable', 'string', 'max:255'],
+            'signatories.canvassing_officer.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.canvassing_officer.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.canvassing_officer.suffix' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        try {
+            $signatoryData = null;
+            
+            // If signatories are provided, save them and prepare data
+            if (!empty($validated['signatories'])) {
+                Log::info('Regenerating RFQ with signatories', [
+                    'pr_number' => $purchaseRequest->pr_number,
+                    'signatory_count' => count($validated['signatories'])
+                ]);
+                
+                $this->saveRfqSignatories($purchaseRequest, $validated['signatories']);
+                $signatoryData = $this->prepareSignatoryData($validated['signatories']);
+                
+                // IMPORTANT: Refresh the relationship so the service loads fresh signatory data
+                $purchaseRequest->refresh();
+                $purchaseRequest->load('rfqSignatories');
+                
+                Log::info('RFQ Signatories saved and loaded', [
+                    'pr_number' => $purchaseRequest->pr_number,
+                    'loaded_count' => $purchaseRequest->rfqSignatories->count()
+                ]);
+            } else {
+                Log::info('No signatories provided, will use existing or defaults', [
+                    'pr_number' => $purchaseRequest->pr_number
+                ]);
+            }
+
+            $rfqService = new BacRfqService();
+            $rfqService->generateRfq($purchaseRequest, $signatoryData);
+
+            return back()->with('status', 'RFQ has been regenerated successfully.');
+        } catch (\Exception $e) {
+            Log::error('Failed to regenerate RFQ for PR ' . $purchaseRequest->pr_number . ': ' . $e->getMessage());
+            return back()->with('error', 'Failed to regenerate RFQ. Please try again: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Save RFQ signatories to database
+     */
+    private function saveRfqSignatories(PurchaseRequest $purchaseRequest, array $signatories): void
+    {
+        // Delete existing signatories
+        $purchaseRequest->rfqSignatories()->delete();
+
+        Log::info('Saving RFQ signatories', [
+            'pr_number' => $purchaseRequest->pr_number,
+            'positions' => array_keys($signatories)
+        ]);
+
+        // Save new signatories
+        $savedCount = 0;
+        foreach ($signatories as $position => $data) {
+            Log::debug("Processing RFQ signatory", [
+                'position' => $position,
+                'input_mode' => $data['input_mode'] ?? 'not set',
+                'has_user_id' => !empty($data['user_id']),
+                'has_selected_name' => !empty($data['selected_name']),
+                'has_name' => !empty($data['name'])
+            ]);
+            
+            if ($data['input_mode'] === 'select' && !empty($data['user_id'])) {
+                // User selected from registered user accounts
+                RfqSignatory::create([
+                    'purchase_request_id' => $purchaseRequest->id,
+                    'position' => $position,
+                    'user_id' => $data['user_id'],
+                    'name' => null,
+                    'prefix' => $data['prefix'] ?? null,
+                    'suffix' => $data['suffix'] ?? null,
+                ]);
+                $savedCount++;
+                Log::debug("Saved user-based RFQ signatory for position: {$position}");
+            } elseif ($data['input_mode'] === 'select' && !empty($data['selected_name'])) {
+                // Pre-configured signatory with manual name (no user account)
+                RfqSignatory::create([
+                    'purchase_request_id' => $purchaseRequest->id,
+                    'position' => $position,
+                    'user_id' => null,
+                    'name' => $data['selected_name'],
+                    'prefix' => $data['prefix'] ?? null,
+                    'suffix' => $data['suffix'] ?? null,
+                ]);
+                $savedCount++;
+                Log::debug("Saved pre-configured manual RFQ signatory for position: {$position}");
+            } elseif ($data['input_mode'] === 'manual' && !empty($data['name'])) {
+                // Manually entered name
+                RfqSignatory::create([
+                    'purchase_request_id' => $purchaseRequest->id,
+                    'position' => $position,
+                    'user_id' => null,
+                    'name' => $data['name'],
+                    'prefix' => $data['prefix'] ?? null,
+                    'suffix' => $data['suffix'] ?? null,
+                ]);
+                $savedCount++;
+                Log::debug("Saved manual RFQ signatory for position: {$position}");
+            } else {
+                Log::warning("Skipped RFQ signatory for position: {$position}", $data);
+            }
+        }
+        
+        Log::info("Total RFQ signatories saved: {$savedCount}");
     }
 }
 

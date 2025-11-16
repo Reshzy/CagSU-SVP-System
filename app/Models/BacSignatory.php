@@ -81,6 +81,7 @@ class BacSignatory extends Model
             'bac_member' => 'BAC Member',
             'head_bac_secretariat' => 'Head, BAC Secretariat',
             'ceo' => 'CEO',
+            'canvassing_officer' => 'Canvassing Officer',
             default => $this->position,
         };
     }
