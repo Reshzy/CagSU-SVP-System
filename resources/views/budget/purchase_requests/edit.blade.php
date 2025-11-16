@@ -105,18 +105,6 @@
                                     <x-input-error :messages="$errors->get('procurement_type')" class="mt-2" />
                                 </div>
                             </div>
-
-                            <div class="mb-4">
-                                <x-input-label for="procurement_method" value="Procurement Method" />
-                                <select id="procurement_method" name="procurement_method" class="mt-1 block w-full border-gray-300 rounded-md">
-                                    <option value="">Select Method</option>
-                                    <option value="small_value_procurement" {{ old('procurement_method', $purchaseRequest->procurement_method) == 'small_value_procurement' ? 'selected' : '' }}>Small Value Procurement</option>
-                                    <option value="public_bidding" {{ old('procurement_method', $purchaseRequest->procurement_method) == 'public_bidding' ? 'selected' : '' }}>Public Bidding</option>
-                                    <option value="direct_contracting" {{ old('procurement_method', $purchaseRequest->procurement_method) == 'direct_contracting' ? 'selected' : '' }}>Direct Contracting</option>
-                                    <option value="negotiated_procurement" {{ old('procurement_method', $purchaseRequest->procurement_method) == 'negotiated_procurement' ? 'selected' : '' }}>Negotiated Procurement</option>
-                                </select>
-                                <x-input-error :messages="$errors->get('procurement_method')" class="mt-2" />
-                            </div>
                         </div>
 
                         <div class="border-t pt-4">
@@ -133,14 +121,14 @@
                                 <x-input-label for="remarks" value="Remarks *" />
                                 <textarea id="remarks" name="remarks" rows="3" class="mt-1 block w-full border-gray-300 rounded-md" required>{{ old('remarks') }}</textarea>
                                 <x-input-error :messages="$errors->get('remarks')" class="mt-2" />
-                                <p class="mt-1 text-sm text-gray-500">Remarks are required to forward to BAC.</p>
+                                <p class="mt-1 text-sm text-gray-500">Remarks are required to forward to CEO for approval.</p>
                             </div>
                         </div>
 
                         <div class="flex justify-end space-x-3">
                             <a href="{{ route('budget.purchase-requests.index') }}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md">Cancel</a>
                             <button type="button" id="show-rejection-form-btn" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">Reject</button>
-                            <x-primary-button>Approve & Forward to BAC</x-primary-button>
+                            <x-primary-button>Approve & Forward to CEO</x-primary-button>
                         </div>
                     </form>
 
@@ -210,7 +198,7 @@
                     const remarks = remarksField.value.trim();
                     if (remarks.length === 0) {
                         e.preventDefault();
-                        alert('Remarks are required. Please provide remarks before forwarding to BAC.');
+                        alert('Remarks are required. Please provide remarks before forwarding to CEO.');
                         remarksField.focus();
                         return false;
                     }

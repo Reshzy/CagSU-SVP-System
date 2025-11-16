@@ -116,15 +116,16 @@ class CEOApprovalPurchaseRequestSeeder extends Seeder
                 'justification' => $scenario['justification'],
                 'estimated_total' => $scenario['estimated_total'],
                 'procurement_type' => $scenario['procurement_type'],
-                'procurement_method' => $scenario['procurement_method'],
+                'procurement_method' => null, // Will be set by BAC
                 'priority' => $scenario['priority'],
                 'status' => 'ceo_approval',
                 'current_handler_id' => $users->random()->id,
-                'current_step_notes' => 'Budget office has completed earmarking. Awaiting CEO approval for procurement.',
+                'current_step_notes' => 'Budget office has completed earmarking. Awaiting CEO approval.',
                 'submitted_at' => now()->subDays(rand(5, 15)),
                 'status_updated_at' => now()->subDays(rand(1, 5)),
                 'has_ppmp' => true,
                 'ppmp_reference' => 'PPMP-2025-' . str_pad($prNumber, 3, '0', STR_PAD_LEFT),
+                'earmark_id' => 'EAR-2025-' . str_pad($prNumber, 4, '0', STR_PAD_LEFT),
             ]);
 
             // Create items for this PR

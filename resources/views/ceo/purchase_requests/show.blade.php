@@ -41,7 +41,7 @@
 
                     @if($purchaseRequest->current_step_notes)
                         <div class="bg-yellow-50 border border-yellow-200 rounded p-3">
-                            <div class="text-sm text-yellow-800">Budget Office Notes</div>
+                            <div class="text-sm text-yellow-800">Budget Office Remarks</div>
                             <div class="text-sm text-yellow-900">{{ $purchaseRequest->current_step_notes }}</div>
                         </div>
                     @endif

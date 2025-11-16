@@ -141,19 +141,31 @@ class OfficeSpecificPurchaseRequestSeeder extends Seeder
             $purpose = $config['purposes'][$i] ?? $config['purposes'][0];
 
             // Vary the status for testing different scenarios
-            $statuses = ['draft', 'submitted', 'budget_office_review', 'ceo_approval', 'completed'];
+            $statuses = ['draft', 'submitted', 'budget_office_review', 'ceo_approval', 'bac_evaluation'];
             $status = $statuses[$i % count($statuses)];
 
-            $pr = PurchaseRequest::factory()
-                ->create([
-                    'requester_id' => $users->random()->id,
-                    'department_id' => $department->id,
-                    'purpose' => $purpose,
-                    'status' => $status,
-                    'justification' => "Required for {$department->name} operations to improve efficiency and service delivery",
-                    'procurement_type' => $i % 2 == 0 ? 'equipment' : 'services',
-                    'priority' => $i == 0 ? 'high' : 'medium',
-                ]);
+            $prData = [
+                'requester_id' => $users->random()->id,
+                'department_id' => $department->id,
+                'purpose' => $purpose,
+                'status' => $status,
+                'justification' => "Required for {$department->name} operations to improve efficiency and service delivery",
+                'procurement_type' => $i % 2 == 0 ? 'equipment' : 'services',
+                'priority' => $i == 0 ? 'high' : 'medium',
+            ];
+
+            // Add earmark_id for PRs that have passed budget
+            if (in_array($status, ['ceo_approval', 'bac_evaluation'])) {
+                $prData['earmark_id'] = 'EAR-2025-' . str_pad(rand(1, 100), 4, '0', STR_PAD_LEFT);
+            }
+
+            // Add resolution_number and procurement_method for PRs at BAC
+            if ($status === 'bac_evaluation') {
+                $prData['resolution_number'] = 'RES-2025-' . str_pad(rand(1, 100), 4, '0', STR_PAD_LEFT);
+                $prData['procurement_method'] = 'small_value_procurement';
+            }
+
+            $pr = PurchaseRequest::factory()->create($prData);
 
             // Add 2-4 items per PR from the office-specific items
             $itemCount = rand(2, 4);

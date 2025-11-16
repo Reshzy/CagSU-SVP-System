@@ -47,7 +47,6 @@ class BudgetEarmarkController extends Controller
             'funding_source' => ['nullable', 'string', 'max:255'],
             'budget_code' => ['nullable', 'string', 'max:255'],
             'procurement_type' => ['required', 'in:supplies_materials,equipment,infrastructure,services,consulting_services'],
-            'procurement_method' => ['nullable', 'in:small_value_procurement,public_bidding,direct_contracting,negotiated_procurement'],
             'remarks' => ['required', 'string', 'min:1'],
         ]);
 
@@ -74,46 +73,33 @@ class BudgetEarmarkController extends Controller
             ]
         );
 
-        // Generate earmark ID and resolution number if not already set
+        // Generate earmark ID if not already set
         if (empty($purchaseRequest->earmark_id)) {
             $purchaseRequest->earmark_id = PurchaseRequest::generateNextEarmarkId();
         }
-        if (empty($purchaseRequest->resolution_number)) {
-            $purchaseRequest->resolution_number = PurchaseRequest::generateNextResolutionNumber();
-        }
 
-        // Update PR with approved budget, procurement details, and forward to BAC evaluation
+        // Update PR with approved budget, procurement details, and forward to CEO approval
         $purchaseRequest->estimated_total = (float) $validated['approved_budget_total'];
         $purchaseRequest->date_needed = $validated['date_needed'];
         $purchaseRequest->funding_source = $validated['funding_source'] ?? null;
         $purchaseRequest->budget_code = $validated['budget_code'] ?? null;
         $purchaseRequest->procurement_type = $validated['procurement_type'];
-        $purchaseRequest->procurement_method = $validated['procurement_method'] ?? null;
 
         if (!empty($validated['remarks'])) {
             $purchaseRequest->current_step_notes = $validated['remarks'];
         }
-        $purchaseRequest->status = 'bac_evaluation';
+        $purchaseRequest->status = 'ceo_approval';
         $purchaseRequest->status_updated_at = now();
         $purchaseRequest->save();
 
-        // Auto-generate BAC Resolution document
-        try {
-            $resolutionService = new BacResolutionService();
-            $resolutionService->generateResolution($purchaseRequest);
-        } catch (\Exception $e) {
-            \Log::error('Failed to generate BAC resolution for PR ' . $purchaseRequest->pr_number . ': ' . $e->getMessage());
-            // Continue with workflow even if resolution generation fails
-        }
-
-        // Create pending approval for BAC
-        WorkflowRouter::createPendingForRole($purchaseRequest, 'bac_evaluation', 'BAC Secretariat');
+        // Create pending approval for CEO
+        WorkflowRouter::createPendingForRole($purchaseRequest, 'ceo_initial_approval', 'Executive Officer');
 
         if ($purchaseRequest->requester) {
-            $purchaseRequest->requester->notify(new PurchaseRequestStatusUpdated($purchaseRequest, 'budget_office_review', 'bac_evaluation'));
+            $purchaseRequest->requester->notify(new PurchaseRequestStatusUpdated($purchaseRequest, 'budget_office_review', 'ceo_approval'));
         }
 
-        return redirect()->route('budget.purchase-requests.index')->with('status', 'Earmark approved and forwarded to BAC.');
+        return redirect()->route('budget.purchase-requests.index')->with('status', 'Earmark approved and forwarded to CEO for approval.');
     }
 
     public function reject(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse

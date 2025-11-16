@@ -11,13 +11,13 @@ class WorkflowRouter
 {
     /**
      * Map step names to a numeric order for tracking.
-     * Updated workflow: PR Created → CEO → Budget Office → BAC → ... → Final
+     * Updated workflow: PR Created → Budget Office → CEO → BAC → ... → Final
      */
     public static function getStepOrder(string $stepName): int
     {
         $map = [
-            'ceo_initial_approval' => 1,        // CEO reviews PR first
-            'budget_office_earmarking' => 2,    // Budget Office earmarks funds
+            'budget_office_earmarking' => 1,    // Budget Office earmarks funds first
+            'ceo_initial_approval' => 2,        // CEO reviews after budget earmarking
             'bac_evaluation' => 3,              // BAC evaluates quotations
             'bac_award_recommendation' => 4,    // BAC recommends award
             'ceo_final_approval' => 5,          // CEO final approval (optional)

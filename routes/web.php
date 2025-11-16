@@ -9,6 +9,7 @@ use App\Http\Controllers\BudgetEarmarkController;
 use App\Http\Controllers\CeoApprovalController;
 use App\Http\Controllers\BacQuotationController;
 use App\Http\Controllers\BacMeetingController;
+use App\Http\Controllers\BacProcurementMethodController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\AccountingDisbursementController;
 use App\Http\Controllers\InventoryReceiptController;
@@ -151,6 +152,11 @@ Route::middleware('auth')->group(function () {
 
     // BAC Quotations & Meetings
     Route::middleware('role:BAC Chair|BAC Members|BAC Secretariat')->group(function () {
+        // BAC Procurement Method Determination
+        Route::get('/bac/procurement-method', [BacProcurementMethodController::class, 'index'])->name('bac.procurement-method.index');
+        Route::get('/bac/procurement-method/{purchaseRequest}/edit', [BacProcurementMethodController::class, 'edit'])->name('bac.procurement-method.edit');
+        Route::put('/bac/procurement-method/{purchaseRequest}', [BacProcurementMethodController::class, 'update'])->name('bac.procurement-method.update');
+        
         Route::get('/bac/quotations', [BacQuotationController::class, 'index'])->name('bac.quotations.index');
         Route::get('/bac/quotations/{purchaseRequest}/manage', [BacQuotationController::class, 'manage'])->name('bac.quotations.manage');
         Route::post('/bac/quotations/{purchaseRequest}', [BacQuotationController::class, 'store'])->name('bac.quotations.store');

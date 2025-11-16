@@ -66,8 +66,16 @@
                         </div>
                     </div>
 
-                    <div class="text-sm text-gray-600">Purpose</div>
-                    <div class="font-medium mb-4">{{ $purchaseRequest->purpose }}</div>
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <div class="text-sm text-gray-600">Purpose</div>
+                            <div class="font-medium">{{ $purchaseRequest->purpose }}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-600">Procurement Method</div>
+                            <div class="font-medium capitalize">{{ str_replace('_', ' ', $purchaseRequest->procurement_method ?? 'N/A') }}</div>
+                        </div>
+                    </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>

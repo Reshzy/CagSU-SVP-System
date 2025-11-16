@@ -55,7 +55,7 @@ class BacResolutionService
             ->where('status', 'approved')
             ->first();
 
-        $ceoName = 'Dr. Urdujah G. Alvarado';
+        $ceoName = 'Dr. Rodel Francisco T. Alegado';
         if ($ceoApproval && $ceoApproval->approvedBy) {
             $ceoName = $ceoApproval->approvedBy->name;
         }
@@ -94,8 +94,8 @@ class BacResolutionService
     private function initializeDocument(): void
     {
         $this->phpWord = new PhpWord();
-        $this->phpWord->setDefaultFontName('Montserrat');
-        $this->phpWord->setDefaultFontSize(9);
+        $this->phpWord->setDefaultFontName('Century Gothic');
+        $this->phpWord->setDefaultFontSize(10);
 
         $this->defineStyles();
         $this->setDocumentProperties();
@@ -133,8 +133,8 @@ class BacResolutionService
         return $this->phpWord->addSection([
             'pageSizeW' => Converter::inchToTwip(8.5),
             'pageSizeH' => Converter::inchToTwip(13),
-            'marginTop' => Converter::inchToTwip(1.5),
-            'marginBottom' => Converter::inchToTwip(1.5),
+            'marginTop' => Converter::inchToTwip(1),
+            'marginBottom' => Converter::inchToTwip(1),
             'marginLeft' => Converter::inchToTwip(1),
             'marginRight' => Converter::inchToTwip(1),
         ]);
@@ -147,7 +147,7 @@ class BacResolutionService
     {
         $imageConfig = [
             'width' => Converter::inchToPixel(6.5 * 0.75),
-            'height' => Converter::inchToPixel(1 * 0.75),
+            'height' => Converter::inchToPixel(0.85 * 0.75),
             'posHorizontal' => 'center',
             'posHorizontalRel' => 'page',
         ];
@@ -219,7 +219,7 @@ class BacResolutionService
         $run->addText('RESOLUTION NO. ', 'CenterBold');
         $run->addText($this->data['resolution_no'], [
             'bold' => true,
-            'size' => 9,
+            'size' => 10,
             'allCaps' => true,
             'underline' => 'single',
         ]);
@@ -235,7 +235,7 @@ class BacResolutionService
         $run->addText('For Purchase Request Number ', 'CenterBold');
         $run->addText($this->data['purchase_request_no'], [
             'bold' => true,
-            'size' => 9,
+            'size' => 10,
             'allCaps' => true,
             'underline' => 'single',
         ]);
@@ -253,7 +253,7 @@ class BacResolutionService
                 'that the university abides by the standards set forth by Republic Act No. 9184, otherwise known as '
             );
             $run->addText('"The Government Procurement Reform Act"', ['italic' => true]);
-            $run->addText(' (as amended) and its Implementing Rules and Regulations, to all its procurement activities;');
+            $run->addText(' (As Amended) and its Implementing Rules and Regulations, to all its procurement activities;');
         });
 
         // Clause 2: Purchase Request Details
@@ -352,8 +352,12 @@ class BacResolutionService
             $run->addText($this->data['mode_of_procurement'], ['bold' => true, 'allCaps' => true]);
             $run->addText(' as mode of procurement for each component of ');
             $run->addText(
-                'Purchase Request Number ' . $this->data['purchase_request_no'],
+                'Purchase Request Number ',
                 ['bold' => true]
+            );
+            $run->addText(
+                $this->data['purchase_request_no'] . '.', 
+                ['bold' => true, 'underline' => 'single']
             );
         });
     }
@@ -379,7 +383,7 @@ class BacResolutionService
         $run->addText('RESOLUTION NO. ', 'CenterBold');
         $run->addText($this->data['resolution_no'], [
             'bold' => true,
-            'size' => 9,
+            'size' => 10,
             'allCaps' => true,
             'underline' => 'single',
         ]);
@@ -431,7 +435,7 @@ class BacResolutionService
      */
     private function addCertification(): void
     {
-        $this->section->addTextBreak(2);
+        $this->section->addTextBreak(3);
         $this->addJustifiedText(
             'I HEREBY CERTIFY that the foregoing is a true and correct copy of the Resolution regularly ' .
             'presented to and adopted by the Bids and Awards Committee and that the signatures set above ' .
@@ -467,7 +471,7 @@ class BacResolutionService
         $run->addTextBreak();
         $run->addText('Cagayan State University – Sanchez Mira Campus');
         $run->addTextBreak(2);
-        $run->addText('Date: _____________________');
+        $run->addText('Date: ___________________________');
     }
 
     // ========================================================================
@@ -580,7 +584,7 @@ class BacResolutionService
                 $cell->getStyle()->setGridSpan($sig['span']);
             }
 
-            $cell->addTextBreak(2);
+            $cell->addTextBreak(1);
             $cell->addText($sig['name'], 'CenterBold', ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
             $cell->addText($sig['title'], null, ['alignment' => Jc::CENTER, 'spaceBefore' => 0]);
         }

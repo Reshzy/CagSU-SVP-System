@@ -27,9 +27,16 @@ class BacQuotationController extends Controller
         return view('bac.quotations.index', compact('requests'));
     }
 
-    public function manage(PurchaseRequest $purchaseRequest): View
+    public function manage(PurchaseRequest $purchaseRequest): View|RedirectResponse
     {
         abort_unless($purchaseRequest->status === 'bac_evaluation', 403);
+        
+        // Redirect to procurement method setting if not set yet
+        if (empty($purchaseRequest->procurement_method)) {
+            return redirect()->route('bac.procurement-method.edit', $purchaseRequest)
+                ->with('error', 'Please set the procurement method first before managing quotations.');
+        }
+        
         $purchaseRequest->load(['items', 'documents']);
         
         // Get the BAC resolution document if it exists
@@ -46,6 +53,8 @@ class BacQuotationController extends Controller
 
     public function store(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
     {
+        abort_if(empty($purchaseRequest->procurement_method), 403, 'Procurement method must be set first.');
+        
         $validated = $request->validate([
             'supplier_id' => ['required', 'exists:suppliers,id'],
             'quotation_date' => ['required', 'date'],
@@ -156,6 +165,7 @@ class BacQuotationController extends Controller
     public function regenerateResolution(PurchaseRequest $purchaseRequest): RedirectResponse
     {
         abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        abort_if(empty($purchaseRequest->procurement_method), 403, 'Procurement method must be set before generating resolution.');
 
         try {
             $resolutionService = new BacResolutionService();

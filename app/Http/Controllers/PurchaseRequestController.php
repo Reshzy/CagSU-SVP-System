@@ -113,8 +113,8 @@ class PurchaseRequestController extends Controller
                 'funding_source' => null, // Will be filled by Budget Office
                 'budget_code' => null, // Will be filled by Budget Office
                 'procurement_type' => null, // Will be filled by Budget Office
-                'procurement_method' => null, // Will be filled by Budget Office
-                'status' => 'ceo_approval',
+                'procurement_method' => null, // Will be filled by BAC
+                'status' => 'budget_office_review',
                 'submitted_at' => now(),
                 'status_updated_at' => now(),
                 'current_handler_id' => null,
@@ -172,16 +172,15 @@ class PurchaseRequestController extends Controller
                 }
             }
 
-            // Notify CEO role users for initial approval
+            // Notify Budget Office for earmarking
             try {
-                \Spatie\Permission\Models\Role::findByName('CEO');
-                $ceoUsers = \App\Models\User::role('CEO')->get();
-                foreach ($ceoUsers as $user) {
+                $budgetUsers = \App\Models\User::role('Budget Office')->get();
+                foreach ($budgetUsers as $user) {
                     $user->notify(new PurchaseRequestSubmitted($purchaseRequest));
                 }
 
-                // Create pending approval for CEO initial review
-                WorkflowRouter::createPendingForRole($purchaseRequest, 'ceo_initial_approval', 'CEO');
+                // Create pending approval for Budget Office earmarking
+                WorkflowRouter::createPendingForRole($purchaseRequest, 'budget_office_earmarking', 'Budget Office');
             } catch (\Throwable $e) {
                 // silently ignore if roles not set yet
             }
