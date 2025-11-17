@@ -44,8 +44,10 @@
 									<td class="py-2 pr-4">{{ ucfirst(str_replace('_',' ', $s->status)) }}</td>
 									<td class="py-2 pr-4 text-right">
 										<div class="inline-flex gap-2">
-											@role('Executive Officer')
+											@can('manage-suppliers')
 												<a href="{{ route('supply.suppliers.edit', $s) }}" class="px-2 py-1 bg-gray-100 rounded">Edit</a>
+											@endcan
+											@role('Executive Officer')
 												@if(in_array($s->status, ['pending_verification','inactive']))
 													<form method="POST" action="{{ route('supply.suppliers.approve', $s) }}">
 														@csrf

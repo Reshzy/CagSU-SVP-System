@@ -79,12 +79,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/supply/suppliers', [SupplierRegistrationController::class, 'indexInternal'])->name('supply.suppliers.index');
         Route::get('/supply/suppliers/create', [SupplierRegistrationController::class, 'createInternal'])->name('supply.suppliers.create');
         Route::post('/supply/suppliers', [SupplierRegistrationController::class, 'storeInternal'])->name('supply.suppliers.store');
-    });
-
-    // Executive Officer - Supplier admin (edit/approve)
-    Route::middleware('role:Executive Officer')->group(function () {
         Route::get('/supply/suppliers/{supplier}/edit', [SupplierRegistrationController::class, 'editInternal'])->name('supply.suppliers.edit');
         Route::put('/supply/suppliers/{supplier}', [SupplierRegistrationController::class, 'updateInternal'])->name('supply.suppliers.update');
+    });
+
+    // Executive Officer - Supplier approval
+    Route::middleware('role:Executive Officer')->group(function () {
         Route::post('/supply/suppliers/{supplier}/approve', [SupplierRegistrationController::class, 'approveInternal'])->name('supply.suppliers.approve');
     });
 

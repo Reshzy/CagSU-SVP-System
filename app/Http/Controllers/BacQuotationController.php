@@ -57,7 +57,9 @@ class BacQuotationController extends Controller
             ->first();
         
         $suppliers = Supplier::where('status', 'active')->orderBy('business_name')->get();
-        $quotations = Quotation::where('purchase_request_id', $purchaseRequest->id)->with('supplier')->get();
+        $quotations = Quotation::where('purchase_request_id', $purchaseRequest->id)
+            ->with(['supplier', 'quotationItems.purchaseRequestItem'])
+            ->get();
         
         // Get BAC signatories for regeneration form
         $bacSignatories = BacSignatory::with('user')->active()->get()->groupBy('position');
@@ -69,26 +71,216 @@ class BacQuotationController extends Controller
     {
         abort_if(empty($purchaseRequest->procurement_method), 403, 'Procurement method must be set first.');
         
+        // Load PR items for validation
+        $purchaseRequest->load('items');
+        
+        // Get RFQ document to check submission deadline
+        $rfq = $purchaseRequest->documents()
+            ->where('document_type', 'bac_rfq')
+            ->latest()
+            ->first();
+        
+        // Validate the request
         $validated = $request->validate([
             'supplier_id' => ['required', 'exists:suppliers,id'],
+            'supplier_location' => ['nullable', 'string', 'max:500'],
             'quotation_date' => ['required', 'date'],
-            'validity_date' => ['required', 'date', 'after_or_equal:quotation_date'],
-            'total_amount' => ['required', 'numeric', 'min:0'],
+            'quotation_file' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'], // 5MB max
+            'items' => ['required', 'array'],
+            'items.*.pr_item_id' => ['required', 'exists:purchase_request_items,id'],
+            'items.*.unit_price' => ['nullable', 'numeric', 'min:0'], // Now optional - supplier may not quote all items
         ]);
 
-        $quotationNumber = self::generateQuotationNumber();
+        // Validate that at least one item has a unit price (supplier must quote at least one item)
+        $hasAtLeastOnePrice = false;
+        foreach ($validated['items'] as $item) {
+            if (isset($item['unit_price']) && $item['unit_price'] !== null && $item['unit_price'] !== '') {
+                $hasAtLeastOnePrice = true;
+                break;
+            }
+        }
 
-        Quotation::create([
-            'quotation_number' => $quotationNumber,
-            'purchase_request_id' => $purchaseRequest->id,
-            'supplier_id' => $validated['supplier_id'],
-            'quotation_date' => $validated['quotation_date'],
-            'validity_date' => $validated['validity_date'],
-            'total_amount' => $validated['total_amount'],
-            'bac_status' => 'pending_evaluation',
-        ]);
+        if (!$hasAtLeastOnePrice) {
+            return back()->withErrors([
+                'items' => 'Supplier must provide pricing for at least one item.'
+            ])->withInput();
+        }
 
-        return back()->with('status', 'Quotation recorded.');
+        // Validate quotation date is within 4 days of RFQ creation
+        if ($rfq) {
+            $rfqDate = $rfq->created_at;
+            $deadline = $rfqDate->copy()->addDays(4);
+            
+            if ($validated['quotation_date'] > $deadline->toDateString()) {
+                return back()->withErrors([
+                    'quotation_date' => 'Quotation date must be within 4 days of RFQ creation date (' . $rfqDate->format('M d, Y') . '). Deadline was ' . $deadline->format('M d, Y') . '.'
+                ])->withInput();
+            }
+        }
+
+        // Calculate validity date (quotation_date + 10 days)
+        $quotationDate = \Carbon\Carbon::parse($validated['quotation_date']);
+        $validityDate = $quotationDate->copy()->addDays(10);
+
+        // Check for duplicate supplier quotation
+        $existingQuotation = Quotation::where('purchase_request_id', $purchaseRequest->id)
+            ->where('supplier_id', $validated['supplier_id'])
+            ->first();
+        
+        if ($existingQuotation) {
+            return back()->withErrors([
+                'supplier_id' => 'A quotation from this supplier already exists for this PR.'
+            ])->withInput();
+        }
+
+        try {
+            \DB::beginTransaction();
+
+            // Handle file upload if present
+            $quotationFilePath = null;
+            if ($request->hasFile('quotation_file')) {
+                $file = $request->file('quotation_file');
+                $filename = 'quotation_' . time() . '_' . $validated['supplier_id'] . '.' . $file->getClientOriginalExtension();
+                $quotationFilePath = $file->storeAs('quotations', $filename, 'public');
+            }
+
+            // Generate quotation number
+            $quotationNumber = self::generateQuotationNumber();
+
+            // Calculate grand total and check ABC compliance
+            $grandTotal = 0;
+            $exceedsAbc = false;
+            $itemsData = [];
+
+            foreach ($validated['items'] as $itemData) {
+                $prItem = $purchaseRequest->items->firstWhere('id', $itemData['pr_item_id']);
+                
+                if (!$prItem) {
+                    continue;
+                }
+
+                // Check if supplier quoted this item (unit_price is provided and not empty)
+                $unitPrice = isset($itemData['unit_price']) && $itemData['unit_price'] !== '' && $itemData['unit_price'] !== null 
+                    ? (float) $itemData['unit_price'] 
+                    : null;
+
+                // Skip items that weren't quoted by the supplier
+                if ($unitPrice === null) {
+                    $itemsData[] = [
+                        'pr_item_id' => $prItem->id,
+                        'unit_price' => null,
+                        'total_price' => 0,
+                        'is_within_abc' => true, // Not quoted items don't affect ABC compliance
+                    ];
+                    continue;
+                }
+
+                $quantity = $prItem->quantity_requested;
+                $totalPrice = $unitPrice * $quantity;
+                $abc = (float) $prItem->estimated_unit_cost;
+                
+                // Check if unit price exceeds ABC (only for quoted items)
+                $isWithinAbc = $unitPrice <= $abc;
+                
+                if (!$isWithinAbc) {
+                    $exceedsAbc = true;
+                }
+
+                $grandTotal += $totalPrice;
+
+                $itemsData[] = [
+                    'pr_item_id' => $prItem->id,
+                    'unit_price' => $unitPrice,
+                    'total_price' => $totalPrice,
+                    'is_within_abc' => $isWithinAbc,
+                ];
+            }
+
+            // Create the quotation
+            $quotation = Quotation::create([
+                'quotation_number' => $quotationNumber,
+                'purchase_request_id' => $purchaseRequest->id,
+                'supplier_id' => $validated['supplier_id'],
+                'supplier_location' => $validated['supplier_location'] ?? null,
+                'quotation_date' => $validated['quotation_date'],
+                'validity_date' => $validityDate->toDateString(),
+                'total_amount' => $grandTotal,
+                'exceeds_abc' => $exceedsAbc,
+                'quotation_file_path' => $quotationFilePath,
+                'bac_status' => $exceedsAbc ? 'non_compliant' : 'pending_evaluation',
+            ]);
+
+            // Create quotation items
+            foreach ($itemsData as $itemData) {
+                \App\Models\QuotationItem::create([
+                    'quotation_id' => $quotation->id,
+                    'purchase_request_item_id' => $itemData['pr_item_id'],
+                    'unit_price' => $itemData['unit_price'],
+                    'total_price' => $itemData['total_price'],
+                    'is_within_abc' => $itemData['is_within_abc'],
+                ]);
+            }
+
+            // Automatically identify lowest bidder
+            $this->autoIdentifyLowestBidder($purchaseRequest);
+
+            \DB::commit();
+
+            $message = 'Quotation recorded successfully.';
+            if ($exceedsAbc) {
+                $message .= ' Note: Some items exceed the ABC and this quotation is marked as non-compliant.';
+            }
+
+            return back()->with('status', $message);
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            Log::error('Failed to store quotation: ' . $e->getMessage());
+            return back()->with('error', 'Failed to save quotation. Please try again.')->withInput();
+        }
+    }
+
+    /**
+     * Automatically identify and mark the lowest bidder
+     * Only considers quotations that are eligible (within ABC and submission deadline)
+     */
+    private function autoIdentifyLowestBidder(PurchaseRequest $purchaseRequest): void
+    {
+        // Get all quotations for this PR
+        $quotations = Quotation::where('purchase_request_id', $purchaseRequest->id)
+            ->with('quotationItems')
+            ->get();
+
+        // Reset all lowest_bidder statuses first
+        Quotation::where('purchase_request_id', $purchaseRequest->id)
+            ->where('bac_status', 'lowest_bidder')
+            ->update(['bac_status' => 'pending_evaluation']);
+
+        // Filter only eligible quotations (not exceeding ABC and within deadline)
+        $eligibleQuotations = $quotations->filter(function ($quotation) {
+            return !$quotation->exceeds_abc && $quotation->isWithinSubmissionDeadline();
+        });
+
+        if ($eligibleQuotations->isEmpty()) {
+            // No eligible quotations yet
+            return;
+        }
+
+        // Find the quotation with the lowest total amount
+        $lowestQuotation = $eligibleQuotations->sortBy('total_amount')->first();
+
+        if ($lowestQuotation) {
+            $lowestQuotation->update([
+                'bac_status' => 'lowest_bidder',
+            ]);
+
+            Log::info('Lowest bidder identified', [
+                'pr_number' => $purchaseRequest->pr_number,
+                'quotation_id' => $lowestQuotation->id,
+                'supplier' => $lowestQuotation->supplier->business_name ?? 'N/A',
+                'total_amount' => $lowestQuotation->total_amount,
+            ]);
+        }
     }
 
     public function evaluate(Request $request, Quotation $quotation): RedirectResponse
