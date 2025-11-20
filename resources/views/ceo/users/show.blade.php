@@ -23,7 +23,7 @@
                                 <dt class="font-medium">Employee ID</dt>
                                 <dd class="mb-2">{{ $user->employee_id ?? '—' }}</dd>
                                 <dt class="font-medium">Position</dt>
-                                <dd class="mb-2">{{ $user->position ?? '—' }}</dd>
+                                <dd class="mb-2">{{ $user->position?->name ?? '—' }}</dd>
                                 <dt class="font-medium">Phone</dt>
                                 <dd class="mb-2">{{ $user->phone ?? '—' }}</dd>
                                 <dt class="font-medium">Status</dt>

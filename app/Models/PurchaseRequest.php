@@ -133,14 +133,14 @@ class PurchaseRequest extends Model
     }
 
     /**
-     * Generate next earmark ID in format: EM01-MMDDYY-####
-     * Example: EM01-102025-0042 (October 20, 2025)
+     * Generate next earmark ID in format: EM-MMDDYY-####
+     * Example: EM-102025-0042 (October 20, 2025)
      */
     public static function generateNextEarmarkId(?Carbon $asOf = null): string
     {
         $asOf = $asOf ?: now();
         $dateStr = $asOf->format('mdy'); // MMDDYY format
-        $prefix = 'EM01-' . $dateStr . '-';
+        $prefix = 'EM-' . $dateStr . '-';
         
         $last = static::where('earmark_id', 'like', $prefix . '%')
             ->orderByDesc('earmark_id')

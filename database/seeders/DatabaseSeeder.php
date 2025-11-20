@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
     {
         // Seed the CagSU SVP System with roles, permissions, departments, and sample users
         $this->call([
+            PositionSeeder::class, // Run first to populate positions table
             RolePermissionSeeder::class,
             PurchaseRequestSeeder::class,
         ]);

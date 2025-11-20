@@ -24,7 +24,7 @@ class User extends Authenticatable
         'password',
         'department_id',
         'employee_id',
-        'position',
+        'position_id',
         'phone',
         'is_active',
         'approval_status',
@@ -62,6 +62,14 @@ class User extends Authenticatable
     public function department()
     {
         return $this->belongsTo(Department::class);
+    }
+
+    /**
+     * Get the position that owns the user.
+     */
+    public function position()
+    {
+        return $this->belongsTo(Position::class);
     }
 
     /**

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Department;
+use App\Models\Position;
 use App\Models\Document;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -24,7 +25,8 @@ class RegisteredUserController extends Controller
     public function create(): View
     {
         $departments = Department::orderBy('name')->get(['id','name']);
-        return view('auth.register', compact('departments'));
+        $positions = Position::orderBy('name')->get(['id','name']);
+        return view('auth.register', compact('departments', 'positions'));
     }
 
     /**
@@ -38,9 +40,9 @@ class RegisteredUserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'department_id' => ['nullable', 'exists:departments,id'],
+            'department_id' => ['required', 'exists:departments,id'],
             'employee_id' => ['nullable', 'string', 'max:255'],
-            'position' => ['nullable', 'string', 'max:255'],
+            'position_id' => ['required', 'exists:positions,id'],
             'phone' => ['nullable', 'string', 'max:50'],
             'id_proof' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png,doc,docx']
         ]);
@@ -49,9 +51,9 @@ class RegisteredUserController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
-            'department_id' => $validated['department_id'] ?? null,
+            'department_id' => $validated['department_id'],
             'employee_id' => $validated['employee_id'] ?? null,
-            'position' => $validated['position'] ?? null,
+            'position_id' => $validated['position_id'],
             'phone' => $validated['phone'] ?? null,
             'is_active' => false,
             'approval_status' => 'pending',

@@ -31,7 +31,7 @@
                                 @auth
                                     <p class="text-sm text-gray-600 mt-1">
                                         {{ Auth::user()->department ? Auth::user()->department->name : 'No Department' }} | 
-                                        {{ Auth::user()->position ?? 'Staff' }} |
+                                        {{ Auth::user()->position?->name ?? 'Staff' }} |
                                         <span class="font-medium text-cagsu-maroon">{{ Auth::user()->getPrimarySVPRole() }}</span>
                                     </p>
                                 @endauth

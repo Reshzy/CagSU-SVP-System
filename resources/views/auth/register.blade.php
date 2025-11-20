@@ -41,8 +41,8 @@
 
         <!-- Department -->
         <div class="mt-4">
-            <x-input-label for="department_id" :value="__('Department (optional)')" />
-            <select id="department_id" name="department_id" class="block mt-1 w-full border-gray-300 rounded-md shadow-sm">
+            <x-input-label for="department_id" :value="__('Department')" />
+            <select id="department_id" name="department_id" class="block mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
                 <option value="">-- Select department --</option>
                 @isset($departments)
                     @foreach($departments as $dept)
@@ -62,9 +62,16 @@
 
         <!-- Position -->
         <div class="mt-4">
-            <x-input-label for="position" :value="__('Position (optional)')" />
-            <x-text-input id="position" class="block mt-1 w-full" type="text" name="position" :value="old('position')" autocomplete="organization-title" />
-            <x-input-error :messages="$errors->get('position')" class="mt-2" />
+            <x-input-label for="position_id" :value="__('Position')" />
+            <select id="position_id" name="position_id" class="block mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
+                <option value="">-- Select position --</option>
+                @isset($positions)
+                    @foreach($positions as $pos)
+                        <option value="{{ $pos->id }}" @selected(old('position_id')==$pos->id)>{{ $pos->name }}</option>
+                    @endforeach
+                @endisset
+            </select>
+            <x-input-error :messages="$errors->get('position_id')" class="mt-2" />
         </div>
 
         <!-- Phone -->

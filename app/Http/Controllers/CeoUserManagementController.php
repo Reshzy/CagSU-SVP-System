@@ -81,7 +81,44 @@ class CeoUserManagementController extends Controller
             'rejected_at' => null,
             'rejected_by' => null,
         ]);
+
+        // Assign role based on position
+        $this->assignRoleBasedOnPosition($user);
+
         return redirect()->route('ceo.users.index')->with('status', 'User approved.');
+    }
+
+    /**
+     * Assign role to user based on their position
+     */
+    private function assignRoleBasedOnPosition(User $user): void
+    {
+        if (!$user->position) {
+            // Default to End User if no position
+            $user->assignRole('End User');
+            return;
+        }
+
+        $positionName = $user->position->name;
+        
+        // Map positions to roles
+        $positionRoleMap = [
+            'System Administrator' => 'System Admin',
+            'Supply Officer' => 'Supply Officer',
+            'Budget Officer' => 'Budget Office',
+            'Executive Officer' => 'Executive Officer',
+            'BAC Chairman' => 'BAC Chair',
+            'BAC Member' => 'BAC Members',
+            'BAC Secretary' => 'BAC Secretariat',
+            'Accounting Officer' => 'Accounting Office',
+            'Canvassing Officer' => 'Canvassing Unit',
+            'Employee' => 'End User', // Default for regular employees
+        ];
+
+        $roleName = $positionRoleMap[$positionName] ?? 'End User';
+        
+        // Remove any existing roles and assign the new one
+        $user->syncRoles([$roleName]);
     }
 
     public function reject(User $user, Request $request): RedirectResponse
