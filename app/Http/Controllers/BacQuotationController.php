@@ -776,8 +776,8 @@ class BacQuotationController extends Controller
             ->latest()
             ->get();
         
-        // Get BAC signatories for selection
-        $bacSignatories = \App\Models\BacSignatory::with('user')->active()->get();
+        // Get BAC signatories for selection/prefill
+        $signatoryDefaults = $this->buildAoqSignatoryDefaults();
         
         // Get all users for signatory selection
         $users = \App\Models\User::orderBy('name')->get();
@@ -788,9 +788,67 @@ class BacQuotationController extends Controller
             'validation',
             'quotations',
             'aoqGenerations',
-            'bacSignatories',
-            'users'
+            'users',
+            'signatoryDefaults'
         ));
+    }
+
+    /**
+     * Build AOQ signatory default data from BAC signatories table
+     */
+    protected function buildAoqSignatoryDefaults(): array
+    {
+        $bacSignatories = BacSignatory::with('user')->active()->get();
+        $memberSignatories = $bacSignatories->where('position', 'bac_member')->values();
+        
+        $positionsMap = [
+            'bac_chairman' => ['position' => 'bac_chairman'],
+            'bac_vice_chairman' => ['position' => 'bac_vice_chairman'],
+            'bac_member_1' => ['position' => 'bac_member', 'index' => 0],
+            'bac_member_2' => ['position' => 'bac_member', 'index' => 1],
+            'bac_member_3' => ['position' => 'bac_member', 'index' => 2],
+            'head_bac_secretariat' => ['position' => 'head_bac_secretariat'],
+            'ceo' => ['position' => 'ceo'],
+        ];
+        
+        $defaults = [];
+        foreach ($positionsMap as $key => $config) {
+            if ($config['position'] === 'bac_member') {
+                $record = $memberSignatories->get($config['index'] ?? 0);
+            } else {
+                $record = $bacSignatories->firstWhere('position', $config['position']);
+            }
+            
+            $defaults[$key] = $this->formatSignatoryDefault($record);
+        }
+        
+        return $defaults;
+    }
+    
+    /**
+     * Format a BAC signatory into AOQ modal default data
+     */
+    protected function formatSignatoryDefault(?BacSignatory $signatory): array
+    {
+        if (!$signatory) {
+            return [
+                'input_mode' => 'select',
+                'user_id' => null,
+                'manual_name' => null,
+                'display_name' => null,
+                'prefix' => null,
+                'suffix' => null,
+            ];
+        }
+        
+        return [
+            'input_mode' => $signatory->user_id ? 'select' : 'manual',
+            'user_id' => $signatory->user_id,
+            'manual_name' => $signatory->manual_name,
+            'display_name' => $signatory->display_name,
+            'prefix' => $signatory->prefix,
+            'suffix' => $signatory->suffix,
+        ];
     }
 
     /**

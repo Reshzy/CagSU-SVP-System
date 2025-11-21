@@ -655,6 +655,27 @@ class AoqService
         
         $section->addTextBreak();
         
+        $formatSignatoryName = function (?array $data, string $fallback = 'N/A') {
+            if (!$data) {
+                return $fallback;
+            }
+            
+            $name = trim($data['name'] ?? '');
+            if ($name === '') {
+                $name = $fallback;
+            }
+            
+            if (!empty($data['prefix'])) {
+                $name = trim($data['prefix']) . ' ' . ltrim($name);
+            }
+            
+            if (!empty($data['suffix'])) {
+                $name = trim($name) . ', ' . trim($data['suffix']);
+            }
+            
+            return trim($name);
+        };
+        
         // Build signatory list
         $signatories = [];
         if ($signatoryData) {
@@ -663,7 +684,7 @@ class AoqService
             foreach ($positions as $position) {
                 if (isset($signatoryData[$position])) {
                     $signatories[] = [
-                        'name' => $signatoryData[$position]['name'],
+                        'name' => $formatSignatoryName($signatoryData[$position]),
                         'position' => match($position) {
                             'bac_chairman' => 'BAC Chairman',
                             'bac_vice_chairman' => 'BAC Vice Chairman',
@@ -713,8 +734,8 @@ class AoqService
         $ceoName = 'N/A';
         
         if ($signatoryData) {
-            $headBacName = $signatoryData['head_bac_secretariat']['name'] ?? 'N/A';
-            $ceoName = $signatoryData['ceo']['name'] ?? 'N/A';
+            $headBacName = $formatSignatoryName($signatoryData['head_bac_secretariat'] ?? null);
+            $ceoName = $formatSignatoryName($signatoryData['ceo'] ?? null);
         } else {
             $headBacSignatory = \App\Models\BacSignatory::with('user')->active()->where('position', 'head_bac_secretariat')->first();
             $ceoUser = \App\Models\User::role('Executive Officer')->first();

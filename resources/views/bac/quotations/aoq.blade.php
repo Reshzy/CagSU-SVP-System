@@ -386,9 +386,15 @@
         
         // Signatory input mode toggle
         function toggleInputMode(position) {
-            const inputMode = document.querySelector(`input[name="signatories[${position}][input_mode]"]:checked`).value;
+            const checkedInput = document.querySelector(`input[name="signatories[${position}][input_mode]"]:checked`);
             const selectDiv = document.getElementById(`${position}_select_div`);
             const manualDiv = document.getElementById(`${position}_manual_div`);
+            
+            if (!checkedInput || !selectDiv || !manualDiv) {
+                return;
+            }
+            
+            const inputMode = checkedInput.value;
             
             if (inputMode === 'select') {
                 selectDiv.classList.remove('hidden');
@@ -401,7 +407,10 @@
         
         // Initialize all toggle states on load
         ['bac_chairman', 'bac_vice_chairman', 'bac_member_1', 'bac_member_2', 'bac_member_3', 'head_bac_secretariat', 'ceo'].forEach(position => {
-            toggleInputMode(position);
+            const radioExists = document.querySelector(`input[name="signatories[${position}][input_mode]"]`);
+            if (radioExists) {
+                toggleInputMode(position);
+            }
         });
     </script>
 
@@ -433,6 +442,7 @@
                                     </p>
 
                                     @php
+                                        $signatoryDefaults = $signatoryDefaults ?? [];
                                         $positions = [
                                             ['key' => 'bac_chairman', 'label' => 'BAC Chairman'],
                                             ['key' => 'bac_vice_chairman', 'label' => 'BAC Vice Chairman'],
@@ -445,6 +455,17 @@
                                     @endphp
 
                                     @foreach($positions as $pos)
+                                    @php
+                                        $defaults = $signatoryDefaults[$pos['key']] ?? [];
+                                        $inputMode = old("signatories.{$pos['key']}.input_mode", $defaults['input_mode'] ?? 'select');
+                                        $selectedUserId = old("signatories.{$pos['key']}.user_id", $defaults['user_id'] ?? '');
+                                        $manualValue = old(
+                                            "signatories.{$pos['key']}.name",
+                                            $defaults['manual_name'] ?? ($defaults['display_name'] ?? '')
+                                        );
+                                        $prefixValue = old("signatories.{$pos['key']}.prefix", $defaults['prefix'] ?? '');
+                                        $suffixValue = old("signatories.{$pos['key']}.suffix", $defaults['suffix'] ?? '');
+                                    @endphp
                                     <div class="mb-6 border-b pb-4">
                                         <label class="block text-sm font-semibold text-gray-700 mb-2">{{ $pos['label'] }}</label>
                                         
@@ -452,33 +473,36 @@
                                         <div class="flex items-center space-x-4 mb-3">
                                             <label class="inline-flex items-center">
                                                 <input type="radio" name="signatories[{{ $pos['key'] }}][input_mode]" value="select" 
-                                                       checked onchange="toggleInputMode('{{ $pos['key'] }}')"
+                                                       {{ $inputMode === 'select' ? 'checked' : '' }} onchange="toggleInputMode('{{ $pos['key'] }}')"
                                                        class="form-radio h-4 w-4 text-blue-600">
                                                 <span class="ml-2 text-sm">Select from list</span>
                                             </label>
                                             <label class="inline-flex items-center">
                                                 <input type="radio" name="signatories[{{ $pos['key'] }}][input_mode]" value="manual"
-                                                       onchange="toggleInputMode('{{ $pos['key'] }}')"
+                                                       {{ $inputMode === 'manual' ? 'checked' : '' }} onchange="toggleInputMode('{{ $pos['key'] }}')"
                                                        class="form-radio h-4 w-4 text-blue-600">
                                                 <span class="ml-2 text-sm">Enter manually</span>
                                             </label>
                                         </div>
 
                                         {{-- Select from List --}}
-                                        <div id="{{ $pos['key'] }}_select_div">
+                                        <div id="{{ $pos['key'] }}_select_div" class="{{ $inputMode === 'manual' ? 'hidden' : '' }}">
                                             <select name="signatories[{{ $pos['key'] }}][user_id]" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 mb-2">
                                                 <option value="">-- Select User --</option>
                                                 @foreach($users as $user)
-                                                    <option value="{{ $user->id }}">{{ $user->name }}</option>
+                                                    <option value="{{ $user->id }}" {{ (string)$selectedUserId === (string)$user->id ? 'selected' : '' }}>
+                                                        {{ $user->name }}
+                                                    </option>
                                                 @endforeach
                                             </select>
                                             <input type="hidden" name="signatories[{{ $pos['key'] }}][selected_name]" value="">
                                         </div>
 
                                         {{-- Manual Entry --}}
-                                        <div id="{{ $pos['key'] }}_manual_div" class="hidden">
+                                        <div id="{{ $pos['key'] }}_manual_div" class="{{ $inputMode === 'manual' ? '' : 'hidden' }}">
                                             <input type="text" name="signatories[{{ $pos['key'] }}][name]" 
                                                    placeholder="Enter full name"
+                                                   value="{{ $manualValue }}"
                                                    class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 mb-2">
                                         </div>
 
@@ -486,9 +510,11 @@
                                         <div class="grid grid-cols-2 gap-2">
                                             <input type="text" name="signatories[{{ $pos['key'] }}][prefix]" 
                                                    placeholder="Prefix (Dr., Engr., etc.)"
+                                                   value="{{ $prefixValue }}"
                                                    class="border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm">
                                             <input type="text" name="signatories[{{ $pos['key'] }}][suffix]" 
                                                    placeholder="Suffix (Ph.D., CPA, etc.)"
+                                                   value="{{ $suffixValue }}"
                                                    class="border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm">
                                         </div>
                                     </div>
