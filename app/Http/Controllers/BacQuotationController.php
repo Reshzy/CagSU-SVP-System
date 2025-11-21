@@ -776,12 +776,20 @@ class BacQuotationController extends Controller
             ->latest()
             ->get();
         
+        // Get BAC signatories for selection
+        $bacSignatories = \App\Models\BacSignatory::with('user')->active()->get();
+        
+        // Get all users for signatory selection
+        $users = \App\Models\User::orderBy('name')->get();
+        
         return view('bac.quotations.aoq', compact(
             'purchaseRequest',
             'aoqData',
             'validation',
             'quotations',
-            'aoqGenerations'
+            'aoqGenerations',
+            'bacSignatories',
+            'users'
         ));
     }
 
@@ -862,13 +870,72 @@ class BacQuotationController extends Controller
     /**
      * Generate AOQ document
      */
-    public function generateAoq(PurchaseRequest $purchaseRequest): RedirectResponse
+    public function generateAoq(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
     {
         abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
         
+        // Validate signatory data
+        $validated = $request->validate([
+            'signatories' => ['required', 'array'],
+            'signatories.bac_chairman' => ['required', 'array'],
+            'signatories.bac_chairman.input_mode' => ['required', 'in:select,manual'],
+            'signatories.bac_chairman.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.bac_chairman.name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_chairman.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_chairman.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.bac_chairman.suffix' => ['nullable', 'string', 'max:50'],
+            'signatories.bac_vice_chairman' => ['required', 'array'],
+            'signatories.bac_vice_chairman.input_mode' => ['required', 'in:select,manual'],
+            'signatories.bac_vice_chairman.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.bac_vice_chairman.name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_vice_chairman.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_vice_chairman.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.bac_vice_chairman.suffix' => ['nullable', 'string', 'max:50'],
+            'signatories.bac_member_1' => ['required', 'array'],
+            'signatories.bac_member_1.input_mode' => ['required', 'in:select,manual'],
+            'signatories.bac_member_1.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.bac_member_1.name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_member_1.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_member_1.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.bac_member_1.suffix' => ['nullable', 'string', 'max:50'],
+            'signatories.bac_member_2' => ['required', 'array'],
+            'signatories.bac_member_2.input_mode' => ['required', 'in:select,manual'],
+            'signatories.bac_member_2.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.bac_member_2.name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_member_2.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_member_2.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.bac_member_2.suffix' => ['nullable', 'string', 'max:50'],
+            'signatories.bac_member_3' => ['required', 'array'],
+            'signatories.bac_member_3.input_mode' => ['required', 'in:select,manual'],
+            'signatories.bac_member_3.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.bac_member_3.name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_member_3.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_member_3.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.bac_member_3.suffix' => ['nullable', 'string', 'max:50'],
+            'signatories.head_bac_secretariat' => ['required', 'array'],
+            'signatories.head_bac_secretariat.input_mode' => ['required', 'in:select,manual'],
+            'signatories.head_bac_secretariat.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.head_bac_secretariat.name' => ['nullable', 'string', 'max:255'],
+            'signatories.head_bac_secretariat.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.head_bac_secretariat.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.head_bac_secretariat.suffix' => ['nullable', 'string', 'max:50'],
+            'signatories.ceo' => ['required', 'array'],
+            'signatories.ceo.input_mode' => ['required', 'in:select,manual'],
+            'signatories.ceo.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.ceo.name' => ['nullable', 'string', 'max:255'],
+            'signatories.ceo.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.ceo.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.ceo.suffix' => ['nullable', 'string', 'max:50'],
+        ]);
+        
         try {
+            $signatoryData = $this->prepareSignatoryData($validated['signatories']);
+            
             $aoqService = new AoqService();
-            $aoqGeneration = $aoqService->generateAoqDocument($purchaseRequest, auth()->user());
+            $aoqGeneration = $aoqService->generateAoqDocument($purchaseRequest, auth()->user(), $signatoryData);
+            
+            // Save signatories to database
+            $this->saveAoqSignatories($aoqGeneration, $validated['signatories']);
             
             Log::info('AOQ generated', [
                 'pr_number' => $purchaseRequest->pr_number,
@@ -880,6 +947,43 @@ class BacQuotationController extends Controller
         } catch (\Exception $e) {
             Log::error('Failed to generate AOQ: ' . $e->getMessage());
             return back()->with('error', 'Failed to generate AOQ: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Save AOQ signatories to database
+     */
+    private function saveAoqSignatories(\App\Models\AoqGeneration $aoqGeneration, array $signatories): void
+    {
+        foreach ($signatories as $position => $data) {
+            if ($data['input_mode'] === 'select' && !empty($data['user_id'])) {
+                \App\Models\AoqSignatory::create([
+                    'aoq_generation_id' => $aoqGeneration->id,
+                    'position' => $position,
+                    'user_id' => $data['user_id'],
+                    'name' => null,
+                    'prefix' => $data['prefix'] ?? null,
+                    'suffix' => $data['suffix'] ?? null,
+                ]);
+            } elseif ($data['input_mode'] === 'select' && !empty($data['selected_name'])) {
+                \App\Models\AoqSignatory::create([
+                    'aoq_generation_id' => $aoqGeneration->id,
+                    'position' => $position,
+                    'user_id' => null,
+                    'name' => $data['selected_name'],
+                    'prefix' => $data['prefix'] ?? null,
+                    'suffix' => $data['suffix'] ?? null,
+                ]);
+            } elseif ($data['input_mode'] === 'manual' && !empty($data['name'])) {
+                \App\Models\AoqSignatory::create([
+                    'aoq_generation_id' => $aoqGeneration->id,
+                    'position' => $position,
+                    'user_id' => null,
+                    'name' => $data['name'],
+                    'prefix' => $data['prefix'] ?? null,
+                    'suffix' => $data['suffix'] ?? null,
+                ]);
+            }
         }
     }
 

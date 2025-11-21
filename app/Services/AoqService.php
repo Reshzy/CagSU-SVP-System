@@ -296,7 +296,7 @@ class AoqService
     /**
      * Generate AOQ document (Word format)
      */
-    public function generateAoqDocument(PurchaseRequest $purchaseRequest, User $generatedBy): AoqGeneration
+    public function generateAoqDocument(PurchaseRequest $purchaseRequest, User $generatedBy, ?array $signatoryData = null): AoqGeneration
     {
         // Recalculate winners and ties
         $aoqData = $this->calculateWinnersAndTies($purchaseRequest);
@@ -314,7 +314,7 @@ class AoqService
         $dataSnapshot = $this->prepareDataSnapshot($purchaseRequest, $aoqData);
         
         // Generate Word document
-        $filePath = $this->createWordDocument($purchaseRequest, $aoqData, $referenceNumber);
+        $filePath = $this->createWordDocument($purchaseRequest, $aoqData, $referenceNumber, $signatoryData);
         
         // Calculate hash
         $documentHash = hash('sha256', json_encode($dataSnapshot));
@@ -370,7 +370,7 @@ class AoqService
     /**
      * Create Word document using PhpWord - matches existing template format
      */
-    protected function createWordDocument(PurchaseRequest $purchaseRequest, array $aoqData, string $referenceNumber): string
+    protected function createWordDocument(PurchaseRequest $purchaseRequest, array $aoqData, string $referenceNumber, ?array $signatoryData = null): string
     {
         $phpWord = new PhpWord();
         $phpWord->setDefaultFontName('Century Gothic');
@@ -655,20 +655,45 @@ class AoqService
         
         $section->addTextBreak();
         
-        // Get BAC signatories
-        $bacSignatories = \App\Models\BacSignatory::with('user')->active()->get();
+        // Build signatory list
+        $signatories = [];
+        if ($signatoryData) {
+            // Use provided signatory data
+            $positions = ['bac_chairman', 'bac_vice_chairman', 'bac_member_1', 'bac_member_2', 'bac_member_3'];
+            foreach ($positions as $position) {
+                if (isset($signatoryData[$position])) {
+                    $signatories[] = [
+                        'name' => $signatoryData[$position]['name'],
+                        'position' => match($position) {
+                            'bac_chairman' => 'BAC Chairman',
+                            'bac_vice_chairman' => 'BAC Vice Chairman',
+                            default => 'BAC Member',
+                        }
+                    ];
+                }
+            }
+        } else {
+            // Fall back to default BAC signatories from database
+            $bacSignatories = \App\Models\BacSignatory::with('user')->active()->get();
+            foreach ($bacSignatories->take(5) as $signatory) {
+                $signatories[] = [
+                    'name' => $signatory->full_name,
+                    'position' => $signatory->position_name
+                ];
+            }
+        }
         
         // Signature table
         $signatureTable = $section->addTable('signatureTable');
         $signatureColumnWidth = Converter::inchToTwip(2.5);
         
         $signatureTable->addRow();
-        foreach ($bacSignatories->take(5) as $signatory) {
+        foreach ($signatories as $signatory) {
             $cell = $signatureTable->addCell($signatureColumnWidth, ['valign' => 'top']);
             $cell->addText(' ', $signatureNameStyle, $paragraphCenter);
             $cell->addTextBreak(0.3);
-            $cell->addText($signatory->full_name, $signatureNameStyle, $paragraphCenter);
-            $cell->addText($signatory->position_name, $signaturePositionStyle, $paragraphCenter);
+            $cell->addText($signatory['name'], $signatureNameStyle, $paragraphCenter);
+            $cell->addText($signatory['position'], $signaturePositionStyle, $paragraphCenter);
         }
         
         $section->addText(' ', ['size' => 10], $noSpacing);
@@ -683,22 +708,32 @@ class AoqService
             $paragraphLeft
         );
         
-        // Approver signatures
-        $headBacSignatory = $bacSignatories->where('position', 'head_bac_secretariat')->first();
-        $ceoUser = \App\Models\User::role('Executive Officer')->first();
+        // Approver signatures (Head BAC Secretariat and CEO)
+        $headBacName = 'N/A';
+        $ceoName = 'N/A';
+        
+        if ($signatoryData) {
+            $headBacName = $signatoryData['head_bac_secretariat']['name'] ?? 'N/A';
+            $ceoName = $signatoryData['ceo']['name'] ?? 'N/A';
+        } else {
+            $headBacSignatory = \App\Models\BacSignatory::with('user')->active()->where('position', 'head_bac_secretariat')->first();
+            $ceoUser = \App\Models\User::role('Executive Officer')->first();
+            $headBacName = $headBacSignatory ? $headBacSignatory->full_name : 'N/A';
+            $ceoName = $ceoUser ? $ceoUser->name : 'N/A';
+        }
         
         $approverTable = $section->addTable('signatureTable');
         $approverColumnWidth = Converter::inchToTwip(4.0);
         $approverTable->addRow();
         
         $bacHeadCell = $approverTable->addCell($approverColumnWidth, ['valign' => 'bottom']);
-        $bacHeadCell->addText($headBacSignatory ? $headBacSignatory->full_name : 'N/A', $signatureNameStyle, $paragraphCenter);
+        $bacHeadCell->addText($headBacName, $signatureNameStyle, $paragraphCenter);
         $bacHeadCell->addTextBreak(0.3);
         $bacHeadCell->addText('HEAD - BAC Secretariat', $signaturePositionStyle, $paragraphCenter);
         
         $approvedCell = $approverTable->addCell($approverColumnWidth, ['valign' => 'bottom']);
         $approvedCell->addText('ㅤㅤㅤㅤㅤAPPROVED BY:', ['bold' => false, 'size' => 6, 'name' => 'Century Gothic'], $paragraphLeft);
-        $approvedCell->addText($ceoUser ? $ceoUser->name : 'N/A', $signatureNameStyle, $paragraphCenter);
+        $approvedCell->addText($ceoName, $signatureNameStyle, $paragraphCenter);
         $approvedCell->addTextBreak(0.3);
         $approvedCell->addText('Campus Executive Officer', $signaturePositionStyle, $paragraphCenter);
         

@@ -34,6 +34,14 @@ class AoqGeneration extends Model
     }
 
     /**
+     * Get the signatories for this AOQ
+     */
+    public function aoqSignatories()
+    {
+        return $this->hasMany(AoqSignatory::class);
+    }
+
+    /**
      * Generate next AOQ reference number
      */
     public static function generateNextReferenceNumber(): string

@@ -38,15 +38,14 @@
                             <p class="mt-2 text-sm">All items have been evaluated and all ties have been resolved.</p>
                         </div>
                         
-                        <form action="{{ route('bac.quotations.aoq.generate', $purchaseRequest) }}" method="POST" onsubmit="return confirm('Are you sure you want to generate the Abstract of Quotations?');">
-                            @csrf
-                            <button type="submit" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
-                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                                Generate AOQ Document
-                            </button>
-                        </form>
+                        <button type="button" 
+                                onclick="document.getElementById('generateAoqModal').classList.remove('hidden')"
+                                class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            Generate AOQ Document
+                        </button>
                     @else
                         <div class="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg">
                             <div class="flex items-center mb-2">
@@ -368,13 +367,148 @@
         window.onclick = function(event) {
             const tieModal = document.getElementById('tieResolutionModal');
             const overrideModal = document.getElementById('bacOverrideModal');
+            const generateAoqModal = document.getElementById('generateAoqModal');
             if (event.target === tieModal) {
                 closeTieResolutionModal();
             }
             if (event.target === overrideModal) {
                 closeBacOverrideModal();
             }
+            if (event.target === generateAoqModal) {
+                closeGenerateAoqModal();
+            }
         }
+        
+        // Generate AOQ Modal functions
+        function closeGenerateAoqModal() {
+            document.getElementById('generateAoqModal').classList.add('hidden');
+        }
+        
+        // Signatory input mode toggle
+        function toggleInputMode(position) {
+            const inputMode = document.querySelector(`input[name="signatories[${position}][input_mode]"]:checked`).value;
+            const selectDiv = document.getElementById(`${position}_select_div`);
+            const manualDiv = document.getElementById(`${position}_manual_div`);
+            
+            if (inputMode === 'select') {
+                selectDiv.classList.remove('hidden');
+                manualDiv.classList.add('hidden');
+            } else {
+                selectDiv.classList.add('hidden');
+                manualDiv.classList.remove('hidden');
+            }
+        }
+        
+        // Initialize all toggle states on load
+        ['bac_chairman', 'bac_vice_chairman', 'bac_member_1', 'bac_member_2', 'bac_member_3', 'head_bac_secretariat', 'ceo'].forEach(position => {
+            toggleInputMode(position);
+        });
     </script>
+
+    {{-- Generate AOQ Modal --}}
+    <div id="generateAoqModal" class="hidden fixed z-50 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeGenerateAoqModal()"></div>
+
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+                <form action="{{ route('bac.quotations.aoq.generate', $purchaseRequest) }}" method="POST" id="generateAoqForm">
+                    @csrf
+                    
+                    <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                        <div class="sm:flex sm:items-start">
+                            <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
+                                <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                            </div>
+                            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                                <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                                    Assign Signatories for AOQ
+                                </h3>
+                                <div class="mt-4">
+                                    <p class="text-sm text-gray-500 mb-4">
+                                        Please assign the BAC committee members and officers who will sign this Abstract of Quotations.
+                                    </p>
+
+                                    @php
+                                        $positions = [
+                                            ['key' => 'bac_chairman', 'label' => 'BAC Chairman'],
+                                            ['key' => 'bac_vice_chairman', 'label' => 'BAC Vice Chairman'],
+                                            ['key' => 'bac_member_1', 'label' => 'BAC Member 1'],
+                                            ['key' => 'bac_member_2', 'label' => 'BAC Member 2'],
+                                            ['key' => 'bac_member_3', 'label' => 'BAC Member 3'],
+                                            ['key' => 'head_bac_secretariat', 'label' => 'Head - BAC Secretariat'],
+                                            ['key' => 'ceo', 'label' => 'Campus Executive Officer'],
+                                        ];
+                                    @endphp
+
+                                    @foreach($positions as $pos)
+                                    <div class="mb-6 border-b pb-4">
+                                        <label class="block text-sm font-semibold text-gray-700 mb-2">{{ $pos['label'] }}</label>
+                                        
+                                        {{-- Input Mode Selection --}}
+                                        <div class="flex items-center space-x-4 mb-3">
+                                            <label class="inline-flex items-center">
+                                                <input type="radio" name="signatories[{{ $pos['key'] }}][input_mode]" value="select" 
+                                                       checked onchange="toggleInputMode('{{ $pos['key'] }}')"
+                                                       class="form-radio h-4 w-4 text-blue-600">
+                                                <span class="ml-2 text-sm">Select from list</span>
+                                            </label>
+                                            <label class="inline-flex items-center">
+                                                <input type="radio" name="signatories[{{ $pos['key'] }}][input_mode]" value="manual"
+                                                       onchange="toggleInputMode('{{ $pos['key'] }}')"
+                                                       class="form-radio h-4 w-4 text-blue-600">
+                                                <span class="ml-2 text-sm">Enter manually</span>
+                                            </label>
+                                        </div>
+
+                                        {{-- Select from List --}}
+                                        <div id="{{ $pos['key'] }}_select_div">
+                                            <select name="signatories[{{ $pos['key'] }}][user_id]" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 mb-2">
+                                                <option value="">-- Select User --</option>
+                                                @foreach($users as $user)
+                                                    <option value="{{ $user->id }}">{{ $user->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <input type="hidden" name="signatories[{{ $pos['key'] }}][selected_name]" value="">
+                                        </div>
+
+                                        {{-- Manual Entry --}}
+                                        <div id="{{ $pos['key'] }}_manual_div" class="hidden">
+                                            <input type="text" name="signatories[{{ $pos['key'] }}][name]" 
+                                                   placeholder="Enter full name"
+                                                   class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 mb-2">
+                                        </div>
+
+                                        {{-- Prefix and Suffix --}}
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <input type="text" name="signatories[{{ $pos['key'] }}][prefix]" 
+                                                   placeholder="Prefix (Dr., Engr., etc.)"
+                                                   class="border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                            <input type="text" name="signatories[{{ $pos['key'] }}][suffix]" 
+                                                   placeholder="Suffix (Ph.D., CPA, etc.)"
+                                                   class="border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                        </div>
+                                    </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                        <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm">
+                            Generate AOQ
+                        </button>
+                        <button type="button" onclick="closeGenerateAoqModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </x-app-layout>
 
