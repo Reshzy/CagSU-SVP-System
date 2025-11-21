@@ -182,6 +182,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/bac/quotations/{purchaseRequest}/rfq/download', [BacQuotationController::class, 'downloadRfq'])->name('bac.quotations.rfq.download');
         Route::post('/bac/quotations/{purchaseRequest}/rfq/regenerate', [BacQuotationController::class, 'regenerateRfq'])->name('bac.quotations.rfq.regenerate');
 
+        // AOQ (Abstract of Quotations)
+        Route::get('/bac/quotations/{purchaseRequest}/aoq', [BacQuotationController::class, 'viewAoq'])->name('bac.quotations.aoq');
+        Route::post('/bac/quotations/{purchaseRequest}/aoq/generate', [BacQuotationController::class, 'generateAoq'])->name('bac.quotations.aoq.generate');
+        Route::get('/bac/quotations/{purchaseRequest}/aoq/{aoqGeneration}/download', [BacQuotationController::class, 'downloadAoq'])->name('bac.quotations.aoq.download');
+        Route::post('/bac/quotations/{purchaseRequest}/aoq/resolve-tie', [BacQuotationController::class, 'resolveTie'])->name('bac.quotations.aoq.resolve-tie');
+        Route::post('/bac/quotations/{purchaseRequest}/aoq/bac-override', [BacQuotationController::class, 'applyBacOverride'])->name('bac.quotations.aoq.bac-override');
+
         // Meetings
         Route::get('/bac/meetings', [BacMeetingController::class, 'index'])->name('bac.meetings.index');
         Route::get('/bac/meetings/create', [BacMeetingController::class, 'create'])->name('bac.meetings.create');

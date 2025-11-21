@@ -64,6 +64,21 @@ class PurchaseRequest extends Model
         return $this->hasMany(RfqSignatory::class);
     }
 
+    public function quotations()
+    {
+        return $this->hasMany(Quotation::class);
+    }
+
+    public function aoqGenerations()
+    {
+        return $this->hasMany(AoqGeneration::class);
+    }
+
+    public function aoqItemDecisions()
+    {
+        return $this->hasMany(AoqItemDecision::class);
+    }
+
     public static function generateNextPrNumber(?Carbon $asOf = null): string
     {
         $asOf = $asOf ?: now();

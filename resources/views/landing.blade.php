@@ -34,12 +34,12 @@
 					</div>
 				</div>
 				<div class="relative" x-data="{ open: false }">
-					<button @click="open = !open" :aria-expanded="open" aria-haspopup="true" class="px-4 py-2 rounded-full border border-white/15 hover:border-white/30 hover:bg-white/5 transition flex items-center gap-2">
+					<!-- <button @click="open = !open" :aria-expanded="open" aria-haspopup="true" class="px-4 py-2 rounded-full border border-white/15 hover:border-white/30 hover:bg-white/5 transition flex items-center gap-2">
 						<span>Suppliers</span>
 						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 opacity-70">
 							<path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 011.08 1.04l-4.25 4.25a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
 						</svg>
-					</button>
+					</button> -->
 					<div x-show="open" x-cloak @click.outside="open = false" @keydown.escape.window="open = false" x-transition.origin.top.right class="absolute right-0 mt-2 w-56 rounded-xl border border-white/10 bg-[#0a0a0a]/95 backdrop-blur p-2 shadow-lg" role="menu" aria-orientation="vertical" tabindex="-1">
 						<a href="{{ route('suppliers.register') }}" class="block rounded-lg px-3 py-2 hover:bg-white/5">Register</a>
 						<a href="{{ route('suppliers.quotations.submit') }}" class="block rounded-lg px-3 py-2 hover:bg-white/5">Submit Quotation</a>
@@ -65,7 +65,7 @@
 					<p class="mt-5 text-lg text-gray-300 max-w-2xl">End-to-end Small Value Procurement, from request to delivery. Designed for clarity, speed, and accountability.</p>
 					<div class="mt-8 flex flex-wrap gap-3">
 						<a href="{{ route('login') }}" class="px-5 py-3 rounded-full bg-white text-black hover:bg-gray-100 transition">University Portal</a>
-						<a href="{{ route('suppliers.quotations.submit') }}" class="px-5 py-3 rounded-full border border-white/20 hover:border-white/40 hover:bg-white/5 transition">Supplier Portal</a>
+						<!-- <a href="{{ route('suppliers.quotations.submit') }}" class="px-5 py-3 rounded-full border border-white/20 hover:border-white/40 hover:bg-white/5 transition">Supplier Portal</a> -->
 					</div>
 					<div class="mt-3 text-sm text-gray-400">
 						<span class="mr-2">Quick links:</span>

@@ -10,6 +10,7 @@ use App\Models\RfqSignatory;
 use App\Models\Supplier;
 use App\Services\BacResolutionService;
 use App\Services\BacRfqService;
+use App\Services\AoqService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -747,6 +748,155 @@ class BacQuotationController extends Controller
         }
         
         Log::info("Total RFQ signatories saved: {$savedCount}");
+    }
+
+    /**
+     * View AOQ data (preview before generation)
+     */
+    public function viewAoq(PurchaseRequest $purchaseRequest): View
+    {
+        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        
+        $aoqService = new AoqService();
+        
+        // Calculate winners and ties
+        $aoqData = $aoqService->calculateWinnersAndTies($purchaseRequest);
+        
+        // Check if can generate
+        $validation = $aoqService->canGenerateAoq($purchaseRequest);
+        
+        // Get all quotations
+        $quotations = $purchaseRequest->quotations()
+            ->with(['supplier', 'quotationItems.purchaseRequestItem'])
+            ->get();
+        
+        // Get existing AOQ generations
+        $aoqGenerations = $purchaseRequest->aoqGenerations()
+            ->with('generatedBy')
+            ->latest()
+            ->get();
+        
+        return view('bac.quotations.aoq', compact(
+            'purchaseRequest',
+            'aoqData',
+            'validation',
+            'quotations',
+            'aoqGenerations'
+        ));
+    }
+
+    /**
+     * Resolve a tie by manually selecting winner
+     */
+    public function resolveTie(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
+    {
+        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        
+        $validated = $request->validate([
+            'purchase_request_item_id' => ['required', 'exists:purchase_request_items,id'],
+            'winning_quotation_item_id' => ['required', 'exists:quotation_items,id'],
+            'justification' => ['required', 'string', 'min:10', 'max:1000'],
+        ]);
+        
+        try {
+            $aoqService = new AoqService();
+            $decision = $aoqService->resolveTie(
+                $purchaseRequest,
+                $validated['purchase_request_item_id'],
+                $validated['winning_quotation_item_id'],
+                $validated['justification'],
+                auth()->user()
+            );
+            
+            Log::info('Tie resolved', [
+                'pr_number' => $purchaseRequest->pr_number,
+                'item_id' => $validated['purchase_request_item_id'],
+                'winner_id' => $validated['winning_quotation_item_id'],
+                'resolved_by' => auth()->user()->name,
+            ]);
+            
+            return back()->with('status', 'Tie resolved successfully.');
+        } catch (\Exception $e) {
+            Log::error('Failed to resolve tie: ' . $e->getMessage());
+            return back()->with('error', 'Failed to resolve tie. Please try again.');
+        }
+    }
+
+    /**
+     * Apply BAC override to change winner
+     */
+    public function applyBacOverride(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
+    {
+        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        
+        $validated = $request->validate([
+            'purchase_request_item_id' => ['required', 'exists:purchase_request_items,id'],
+            'winning_quotation_item_id' => ['required', 'exists:quotation_items,id'],
+            'justification' => ['required', 'string', 'min:20', 'max:1000'],
+        ]);
+        
+        try {
+            $aoqService = new AoqService();
+            $decision = $aoqService->applyBacOverride(
+                $purchaseRequest,
+                $validated['purchase_request_item_id'],
+                $validated['winning_quotation_item_id'],
+                $validated['justification'],
+                auth()->user()
+            );
+            
+            Log::info('BAC override applied', [
+                'pr_number' => $purchaseRequest->pr_number,
+                'item_id' => $validated['purchase_request_item_id'],
+                'winner_id' => $validated['winning_quotation_item_id'],
+                'overridden_by' => auth()->user()->name,
+            ]);
+            
+            return back()->with('status', 'BAC override applied successfully.');
+        } catch (\Exception $e) {
+            Log::error('Failed to apply BAC override: ' . $e->getMessage());
+            return back()->with('error', 'Failed to apply override. Please try again.');
+        }
+    }
+
+    /**
+     * Generate AOQ document
+     */
+    public function generateAoq(PurchaseRequest $purchaseRequest): RedirectResponse
+    {
+        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        
+        try {
+            $aoqService = new AoqService();
+            $aoqGeneration = $aoqService->generateAoqDocument($purchaseRequest, auth()->user());
+            
+            Log::info('AOQ generated', [
+                'pr_number' => $purchaseRequest->pr_number,
+                'aoq_reference' => $aoqGeneration->aoq_reference_number,
+                'generated_by' => auth()->user()->name,
+            ]);
+            
+            return back()->with('status', "Abstract of Quotations generated successfully. Reference: {$aoqGeneration->aoq_reference_number}");
+        } catch (\Exception $e) {
+            Log::error('Failed to generate AOQ: ' . $e->getMessage());
+            return back()->with('error', 'Failed to generate AOQ: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Download AOQ document
+     */
+    public function downloadAoq(PurchaseRequest $purchaseRequest, int $aoqGenerationId): StreamedResponse
+    {
+        $aoqGeneration = $purchaseRequest->aoqGenerations()->findOrFail($aoqGenerationId);
+        
+        if (!Storage::exists($aoqGeneration->file_path)) {
+            abort(404, 'AOQ file not found in storage.');
+        }
+        
+        $fileName = "AOQ_{$aoqGeneration->aoq_reference_number}.docx";
+        
+        return Storage::download($aoqGeneration->file_path, $fileName);
     }
 }
 

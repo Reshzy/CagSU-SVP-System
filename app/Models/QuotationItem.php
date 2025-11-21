@@ -15,6 +15,9 @@ class QuotationItem extends Model
         'unit_price' => 'decimal:2',
         'total_price' => 'decimal:2',
         'is_within_abc' => 'boolean',
+        'is_lowest' => 'boolean',
+        'is_tied' => 'boolean',
+        'is_winner' => 'boolean',
     ];
 
     /**
@@ -88,6 +91,62 @@ class QuotationItem extends Model
         }
 
         return $this->unit_price - $abc;
+    }
+
+    /**
+     * Get AOQ decision for this item
+     */
+    public function aoqDecision()
+    {
+        return $this->hasOne(AoqItemDecision::class, 'winning_quotation_item_id');
+    }
+
+    /**
+     * Check if this item is disqualified
+     */
+    public function isDisqualified(): bool
+    {
+        return !empty($this->disqualification_reason);
+    }
+
+    /**
+     * Get status label for AOQ display
+     */
+    public function getAoqStatusLabel(): string
+    {
+        if ($this->isDisqualified()) {
+            return 'Disqualified';
+        }
+        if ($this->is_winner) {
+            return 'Winner';
+        }
+        if ($this->is_tied) {
+            return 'Tied';
+        }
+        if ($this->is_lowest) {
+            return 'Lowest Bid';
+        }
+        return 'Not Selected';
+    }
+
+    /**
+     * Get status color for UI display
+     */
+    public function getAoqStatusColor(): string
+    {
+        if ($this->isDisqualified()) {
+            return 'red';
+        }
+        if ($this->is_winner) {
+            return 'green';
+        }
+        if ($this->is_tied) {
+            return 'yellow';
+        }
+        if ($this->is_lowest) {
+            return 'blue';
+        }
+        return 'gray';
     }
 }
 
