@@ -776,11 +776,11 @@ class BacQuotationController extends Controller
             ->latest()
             ->get();
         
-        // Get BAC signatories for selection/prefill
-        $signatoryDefaults = $this->buildAoqSignatoryDefaults();
-        
-        // Get all users for signatory selection
-        $users = \App\Models\User::orderBy('name')->get();
+        // Prepare signatory data sources
+        $activeBacSignatories = BacSignatory::with('user')->active()->get();
+        $signatoryDefaults = $this->buildAoqSignatoryDefaults($activeBacSignatories);
+        $bacSignatoryOptions = $this->groupAoqSignatoryOptions($activeBacSignatories);
+        $eligibleSignatoryUsers = $this->getEligibleSignatoryUsers();
         
         return view('bac.quotations.aoq', compact(
             'purchaseRequest',
@@ -788,17 +788,17 @@ class BacQuotationController extends Controller
             'validation',
             'quotations',
             'aoqGenerations',
-            'users',
-            'signatoryDefaults'
+            'eligibleSignatoryUsers',
+            'signatoryDefaults',
+            'bacSignatoryOptions'
         ));
     }
 
     /**
      * Build AOQ signatory default data from BAC signatories table
      */
-    protected function buildAoqSignatoryDefaults(): array
+    protected function buildAoqSignatoryDefaults($bacSignatories): array
     {
-        $bacSignatories = BacSignatory::with('user')->active()->get();
         $memberSignatories = $bacSignatories->where('position', 'bac_member')->values();
         
         $positionsMap = [
@@ -838,17 +838,48 @@ class BacQuotationController extends Controller
                 'display_name' => null,
                 'prefix' => null,
                 'suffix' => null,
+                'bac_signatory_id' => null,
             ];
         }
         
         return [
-            'input_mode' => $signatory->user_id ? 'select' : 'manual',
+            'input_mode' => 'select',
             'user_id' => $signatory->user_id,
             'manual_name' => $signatory->manual_name,
             'display_name' => $signatory->display_name,
             'prefix' => $signatory->prefix,
             'suffix' => $signatory->suffix,
+            'bac_signatory_id' => $signatory->id,
         ];
+    }
+
+    /**
+     * Group BAC signatories for dropdown usage
+     */
+    protected function groupAoqSignatoryOptions($bacSignatories): array
+    {
+        return [
+            'bac_chairman' => $bacSignatories->where('position', 'bac_chairman')->values(),
+            'bac_vice_chairman' => $bacSignatories->where('position', 'bac_vice_chairman')->values(),
+            'bac_member' => $bacSignatories->where('position', 'bac_member')->values(),
+            'head_bac_secretariat' => $bacSignatories->where('position', 'head_bac_secretariat')->values(),
+            'ceo' => $bacSignatories->where('position', 'ceo')->values(),
+        ];
+    }
+
+    /**
+     * Get eligible users for signatory dropdowns
+     */
+    protected function getEligibleSignatoryUsers()
+    {
+        $roles = ['BAC Chair', 'BAC Members', 'BAC Secretariat', 'Executive Officer', 'System Admin'];
+        
+        return \App\Models\User::with('roles')
+            ->whereHas('roles', function ($query) use ($roles) {
+                $query->whereIn('name', $roles);
+            })
+            ->orderBy('name')
+            ->get();
     }
 
     /**

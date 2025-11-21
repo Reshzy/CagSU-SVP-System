@@ -384,35 +384,119 @@
             document.getElementById('generateAoqModal').classList.add('hidden');
         }
         
-        // Signatory input mode toggle
-        function toggleInputMode(position) {
-            const checkedInput = document.querySelector(`input[name="signatories[${position}][input_mode]"]:checked`);
-            const selectDiv = document.getElementById(`${position}_select_div`);
-            const manualDiv = document.getElementById(`${position}_manual_div`);
+        function aoqToggleInputMode(position, mode) {
+            const selectSection = document.getElementById(`${position}-select-section`);
+            const manualSection = document.getElementById(`${position}-manual-section`);
+            const dropdown = document.getElementById(`${position}-select-dropdown`);
+            const hiddenNameField = document.getElementById(`${position}-selected-name`);
             
-            if (!checkedInput || !selectDiv || !manualDiv) {
+            if (!selectSection || !manualSection) {
                 return;
             }
             
-            const inputMode = checkedInput.value;
-            
-            if (inputMode === 'select') {
-                selectDiv.classList.remove('hidden');
-                manualDiv.classList.add('hidden');
+            if (mode === 'select') {
+                selectSection.classList.remove('hidden');
+                manualSection.classList.add('hidden');
+                if (dropdown) {
+                    aoqHandleSignatorySelection(position);
+                }
             } else {
-                selectDiv.classList.add('hidden');
-                manualDiv.classList.remove('hidden');
+                selectSection.classList.add('hidden');
+                manualSection.classList.remove('hidden');
+                if (dropdown) {
+                    dropdown.value = '';
+                }
+                if (hiddenNameField) {
+                    hiddenNameField.value = '';
+                }
+                const prefixField = document.getElementById(`${position}-prefix-field`);
+                const suffixField = document.getElementById(`${position}-suffix-field`);
+                if (prefixField) {
+                    prefixField.removeAttribute('readonly');
+                    prefixField.classList.remove('bg-gray-100', 'cursor-not-allowed');
+                }
+                if (suffixField) {
+                    suffixField.removeAttribute('readonly');
+                    suffixField.classList.remove('bg-gray-100', 'cursor-not-allowed');
+                }
             }
         }
         
-        // Initialize all toggle states on load
-        ['bac_chairman', 'bac_vice_chairman', 'bac_member_1', 'bac_member_2', 'bac_member_3', 'head_bac_secretariat', 'ceo'].forEach(position => {
-            const radioExists = document.querySelector(`input[name="signatories[${position}][input_mode]"]`);
-            if (radioExists) {
-                toggleInputMode(position);
+        function aoqHandleSignatorySelection(position) {
+            const dropdown = document.getElementById(`${position}-select-dropdown`);
+            const hiddenNameField = document.getElementById(`${position}-selected-name`);
+            const prefixField = document.getElementById(`${position}-prefix-field`);
+            const suffixField = document.getElementById(`${position}-suffix-field`);
+            
+            if (!dropdown) {
+                return;
             }
+            
+            const selectedOption = dropdown.options[dropdown.selectedIndex];
+            
+            if (!selectedOption || dropdown.selectedIndex === 0) {
+                if (hiddenNameField) hiddenNameField.value = '';
+                if (prefixField) {
+                    prefixField.removeAttribute('readonly');
+                    prefixField.classList.remove('bg-gray-100', 'cursor-not-allowed');
+                }
+                if (suffixField) {
+                    suffixField.removeAttribute('readonly');
+                    suffixField.classList.remove('bg-gray-100', 'cursor-not-allowed');
+                }
+                return;
+            }
+            
+            const isPreconfigured = selectedOption.getAttribute('data-signatory-id');
+            const manualName = selectedOption.getAttribute('data-manual-name') || '';
+            const prefix = selectedOption.getAttribute('data-prefix') || '';
+            const suffix = selectedOption.getAttribute('data-suffix') || '';
+            const hasUser = selectedOption.getAttribute('data-has-user') === 'true';
+            
+            if (hiddenNameField) {
+                hiddenNameField.value = !hasUser && manualName ? manualName : '';
+            }
+            
+            if (isPreconfigured) {
+                if (prefixField) {
+                    prefixField.value = prefix;
+                    prefixField.setAttribute('readonly', 'readonly');
+                    prefixField.classList.add('bg-gray-100', 'cursor-not-allowed');
+                }
+                if (suffixField) {
+                    suffixField.value = suffix;
+                    suffixField.setAttribute('readonly', 'readonly');
+                    suffixField.classList.add('bg-gray-100', 'cursor-not-allowed');
+                }
+            } else {
+                if (prefixField) {
+                    prefixField.removeAttribute('readonly');
+                    prefixField.classList.remove('bg-gray-100', 'cursor-not-allowed');
+                }
+                if (suffixField) {
+                    suffixField.removeAttribute('readonly');
+                    suffixField.classList.remove('bg-gray-100', 'cursor-not-allowed');
+                }
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            const positions = ['bac_chairman', 'bac_vice_chairman', 'bac_member_1', 'bac_member_2', 'bac_member_3', 'head_bac_secretariat', 'ceo'];
+            positions.forEach(position => {
+                const selectedRadio = document.querySelector(`input[name="signatories[${position}][input_mode]"]:checked`);
+                if (selectedRadio) {
+                    aoqToggleInputMode(position, selectedRadio.value);
+                }
+                aoqHandleSignatorySelection(position);
+            });
         });
     </script>
+
+    @php
+        $signatoryDefaults = $signatoryDefaults ?? [];
+        $bacSignatoryOptions = $bacSignatoryOptions ?? [];
+        $eligibleSignatoryUsers = $eligibleSignatoryUsers ?? collect();
+    @endphp
 
     {{-- Generate AOQ Modal --}}
     <div id="generateAoqModal" class="hidden fixed z-50 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
@@ -442,7 +526,6 @@
                                     </p>
 
                                     @php
-                                        $signatoryDefaults = $signatoryDefaults ?? [];
                                         $positions = [
                                             ['key' => 'bac_chairman', 'label' => 'BAC Chairman'],
                                             ['key' => 'bac_vice_chairman', 'label' => 'BAC Vice Chairman'],
@@ -456,15 +539,19 @@
 
                                     @foreach($positions as $pos)
                                     @php
+                                        $positionKey = str_replace(['_1','_2','_3'], '', $pos['key']);
+                                        $preconfigured = $bacSignatoryOptions[$positionKey] ?? collect();
                                         $defaults = $signatoryDefaults[$pos['key']] ?? [];
                                         $inputMode = old("signatories.{$pos['key']}.input_mode", $defaults['input_mode'] ?? 'select');
                                         $selectedUserId = old("signatories.{$pos['key']}.user_id", $defaults['user_id'] ?? '');
+                                        $selectedSignatoryId = $defaults['bac_signatory_id'] ?? null;
                                         $manualValue = old(
                                             "signatories.{$pos['key']}.name",
                                             $defaults['manual_name'] ?? ($defaults['display_name'] ?? '')
                                         );
                                         $prefixValue = old("signatories.{$pos['key']}.prefix", $defaults['prefix'] ?? '');
                                         $suffixValue = old("signatories.{$pos['key']}.suffix", $defaults['suffix'] ?? '');
+                                        $selectedNameValue = old("signatories.{$pos['key']}.selected_name", $defaults['manual_name'] ?? '');
                                     @endphp
                                     <div class="mb-6 border-b pb-4">
                                         <label class="block text-sm font-semibold text-gray-700 mb-2">{{ $pos['label'] }}</label>
@@ -473,33 +560,67 @@
                                         <div class="flex items-center space-x-4 mb-3">
                                             <label class="inline-flex items-center">
                                                 <input type="radio" name="signatories[{{ $pos['key'] }}][input_mode]" value="select" 
-                                                       {{ $inputMode === 'select' ? 'checked' : '' }} onchange="toggleInputMode('{{ $pos['key'] }}')"
+                                                       {{ $inputMode === 'select' ? 'checked' : '' }} onchange="aoqToggleInputMode('{{ $pos['key'] }}', 'select')"
                                                        class="form-radio h-4 w-4 text-blue-600">
                                                 <span class="ml-2 text-sm">Select from list</span>
                                             </label>
                                             <label class="inline-flex items-center">
                                                 <input type="radio" name="signatories[{{ $pos['key'] }}][input_mode]" value="manual"
-                                                       {{ $inputMode === 'manual' ? 'checked' : '' }} onchange="toggleInputMode('{{ $pos['key'] }}')"
+                                                       {{ $inputMode === 'manual' ? 'checked' : '' }} onchange="aoqToggleInputMode('{{ $pos['key'] }}', 'manual')"
                                                        class="form-radio h-4 w-4 text-blue-600">
                                                 <span class="ml-2 text-sm">Enter manually</span>
                                             </label>
                                         </div>
 
                                         {{-- Select from List --}}
-                                        <div id="{{ $pos['key'] }}_select_div" class="{{ $inputMode === 'manual' ? 'hidden' : '' }}">
-                                            <select name="signatories[{{ $pos['key'] }}][user_id]" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 mb-2">
-                                                <option value="">-- Select User --</option>
-                                                @foreach($users as $user)
-                                                    <option value="{{ $user->id }}" {{ (string)$selectedUserId === (string)$user->id ? 'selected' : '' }}>
-                                                        {{ $user->name }}
-                                                    </option>
-                                                @endforeach
+                                        <div id="{{ $pos['key'] }}-select-section" class="{{ $inputMode === 'manual' ? 'hidden' : '' }}">
+                                            <select name="signatories[{{ $pos['key'] }}][user_id]" 
+                                                    id="{{ $pos['key'] }}-select-dropdown"
+                                                    class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 mb-2"
+                                                    onchange="aoqHandleSignatorySelection('{{ $pos['key'] }}')">
+                                                <option value="">-- Select a signatory --</option>
+                                                @if($preconfigured->isNotEmpty())
+                                                    <optgroup label="Pre-configured Signatories">
+                                                        @foreach($preconfigured as $config)
+                                                            @php
+                                                                $optionValue = $config->user_id ?? '';
+                                                                $isSelected = (string)$selectedUserId !== '' 
+                                                                    ? (string)$selectedUserId === (string)$optionValue
+                                                                    : ($selectedSignatoryId && $selectedSignatoryId === $config->id);
+                                                            @endphp
+                                                            <option value="{{ $optionValue }}"
+                                                                    data-signatory-id="{{ $config->id }}"
+                                                                    data-prefix="{{ $config->prefix ?? '' }}"
+                                                                    data-suffix="{{ $config->suffix ?? '' }}"
+                                                                    data-manual-name="{{ $config->manual_name ?? '' }}"
+                                                                    data-display-name="{{ $config->display_name }}"
+                                                                    data-has-user="{{ $config->user_id ? 'true' : 'false' }}"
+                                                                    {{ $isSelected ? 'selected' : '' }}>
+                                                                {{ $config->full_name }}
+                                                            </option>
+                                                        @endforeach
+                                                    </optgroup>
+                                                @endif
+                                                <optgroup label="All BAC Users">
+                                                    @foreach($eligibleSignatoryUsers as $user)
+                                                        <option value="{{ $user->id }}" 
+                                                                data-signatory-id=""
+                                                                data-prefix=""
+                                                                data-suffix=""
+                                                                data-manual-name=""
+                                                                data-display-name="{{ $user->name }}"
+                                                                data-has-user="true"
+                                                                {{ (string)$selectedUserId === (string)$user->id ? 'selected' : '' }}>
+                                                            {{ $user->name }} ({{ $user->getRoleNames()->implode(', ') }})
+                                                        </option>
+                                                    @endforeach
+                                                </optgroup>
                                             </select>
-                                            <input type="hidden" name="signatories[{{ $pos['key'] }}][selected_name]" value="">
+                                            <input type="hidden" name="signatories[{{ $pos['key'] }}][selected_name]" id="{{ $pos['key'] }}-selected-name" value="{{ $selectedNameValue }}">
                                         </div>
 
                                         {{-- Manual Entry --}}
-                                        <div id="{{ $pos['key'] }}_manual_div" class="{{ $inputMode === 'manual' ? '' : 'hidden' }}">
+                                        <div id="{{ $pos['key'] }}-manual-section" class="{{ $inputMode === 'manual' ? '' : 'hidden' }}">
                                             <input type="text" name="signatories[{{ $pos['key'] }}][name]" 
                                                    placeholder="Enter full name"
                                                    value="{{ $manualValue }}"
@@ -511,10 +632,12 @@
                                             <input type="text" name="signatories[{{ $pos['key'] }}][prefix]" 
                                                    placeholder="Prefix (Dr., Engr., etc.)"
                                                    value="{{ $prefixValue }}"
+                                                   id="{{ $pos['key'] }}-prefix-field"
                                                    class="border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm">
                                             <input type="text" name="signatories[{{ $pos['key'] }}][suffix]" 
                                                    placeholder="Suffix (Ph.D., CPA, etc.)"
                                                    value="{{ $suffixValue }}"
+                                                   id="{{ $pos['key'] }}-suffix-field"
                                                    class="border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm">
                                         </div>
                                     </div>
