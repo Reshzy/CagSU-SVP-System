@@ -412,16 +412,18 @@ class AoqService
         ], ['alignment' => JcTable::CENTER]);
         
         // Text styles
-        $header = ['bold' => false, 'size' => 5, 'name' => 'Century Gothic'];
-        $supplierHeader = ['bold' => true, 'size' => 8, 'name' => 'Century Gothic'];
-        $locationStyle = ['bold' => false, 'size' => 5, 'name' => 'Century Gothic'];
+        $header = ['bold' => false, 'size' => 5, 'name' => 'Century Gothic', 'allCaps' => true];
+        $supplierHeader = ['bold' => true, 'size' => 8, 'name' => 'Century Gothic', 'allCaps' => true];
+        $locationStyle = ['bold' => false, 'size' => 5, 'name' => 'Century Gothic', 'allCaps' => true];
         $priceLabelStyle = ['bold' => false, 'size' => 5, 'name' => 'Century Gothic'];
         $dataText = ['size' => 7, 'name' => 'Century Gothic'];
+        $unitDataText = array_merge($dataText, ['allCaps' => true]);
+        $articleDataText = array_merge($dataText, ['allCaps' => true]);
         $signatureNameStyle = ['bold' => true, 'size' => 7, 'name' => 'Century Gothic', 'allCaps' => true];
         $signaturePositionStyle = ['bold' => true, 'size' => 6, 'name' => 'Century Gothic'];
         $metaLabelStyle = ['bold' => false, 'size' => 6, 'name' => 'Century Gothic'];
         $metaValueStyle = ['bold' => true, 'size' => 6, 'name' => 'Century Gothic', 'underline' => 'single'];
-        $metaPurposeStyle = ['bold' => true, 'size' => 6, 'name' => 'Century Gothic', 'underline' => 'single'];
+        $metaPurposeStyle = ['bold' => true, 'size' => 6, 'name' => 'Century Gothic', 'underline' => 'single', 'allCaps' => true];
         
         // Paragraph styles
         $noSpacing = ['spaceAfter' => 0, 'spaceBefore' => 0];
@@ -488,6 +490,20 @@ class AoqService
         // Get all suppliers
         $quotations = $purchaseRequest->quotations()->with('supplier')->get();
         $suppliers = $quotations->pluck('supplier')->unique('id')->values();
+
+        $minimumSuppliers = 4;
+        if ($suppliers->count() < $minimumSuppliers) {
+            $placeholdersNeeded = $minimumSuppliers - $suppliers->count();
+            for ($i = 0; $i < $placeholdersNeeded; $i++) {
+                $placeholder = (object) [
+                    'id' => null,
+                    'business_name' => '',
+                    'address' => '',
+                ];
+                $suppliers->push($placeholder);
+            }
+        }
+
         $supplierCount = $suppliers->count();
         
         // Main table
@@ -496,7 +512,7 @@ class AoqService
         $widths = [
             'no' => 250,
             'qty' => 350,
-            'unit' => 500,
+            'unit' => 700,
             'article' => 5200,
             'vendor' => 1500,
         ];
@@ -559,8 +575,8 @@ class AoqService
             $table->addRow();
             $table->addCell($widths['no'], $cellMiddle)->addText((string) $rowNum, $dataText, $paragraphCenter);
             $table->addCell($widths['qty'], $cellMiddle)->addText((string) $item->quantity_requested, $dataText, $paragraphCenter);
-            $table->addCell($widths['unit'], $cellMiddle)->addText($item->unit_of_measure ?? '', $dataText, $paragraphCenter);
-            $table->addCell($widths['article'], ['valign' => 'top'])->addText($item->item_name, $dataText, $paragraphLeft);
+            $table->addCell($widths['unit'], $cellMiddle)->addText($item->unit_of_measure ?? '', $unitDataText, $paragraphCenter);
+            $table->addCell($widths['article'], ['valign' => 'top'])->addText($item->item_name, $articleDataText, $paragraphLeft);
             
             foreach ($suppliers as $supplierIndex => $supplier) {
                 $quote = collect($data['quotes'])->first(fn($q) => $q['quotation']->supplier_id === $supplier->id);
@@ -582,8 +598,9 @@ class AoqService
                         $totalAmountAwarded[$supplierIndex] += $quote['total_price'];
                     }
                 } else {
+                    $placeholderText = $supplier->id === null ? '' : 'NONE';
                     $table->addCell($widths['vendor'], $cellStyle)
-                        ->addText('NONE', $dataText, $paragraphLeft);
+                        ->addText($placeholderText, $dataText, $paragraphLeft);
                     $table->addCell($widths['vendor'], $cellStyle)
                         ->addText('', $dataText, $paragraphRight);
                 }
