@@ -2,12 +2,11 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
-use App\Models\User;
 use App\Models\Department;
+use App\Models\User;
+use Illuminate\Database\Seeder;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class RolePermissionSeeder extends Seeder
 {
@@ -25,13 +24,13 @@ class RolePermissionSeeder extends Seeder
             'approve-purchase-request',
             'reject-purchase-request',
             'assign-pr-control-number',
-            
+
             // Budget & Earmarking Permissions
             'view-budget-info',
             'create-earmark',
             'approve-earmark',
             'validate-budget',
-            
+
             // BAC (Bids & Awards Committee) Permissions
             'view-bac-documents',
             'create-bac-resolution',
@@ -39,45 +38,45 @@ class RolePermissionSeeder extends Seeder
             'approve-abstract-quotation',
             'conduct-bac-meeting',
             'award-contract',
-            
+
             // Supplier Management Permissions
             'manage-suppliers',
             'view-supplier-info',
             'request-quotations',
             'evaluate-supplier-performance',
-            
+
             // Purchase Order Permissions
             'create-purchase-order',
             'approve-purchase-order',
             'send-po-to-supplier',
             'track-delivery',
             'accept-delivery',
-            
+
             // Document Management Permissions
             'upload-documents',
             'view-documents',
             'approve-documents',
             'archive-documents',
-            
+
             // Workflow Management Permissions
             'view-workflow-status',
             'manage-approvals',
             'assign-tasks',
             'escalate-issues',
-            
+
             // Reporting & Analytics Permissions
             'view-reports',
             'create-reports',
             'view-analytics',
             'export-data',
-            
+
             // System Administration Permissions
             'manage-users',
             'manage-roles',
             'manage-permissions',
             'system-configuration',
             'view-audit-logs',
-            
+
             // Accounting Permissions
             'process-payments',
             'view-financial-data',
@@ -90,7 +89,7 @@ class RolePermissionSeeder extends Seeder
         }
 
         // Create Roles and Assign Permissions
-        
+
         // 1. System Admin - Full Access
         $systemAdmin = Role::create(['name' => 'System Admin']);
         $systemAdmin->givePermissionTo(Permission::all());
@@ -105,7 +104,19 @@ class RolePermissionSeeder extends Seeder
             'view-documents',
         ]);
 
-        // 3. Supply Officer - PR Management & Coordination
+        // 3. Dean - College Head with PPMP Management
+        $dean = Role::create(['name' => 'Dean']);
+        $dean->givePermissionTo([
+            'create-purchase-request',
+            'view-purchase-request',
+            'view-workflow-status',
+            'upload-documents',
+            'view-documents',
+            'view-budget-info',
+            'view-reports',
+        ]);
+
+        // 4. Supply Officer - PR Management & Coordination
         $supplyOfficer = Role::create(['name' => 'Supply Officer']);
         $supplyOfficer->givePermissionTo([
             'view-purchase-request',
@@ -125,7 +136,7 @@ class RolePermissionSeeder extends Seeder
             'view-reports',
         ]);
 
-        // 4. Budget Office - Earmarking & Budget Validation
+        // 5. Budget Office - Earmarking & Budget Validation
         $budgetOffice = Role::create(['name' => 'Budget Office']);
         $budgetOffice->givePermissionTo([
             'view-purchase-request',
@@ -139,7 +150,7 @@ class RolePermissionSeeder extends Seeder
             'view-reports',
         ]);
 
-        // 5. BAC Chair - Lead BAC Activities
+        // 6. BAC Chair - Lead BAC Activities
         $bacChair = Role::create(['name' => 'BAC Chair']);
         $bacChair->givePermissionTo([
             'view-purchase-request',
@@ -159,7 +170,7 @@ class RolePermissionSeeder extends Seeder
             'view-reports',
         ]);
 
-        // 6. BAC Members - Participate in BAC Activities
+        // 7. BAC Members - Participate in BAC Activities
         $bacMembers = Role::create(['name' => 'BAC Members']);
         $bacMembers->givePermissionTo([
             'view-purchase-request',
@@ -172,7 +183,7 @@ class RolePermissionSeeder extends Seeder
             'view-reports',
         ]);
 
-        // 7. BAC Secretariat - Administrative Support for BAC
+        // 8. BAC Secretariat - Administrative Support for BAC
         $bacSecretariat = Role::create(['name' => 'BAC Secretariat']);
         $bacSecretariat->givePermissionTo([
             'view-purchase-request',
@@ -189,7 +200,7 @@ class RolePermissionSeeder extends Seeder
             'view-reports',
         ]);
 
-        // 8. Canvassing Unit - Supplier Outreach
+        // 9. Canvassing Unit - Supplier Outreach
         $canvassingUnit = Role::create(['name' => 'Canvassing Unit']);
         $canvassingUnit->givePermissionTo([
             'view-purchase-request',
@@ -203,7 +214,7 @@ class RolePermissionSeeder extends Seeder
             'view-reports',
         ]);
 
-        // 9. Executive Officer - Final Approvals
+        // 10. Executive Officer - Final Approvals
         $executiveOfficer = Role::create(['name' => 'Executive Officer']);
         // Treat Executive Officer as admin-equivalent: grant all permissions
         $executiveOfficer->givePermissionTo(Permission::all());

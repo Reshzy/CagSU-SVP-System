@@ -57,6 +57,14 @@ class Department extends Model
     }
 
     /**
+     * Scope a query to exclude archived departments.
+     */
+    public function scopeNotArchived($query)
+    {
+        return $query->where('is_archived', false);
+    }
+
+    /**
      * Get department budgets
      */
     public function budgets(): HasMany

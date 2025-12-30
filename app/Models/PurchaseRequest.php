@@ -39,6 +39,21 @@ class PurchaseRequest extends Model
         return $this->belongsTo(User::class, 'current_handler_id');
     }
 
+    public function returnedBy()
+    {
+        return $this->belongsTo(User::class, 'returned_by');
+    }
+
+    public function replacesPr()
+    {
+        return $this->belongsTo(PurchaseRequest::class, 'replaces_pr_id');
+    }
+
+    public function replacedByPr()
+    {
+        return $this->belongsTo(PurchaseRequest::class, 'replaced_by_pr_id');
+    }
+
     public function items()
     {
         return $this->hasMany(PurchaseRequestItem::class);
@@ -79,12 +94,44 @@ class PurchaseRequest extends Model
         return $this->hasMany(AoqItemDecision::class);
     }
 
+    /**
+     * Scope a query to exclude archived PRs.
+     */
+    public function scopeNotArchived($query)
+    {
+        return $query->where('is_archived', false);
+    }
+
+    /**
+     * Scope a query to PRs for a specific college.
+     */
+    public function scopeForCollege($query, int $collegeId)
+    {
+        return $query->where('department_id', $collegeId);
+    }
+
+    /**
+     * Scope a query to returned PRs.
+     */
+    public function scopeReturned($query)
+    {
+        return $query->where('status', 'returned_by_supply');
+    }
+
+    /**
+     * Scope a query to active (non-returned, non-rejected, non-cancelled) PRs.
+     */
+    public function scopeActiveStatus($query)
+    {
+        return $query->whereNotIn('status', ['returned_by_supply', 'rejected', 'cancelled']);
+    }
+
     public static function generateNextPrNumber(?Carbon $asOf = null): string
     {
         $asOf = $asOf ?: now();
         $year = $asOf->year;
-        $prefix = 'PR-' . $year . '-';
-        $last = static::where('pr_number', 'like', $prefix . '%')
+        $prefix = 'PR-'.$year.'-';
+        $last = static::where('pr_number', 'like', $prefix.'%')
             ->orderByDesc('pr_number')
             ->value('pr_number');
 
@@ -95,7 +142,7 @@ class PurchaseRequest extends Model
             $nextSequence = intval($seqStr) + 1;
         }
 
-        return $prefix . str_pad((string)$nextSequence, 4, '0', STR_PAD_LEFT);
+        return $prefix.str_pad((string) $nextSequence, 4, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -155,9 +202,9 @@ class PurchaseRequest extends Model
     {
         $asOf = $asOf ?: now();
         $dateStr = $asOf->format('mdy'); // MMDDYY format
-        $prefix = 'EM-' . $dateStr . '-';
-        
-        $last = static::where('earmark_id', 'like', $prefix . '%')
+        $prefix = 'EM-'.$dateStr.'-';
+
+        $last = static::where('earmark_id', 'like', $prefix.'%')
             ->orderByDesc('earmark_id')
             ->value('earmark_id');
 
@@ -168,7 +215,7 @@ class PurchaseRequest extends Model
             $nextSequence = intval($seqStr) + 1;
         }
 
-        return $prefix . str_pad((string)$nextSequence, 4, '0', STR_PAD_LEFT);
+        return $prefix.str_pad((string) $nextSequence, 4, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -180,9 +227,9 @@ class PurchaseRequest extends Model
         $asOf = $asOf ?: now();
         $year = $asOf->year;
         $month = $asOf->format('m');
-        $prefix = 'SV-' . $year . '-' . $month . '-';
-        
-        $last = static::where('resolution_number', 'like', $prefix . '%')
+        $prefix = 'SV-'.$year.'-'.$month.'-';
+
+        $last = static::where('resolution_number', 'like', $prefix.'%')
             ->orderByDesc('resolution_number')
             ->value('resolution_number');
 
@@ -193,7 +240,7 @@ class PurchaseRequest extends Model
             $nextSequence = intval($seqStr) + 1;
         }
 
-        return $prefix . str_pad((string)$nextSequence, 4, '0', STR_PAD_LEFT);
+        return $prefix.str_pad((string) $nextSequence, 4, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -204,9 +251,9 @@ class PurchaseRequest extends Model
     {
         $asOf = $asOf ?: now();
         $year = $asOf->year;
-        $prefix = 'RFQ-' . $year . '-';
-        
-        $last = static::where('rfq_number', 'like', $prefix . '%')
+        $prefix = 'RFQ-'.$year.'-';
+
+        $last = static::where('rfq_number', 'like', $prefix.'%')
             ->orderByDesc('rfq_number')
             ->value('rfq_number');
 
@@ -217,6 +264,6 @@ class PurchaseRequest extends Model
             $nextSequence = intval($seqStr) + 1;
         }
 
-        return $prefix . str_pad((string)$nextSequence, 4, '0', STR_PAD_LEFT);
+        return $prefix.str_pad((string) $nextSequence, 4, '0', STR_PAD_LEFT);
     }
 }

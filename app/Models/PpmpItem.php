@@ -10,6 +10,7 @@ class PpmpItem extends Model
     use HasFactory;
 
     protected $fillable = [
+        'college_id',
         'category',
         'item_code',
         'item_name',
@@ -25,11 +26,27 @@ class PpmpItem extends Model
     ];
 
     /**
+     * Get the college that owns the PPMP item
+     */
+    public function college()
+    {
+        return $this->belongsTo(Department::class, 'college_id');
+    }
+
+    /**
      * Get purchase request items that use this PPMP item
      */
     public function purchaseRequestItems()
     {
         return $this->hasMany(PurchaseRequestItem::class);
+    }
+
+    /**
+     * Scope to filter by college
+     */
+    public function scopeForCollege($query, int $collegeId)
+    {
+        return $query->where('college_id', $collegeId);
     }
 
     /**
