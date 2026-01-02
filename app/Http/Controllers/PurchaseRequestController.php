@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\DepartmentBudget;
 use App\Models\Document;
+use App\Models\Ppmp;
 use App\Models\PpmpItem;
 use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestItem;
 use App\Notifications\PurchaseRequestSubmitted;
+use App\Services\PpmpQuarterlyTracker;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -38,39 +40,48 @@ class PurchaseRequestController extends Controller
     public function create(Request $request): View
     {
         $user = Auth::user();
+        $fiscalYear = date('Y');
 
-        // Get PPMP items for user's college only
-        $ppmpQuery = PpmpItem::active();
-
-        if ($user->department_id) {
-            $ppmpQuery->forCollege($user->department_id);
+        if (!$user->department_id) {
+            abort(403, 'You must be assigned to a department to create purchase requests.');
         }
 
-        $ppmpCategories = (clone $ppmpQuery)
-            ->select('category')
-            ->distinct()
-            ->orderBy('category')
-            ->pluck('category');
+        // Get department's validated PPMP
+        $ppmp = Ppmp::forDepartment($user->department_id)
+            ->forFiscalYear($fiscalYear)
+            ->validated()
+            ->with(['items.appItem'])
+            ->first();
 
-        $ppmpItems = $ppmpQuery
-            ->orderBy('category')
-            ->orderBy('item_name')
-            ->get()
-            ->groupBy('category');
+        if (!$ppmp) {
+            abort(403, 'Your department must have a validated PPMP before creating purchase requests.');
+        }
+
+        // Group PPMP items by APP item category
+        $ppmpItems = $ppmp->items
+            ->filter(function ($item) {
+                return $item->appItem !== null;
+            })
+            ->groupBy(function ($item) {
+                return $item->appItem->category;
+            });
+
+        $ppmpCategories = $ppmpItems->keys()->sort()->values();
 
         // Get department budget information
-        $fiscalYear = date('Y');
-        $departmentBudget = null;
+        $departmentBudget = DepartmentBudget::getOrCreateForDepartment($user->department_id, $fiscalYear);
 
-        if ($user->department_id) {
-            $departmentBudget = DepartmentBudget::getOrCreateForDepartment($user->department_id, $fiscalYear);
-        }
+        // Get current quarter for quarterly tracking
+        $quarterlyTracker = app(PpmpQuarterlyTracker::class);
+        $currentQuarter = $quarterlyTracker->getQuarterFromDate();
 
         return view('purchase_requests.create', [
+            'ppmp' => $ppmp,
             'ppmpCategories' => $ppmpCategories,
             'ppmpItems' => $ppmpItems,
             'departmentBudget' => $departmentBudget,
             'fiscalYear' => $fiscalYear,
+            'currentQuarter' => $currentQuarter,
         ]);
     }
 
@@ -138,14 +149,14 @@ class PurchaseRequestController extends Controller
             foreach ($validated['items'] as $itemData) {
                 $estimatedTotal = (float) $itemData['estimated_unit_cost'] * (int) $itemData['quantity_requested'];
 
-                // Determine item category
+                // Determine item category from APP item
                 $itemCategory = null;
                 if (! empty($itemData['ppmp_item_id'])) {
-                    // Get PPMP item to extract category
-                    $ppmpItem = PpmpItem::find($itemData['ppmp_item_id']);
-                    if ($ppmpItem) {
-                        // Store the PPMP category as-is
-                        $itemCategory = $ppmpItem->category;
+                    // Get PPMP item to extract category from APP item
+                    $ppmpItem = PpmpItem::with('appItem')->find($itemData['ppmp_item_id']);
+                    if ($ppmpItem && $ppmpItem->appItem) {
+                        // Store the APP item category
+                        $itemCategory = $ppmpItem->appItem->category;
                     }
                 }
 
