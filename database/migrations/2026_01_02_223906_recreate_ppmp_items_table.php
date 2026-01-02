@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -11,6 +12,17 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Drop foreign key constraint from purchase_request_items if it exists
+        if (Schema::hasTable('purchase_request_items') && Schema::hasColumn('purchase_request_items', 'ppmp_item_id')) {
+            try {
+                Schema::table('purchase_request_items', function (Blueprint $table) {
+                    $table->dropForeign(['ppmp_item_id']);
+                });
+            } catch (\Exception $e) {
+                // Foreign key might not exist or already dropped, continue
+            }
+        }
+
         // Drop the old ppmp_items table
         Schema::dropIfExists('ppmp_items');
 
