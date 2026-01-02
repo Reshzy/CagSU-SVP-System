@@ -22,6 +22,8 @@ use App\Http\Controllers\CeoUserManagementController;
 use App\Http\Controllers\CeoDepartmentController;
 use App\Http\Controllers\BudgetManagementController;
 use App\Http\Controllers\Api\BudgetCheckController;
+use App\Http\Controllers\AppItemController;
+use App\Http\Controllers\PpmpController;
 
 Route::get('/', function () {
     return view('landing');
@@ -55,6 +57,17 @@ Route::middleware('auth')->group(function () {
     Route::resource('purchase-requests', PurchaseRequestController::class)
         ->only(['index', 'create', 'store']);
 
+    // PPMP Management (Department Users)
+    Route::prefix('ppmp')->group(function () {
+        Route::get('/', [PpmpController::class, 'index'])->name('ppmp.index');
+        Route::get('/create', [PpmpController::class, 'create'])->name('ppmp.create');
+        Route::post('/', [PpmpController::class, 'store'])->name('ppmp.store');
+        Route::get('/{ppmp}/edit', [PpmpController::class, 'edit'])->name('ppmp.edit');
+        Route::put('/{ppmp}', [PpmpController::class, 'update'])->name('ppmp.update');
+        Route::post('/{ppmp}/validate', [PpmpController::class, 'validate'])->name('ppmp.validate');
+        Route::get('/{ppmp}/summary', [PpmpController::class, 'summary'])->name('ppmp.summary');
+    });
+
     // Supply Officer - Purchase Requests Management
     Route::middleware('can:edit-purchase-request')->group(function () {
         Route::get('/supply/purchase-requests', [SupplyPurchaseRequestController::class, 'index'])->name('supply.purchase-requests.index');
@@ -72,6 +85,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/supply/purchase-orders/{purchaseOrder}/inventory-receipts/create', [InventoryReceiptController::class, 'create'])->name('supply.inventory-receipts.create');
         Route::post('/supply/purchase-orders/{purchaseOrder}/inventory-receipts', [InventoryReceiptController::class, 'store'])->name('supply.inventory-receipts.store');
         Route::get('/supply/inventory-receipts/{inventoryReceipt}', [InventoryReceiptController::class, 'show'])->name('supply.inventory-receipts.show');
+
+        // APP Management (Annual Procurement Plan)
+        Route::get('/supply/app', [AppItemController::class, 'index'])->name('supply.app.index');
+        Route::get('/supply/app/import', [AppItemController::class, 'import'])->name('supply.app.import');
+        Route::post('/supply/app/import', [AppItemController::class, 'processImport'])->name('supply.app.process');
     });
 
     // Canvassing Unit - Supplier management
