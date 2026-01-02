@@ -4,87 +4,127 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PpmpItem extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'college_id',
-        'category',
-        'item_code',
-        'item_name',
-        'unit_of_measure',
-        'unit_price',
-        'specifications',
-        'is_active',
+        'ppmp_id',
+        'app_item_id',
+        'q1_quantity',
+        'q2_quantity',
+        'q3_quantity',
+        'q4_quantity',
+        'total_quantity',
+        'estimated_unit_cost',
+        'estimated_total_cost',
     ];
 
-    protected $casts = [
-        'unit_price' => 'decimal:2',
-        'is_active' => 'boolean',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'q1_quantity' => 'integer',
+            'q2_quantity' => 'integer',
+            'q3_quantity' => 'integer',
+            'q4_quantity' => 'integer',
+            'total_quantity' => 'integer',
+            'estimated_unit_cost' => 'decimal:2',
+            'estimated_total_cost' => 'decimal:2',
+        ];
+    }
 
     /**
-     * Get the college that owns the PPMP item
+     * Get the PPMP that owns this item
      */
-    public function college()
+    public function ppmp(): BelongsTo
     {
-        return $this->belongsTo(Department::class, 'college_id');
+        return $this->belongsTo(Ppmp::class);
+    }
+
+    /**
+     * Get the APP item this references
+     */
+    public function appItem(): BelongsTo
+    {
+        return $this->belongsTo(AppItem::class);
     }
 
     /**
      * Get purchase request items that use this PPMP item
      */
-    public function purchaseRequestItems()
+    public function purchaseRequestItems(): HasMany
     {
         return $this->hasMany(PurchaseRequestItem::class);
     }
 
     /**
-     * Scope to filter by college
+     * Get the total quantity across all quarters
      */
-    public function scopeForCollege($query, int $collegeId)
+    public function getTotalQuantity(): int
     {
-        return $query->where('college_id', $collegeId);
+        return $this->q1_quantity + $this->q2_quantity + $this->q3_quantity + $this->q4_quantity;
     }
 
     /**
-     * Scope to filter by category
+     * Get quantity for a specific quarter
      */
-    public function scopeByCategory($query, string $category)
+    public function getQuarterlyQuantity(int $quarter): int
     {
-        return $query->where('category', $category);
+        return match ($quarter) {
+            1 => $this->q1_quantity,
+            2 => $this->q2_quantity,
+            3 => $this->q3_quantity,
+            4 => $this->q4_quantity,
+            default => 0,
+        };
     }
 
     /**
-     * Scope to filter only active items
+     * Get remaining quantity for a specific quarter (not yet in PRs)
      */
-    public function scopeActive($query)
+    public function getRemainingQuantity(?int $quarter = null): int
     {
-        return $query->where('is_active', true);
+        $plannedQty = $quarter ? $this->getQuarterlyQuantity($quarter) : $this->total_quantity;
+
+        $usedQty = $this->purchaseRequestItems()
+            ->whereHas('purchaseRequest', function ($query) use ($quarter) {
+                if ($quarter) {
+                    // Filter by quarter based on created_at
+                    $startMonth = ($quarter - 1) * 3 + 1;
+                    $endMonth = $quarter * 3;
+                    $query->whereMonth('created_at', '>=', $startMonth)
+                        ->whereMonth('created_at', '<=', $endMonth);
+                }
+            })
+            ->sum('quantity_requested');
+
+        return max(0, $plannedQty - $usedQty);
     }
 
     /**
-     * Scope to search items by name or code
+     * Calculate estimated total cost
      */
-    public function scopeSearch($query, string $search)
+    public function calculateEstimatedTotalCost(): float
     {
-        return $query->where(function ($q) use ($search) {
-            $q->where('item_name', 'like', "%{$search}%")
-                ->orWhere('item_code', 'like', "%{$search}%");
-        });
+        return (float) ($this->total_quantity * $this->estimated_unit_cost);
     }
 
     /**
-     * Get all unique categories
+     * Scope to filter by PPMP
      */
-    public static function getCategories()
+    public function scopeForPpmp($query, int $ppmpId)
     {
-        return static::active()
-            ->select('category')
-            ->distinct()
-            ->orderBy('category')
-            ->pluck('category');
+        return $query->where('ppmp_id', $ppmpId);
+    }
+
+    /**
+     * Scope to filter by APP item
+     */
+    public function scopeForAppItem($query, int $appItemId)
+    {
+        return $query->where('app_item_id', $appItemId);
     }
 }
