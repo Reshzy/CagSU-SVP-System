@@ -1,6 +1,6 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+        <h2 class="font-semibold text-xl text-gray-800 dark:text-black leading-tight">
             {{ __('Create/Edit PPMP') }} - FY {{ $fiscalYear }}
         </h2>
     </x-slot>
@@ -22,7 +22,7 @@
                 <div class="p-6">
                     <div class="flex justify-between items-center">
                         <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200">Budget Available</h3>
-                        <div class="text-2xl font-bold">₱<span id="budgetAvailable">{{ number_format($budgetStatus['allocated'], 2) }}</span></div>
+                        <div class="text-2xl font-bold text-white">₱<span id="budgetAvailable">{{ number_format($budgetStatus['allocated'], 2) }}</span></div>
                     </div>
                     <div class="mt-2">
                         <span class="text-sm text-gray-600 dark:text-gray-400">PPMP Total: ₱<span id="ppmpTotal">0.00</span></span>
@@ -61,7 +61,7 @@
                                                             data-unit-price="{{ $appItem->unit_price }}"
                                                         />
                                                         <span class="ml-2 text-sm">
-                                                            <strong>{{ $appItem->item_name }}</strong><br/>
+                                                            <strong class="text-white">{{ $appItem->item_name }}</strong><br/>
                                                             <span class="text-xs text-gray-500">₱{{ number_format($appItem->unit_price, 2) }} / {{ $appItem->unit_of_measure }}</span>
                                                         </span>
                                                     </label>
