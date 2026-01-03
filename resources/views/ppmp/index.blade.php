@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex justify-between items-center">
-            <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+        <div class="flex justify-between items-center gap-4">
+            <h2 class="font-semibold text-xl text-gray-800 dark:text-black leading-tight">
                 {{ __('Project Procurement Management Plan (PPMP)') }} - FY {{ $fiscalYear }}
             </h2>
             <div class="flex gap-2">
@@ -48,19 +48,19 @@
                     <div class="grid grid-cols-4 gap-4 mb-4">
                         <div class="bg-blue-50 dark:bg-blue-900 p-4 rounded">
                             <div class="text-sm text-gray-600 dark:text-gray-400">Allocated Budget</div>
-                            <div class="text-2xl font-bold">₱{{ number_format($budgetStatus['allocated'], 2) }}</div>
+                            <div class="text-2xl font-bold text-white">₱{{ number_format($budgetStatus['allocated'], 2) }}</div>
                         </div>
                         <div class="bg-purple-50 dark:bg-purple-900 p-4 rounded">
                             <div class="text-sm text-gray-600 dark:text-gray-400">PPMP Planned</div>
-                            <div class="text-2xl font-bold">₱{{ number_format($budgetStatus['planned'], 2) }}</div>
+                            <div class="text-2xl font-bold text-white">₱{{ number_format($budgetStatus['planned'], 2) }}</div>
                         </div>
                         <div class="bg-green-50 dark:bg-green-900 p-4 rounded">
                             <div class="text-sm text-gray-600 dark:text-gray-400">Available</div>
-                            <div class="text-2xl font-bold">₱{{ number_format($budgetStatus['available'], 2) }}</div>
+                            <div class="text-2xl font-bold text-white">₱{{ number_format($budgetStatus['available'], 2) }}</div>
                         </div>
                         <div class="bg-orange-50 dark:bg-orange-900 p-4 rounded">
                             <div class="text-sm text-gray-600 dark:text-gray-400">Utilization</div>
-                            <div class="text-2xl font-bold">{{ number_format($budgetStatus['utilization_percentage'], 1) }}%</div>
+                            <div class="text-2xl font-bold text-white">{{ number_format($budgetStatus['utilization_percentage'], 1) }}%</div>
                         </div>
                     </div>
                     
@@ -85,20 +85,20 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <span class="text-gray-600 dark:text-gray-400">Department:</span>
-                            <span class="font-semibold">{{ $ppmp->department->name }}</span>
+                            <span class="font-semibold text-white">{{ $ppmp->department->name }}</span>
                         </div>
                         <div>
                             <span class="text-gray-600 dark:text-gray-400">Total Items:</span>
-                            <span class="font-semibold">{{ $ppmp->items->count() }}</span>
+                            <span class="font-semibold text-white">{{ $ppmp->items->count() }}</span>
                         </div>
                         @if ($ppmp->validated_at)
                             <div>
                                 <span class="text-gray-600 dark:text-gray-400">Validated At:</span>
-                                <span class="font-semibold">{{ $ppmp->validated_at->format('M d, Y') }}</span>
+                                <span class="font-semibold text-white">{{ $ppmp->validated_at->format('M d, Y') }}</span>
                             </div>
                             <div>
                                 <span class="text-gray-600 dark:text-gray-400">Validated By:</span>
-                                <span class="font-semibold">{{ $ppmp->validatedBy->name ?? 'N/A' }}</span>
+                                <span class="font-semibold text-white">{{ $ppmp->validatedBy->name ?? 'N/A' }}</span>
                             </div>
                         @endif
                     </div>
