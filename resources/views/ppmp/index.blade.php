@@ -120,7 +120,7 @@
 
             <!-- PPMP Items -->
             @if ($ppmp->items->count() > 0)
-                <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg text-white">
                     <div class="p-6">
                         <h3 class="text-lg font-bold mb-4 text-gray-800 dark:text-gray-200">PPMP Items</h3>
                         <div class="overflow-x-auto">

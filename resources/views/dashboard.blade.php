@@ -44,7 +44,7 @@
                                 <div id="system-status" class="font-medium">Checking...</div>
                             </div>
                         </div>
-                        <button id="refresh-health" class="px-3 py-2 bg-cagsu-yellow text-white rounded-md">Refresh</button>
+                        <button id="refresh-health" class="px-3 py-2 bg-cagsu-yellow text-black rounded-md">Refresh</button>
                     </div>
                 </div>
             </div>
