@@ -14,7 +14,7 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             
             <!-- Welcome Section -->
-            <div class="bg-gradient-to-r from-cagsu-yellow to-cagsu-orange text-white overflow-hidden shadow-lg rounded-lg mb-8">
+            <div class="bg-gradient-to-r from-cagsu-yellow to-cagsu-orange text-black overflow-hidden shadow-lg rounded-lg mb-8 ">
                 <div class="p-8">
                     <div class="flex items-center justify-between">
                         <div>
