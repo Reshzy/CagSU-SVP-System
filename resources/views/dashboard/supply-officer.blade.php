@@ -11,7 +11,7 @@
     $countDelivery = \App\Models\PurchaseRequest::whereIn('status',['supplier_processing','delivered'])->count();
     $countCompleted = \App\Models\PurchaseRequest::where('status','completed')->count();
 @endphp
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
     
     <!-- Pending PRs -->
     <div class="bg-white overflow-hidden shadow-lg rounded-lg">
@@ -105,6 +105,30 @@
         <div class="bg-gray-50 px-6 py-3">
             <div class="text-sm">
                 <a href="{{ route('supply.suppliers.index') }}" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">Manage suppliers</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- APP Management -->
+    <div class="bg-white overflow-hidden shadow-lg rounded-lg">
+        <div class="p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <svg class="h-8 w-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                    </svg>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">APP Items</dt>
+                        <dd class="text-lg font-medium text-gray-900">{{ \App\Models\AppItem::where('is_active', true)->count() }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+        <div class="bg-gray-50 px-6 py-3">
+            <div class="text-sm">
+                <a href="{{ route('supply.app.index') }}" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">Manage APP</a>
             </div>
         </div>
     </div>

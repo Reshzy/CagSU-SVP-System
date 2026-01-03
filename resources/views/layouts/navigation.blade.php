@@ -30,6 +30,15 @@
                             </x-nav-link>
                         @endif
 
+                        @if(auth()->user()->department_id)
+                            <x-nav-link :href="route('ppmp.index')" :active="request()->routeIs('ppmp.*')" class="text-gray-700 hover:text-cagsu-maroon">
+                                <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                                {{ __('PPMP') }}
+                            </x-nav-link>
+                        @endif
+
                         @if(auth()->user()->can('manage-suppliers'))
                             <x-nav-link :href="route('supply.suppliers.index')" :active="request()->routeIs('supply.suppliers.*')" class="text-gray-700 hover:text-cagsu-maroon">
                                 <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">

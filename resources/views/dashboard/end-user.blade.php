@@ -10,7 +10,7 @@
     $recent = \App\Models\PurchaseRequest::where('requester_id', Auth::id())
         ->latest()->take(5)->get();
 @endphp
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
     
     <!-- My Purchase Requests -->
     <div class="bg-white overflow-hidden shadow-lg rounded-lg">
@@ -83,6 +83,37 @@
             </div>
         </div>
     </div>
+
+    <!-- PPMP Management -->
+    @if(auth()->user()->department_id)
+        <div class="bg-white overflow-hidden shadow-lg rounded-lg">
+            <div class="p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-8 w-8 text-cagsu-maroon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">My PPMP</dt>
+                            @php
+                                $ppmp = \App\Models\Ppmp::where('department_id', auth()->user()->department_id)
+                                    ->where('fiscal_year', date('Y'))
+                                    ->first();
+                            @endphp
+                            <dd class="text-lg font-medium text-gray-900">{{ $ppmp ? ucfirst($ppmp->status) : 'Not Created' }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-6 py-3">
+                <div class="text-sm">
+                    <a href="{{ route('ppmp.index') }}" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">Manage PPMP</a>
+                </div>
+            </div>
+        </div>
+    @endif
 
 </div>
 
