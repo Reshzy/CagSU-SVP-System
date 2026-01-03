@@ -25,7 +25,7 @@ class PpmpController extends Controller
     {
         $user = Auth::user();
 
-        if (!$user->department_id) {
+        if (! $user->department_id) {
             return redirect()->route('dashboard')
                 ->withErrors(['error' => 'You must be assigned to a department to access PPMP.']);
         }
@@ -53,7 +53,7 @@ class PpmpController extends Controller
     {
         $user = Auth::user();
 
-        if (!$user->department_id) {
+        if (! $user->department_id) {
             return redirect()->route('dashboard')
                 ->withErrors(['error' => 'You must be assigned to a department to create PPMP.']);
         }
@@ -96,7 +96,7 @@ class PpmpController extends Controller
     {
         $user = Auth::user();
 
-        if (!$user->department_id) {
+        if (! $user->department_id) {
             return redirect()->route('dashboard')
                 ->withErrors(['error' => 'You must be assigned to a department.']);
         }
@@ -108,6 +108,7 @@ class PpmpController extends Controller
             'items.*.q2_quantity' => ['required', 'integer', 'min:0'],
             'items.*.q3_quantity' => ['required', 'integer', 'min:0'],
             'items.*.q4_quantity' => ['required', 'integer', 'min:0'],
+            'items.*.custom_unit_price' => ['nullable', 'numeric', 'min:0.01'],
         ]);
 
         $fiscalYear = date('Y');
@@ -121,9 +122,9 @@ class PpmpController extends Controller
             foreach ($validated['items'] as $itemData) {
                 $appItem = AppItem::findOrFail($itemData['app_item_id']);
 
-                $totalQuantity = $itemData['q1_quantity'] + 
-                               $itemData['q2_quantity'] + 
-                               $itemData['q3_quantity'] + 
+                $totalQuantity = $itemData['q1_quantity'] +
+                               $itemData['q2_quantity'] +
+                               $itemData['q3_quantity'] +
                                $itemData['q4_quantity'];
 
                 // Skip if no quantity
@@ -131,7 +132,14 @@ class PpmpController extends Controller
                     continue;
                 }
 
-                $estimatedUnitCost = $appItem->unit_price;
+                // Use custom unit price if provided, otherwise use APP item price
+                $estimatedUnitCost = $itemData['custom_unit_price'] ?? $appItem->unit_price;
+
+                // Validate that we have a price
+                if ($estimatedUnitCost === null || $estimatedUnitCost <= 0) {
+                    throw new \Exception("Item '{$appItem->item_name}' requires a custom price.");
+                }
+
                 $estimatedTotalCost = $totalQuantity * $estimatedUnitCost;
 
                 PpmpItem::create([
@@ -199,13 +207,13 @@ class PpmpController extends Controller
                 ->withErrors(['error' => 'You can only validate your own department PPMP.']);
         }
 
-        if (!$this->budgetValidator->validatePpmpAgainstBudget($ppmp)) {
+        if (! $this->budgetValidator->validatePpmpAgainstBudget($ppmp)) {
             $budgetStatus = $this->budgetValidator->getBudgetStatus($ppmp);
-            
+
             return back()
                 ->withErrors([
-                    'budget' => 'PPMP total (₱' . number_format($budgetStatus['planned'], 2) . 
-                               ') exceeds allocated budget (₱' . number_format($budgetStatus['allocated'], 2) . ').'
+                    'budget' => 'PPMP total (₱'.number_format($budgetStatus['planned'], 2).
+                               ') exceeds allocated budget (₱'.number_format($budgetStatus['allocated'], 2).').',
                 ]);
         }
 
