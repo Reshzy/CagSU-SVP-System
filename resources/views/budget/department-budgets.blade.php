@@ -13,7 +13,7 @@
                     <form method="GET" action="{{ route('budget.index') }}" class="flex items-center space-x-4">
                         <label for="fiscal_year" class="text-sm font-medium text-gray-700">Fiscal Year:</label>
                         <select name="fiscal_year" id="fiscal_year" onchange="this.form.submit()"
-                            class="border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            class="border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-black">
                             @for ($year = date('Y') + 1; $year >= 2020; $year--)
                             <option value="{{ $year }}" {{ $fiscalYear == $year ? 'selected' : '' }}>
                                 {{ $year }}
@@ -34,7 +34,7 @@
             <!-- Department Budgets Table -->
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
-                    <h3 class="text-lg font-semibold mb-4">Department Budget Overview - {{ $fiscalYear }}</h3>
+                    <h3 class="text-lg font-semibold mb-4 text-black">Department Budget Overview - {{ $fiscalYear }}</h3>
 
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
