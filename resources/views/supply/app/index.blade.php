@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex justify-between items-center">
-            <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+        <div class="flex justify-between items-center gap-4">
+            <h2 class="font-semibold text-xl text-gray-800 dark:text-black leading-tight">
                 {{ __('Annual Procurement Plan (APP)') }} - FY {{ $fiscalYear }}
             </h2>
             <a href="{{ route('supply.app.import') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
@@ -29,15 +29,15 @@
                     <div class="grid grid-cols-3 gap-4">
                         <div class="bg-blue-50 dark:bg-blue-900 p-4 rounded">
                             <div class="text-sm text-gray-600 dark:text-gray-400">Total Items</div>
-                            <div class="text-2xl font-bold">{{ $stats['total_items'] }}</div>
+                            <div class="text-2xl font-bold text-white">{{ $stats['total_items'] }}</div>
                         </div>
                         <div class="bg-green-50 dark:bg-green-900 p-4 rounded">
                             <div class="text-sm text-gray-600 dark:text-gray-400">Active Items</div>
-                            <div class="text-2xl font-bold">{{ $stats['active_items'] }}</div>
+                            <div class="text-2xl font-bold text-white">{{ $stats['active_items'] }}</div>
                         </div>
                         <div class="bg-purple-50 dark:bg-purple-900 p-4 rounded">
                             <div class="text-sm text-gray-600 dark:text-gray-400">Categories</div>
-                            <div class="text-2xl font-bold">{{ $stats['categories_count'] }}</div>
+                            <div class="text-2xl font-bold text-white">{{ $stats['categories_count'] }}</div>
                         </div>
                     </div>
                 </div>
@@ -65,10 +65,10 @@
                                         <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                             @foreach ($appItems[$category] as $item)
                                                 <tr>
-                                                    <td class="px-4 py-2 text-sm">{{ $item->item_code }}</td>
-                                                    <td class="px-4 py-2 text-sm">{{ $item->item_name }}</td>
-                                                    <td class="px-4 py-2 text-sm">{{ $item->unit_of_measure }}</td>
-                                                    <td class="px-4 py-2 text-sm text-right">₱{{ number_format($item->unit_price, 2) }}</td>
+                                                    <td class="px-4 py-2 text-sm text-white">{{ $item->item_code }}</td>
+                                                    <td class="px-4 py-2 text-sm text-white">{{ $item->item_name }}</td>
+                                                    <td class="px-4 py-2 text-sm text-white">{{ $item->unit_of_measure }}</td>
+                                                    <td class="px-4 py-2 text-sm text-right text-white">₱{{ number_format($item->unit_price, 2) }}</td>
                                                     <td class="px-4 py-2 text-sm text-center">
                                                         @if ($item->is_active)
                                                             <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">Active</span>
