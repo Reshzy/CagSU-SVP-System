@@ -27,7 +27,7 @@ class PpmpQuarterlyTracker
     public function canCreatePR(PpmpItem $ppmpItem, int $quantity, ?int $quarter = null): bool
     {
         $remaining = $this->getRemainingQuantity($ppmpItem, $quarter);
-        
+
         return $quantity <= $remaining;
     }
 
@@ -109,8 +109,8 @@ class PpmpQuarterlyTracker
         $totalUsed = array_sum(array_column($summary['quarters'], 'used'));
         $summary['total_used'] = $totalUsed;
         $summary['total_remaining'] = max(0, $summary['total_planned'] - $totalUsed);
-        $summary['total_utilization_percentage'] = $summary['total_planned'] > 0 
-            ? ($totalUsed / $summary['total_planned']) * 100 
+        $summary['total_utilization_percentage'] = $summary['total_planned'] > 0
+            ? ($totalUsed / $summary['total_planned']) * 100
             : 0;
 
         return $summary;
@@ -158,5 +158,42 @@ class PpmpQuarterlyTracker
 
         return $warnings;
     }
-}
 
+    /**
+     * Get quarter label (e.g., "January to March")
+     */
+    public function getQuarterLabel(int $quarter): string
+    {
+        return match ($quarter) {
+            1 => 'January to March',
+            2 => 'April to June',
+            3 => 'July to September',
+            4 => 'October to December',
+            default => 'Unknown Quarter',
+        };
+    }
+
+    /**
+     * Check if current date is in specified quarter
+     */
+    public function isCurrentQuarter(int $quarter, int $year): bool
+    {
+        $currentQuarter = $this->getQuarterFromDate();
+        $currentYear = now()->year;
+
+        return $currentQuarter === $quarter && $currentYear === $year;
+    }
+
+    /**
+     * Get all PPMP items available for current quarter
+     */
+    public function getAvailableItemsForCurrentQuarter(Ppmp $ppmp): \Illuminate\Support\Collection
+    {
+        $currentQuarter = $this->getQuarterFromDate();
+
+        return $ppmp->items->filter(function ($item) use ($currentQuarter) {
+            return $item->hasQuantityForQuarter($currentQuarter)
+                && $item->getRemainingQuantity($currentQuarter) > 0;
+        });
+    }
+}
