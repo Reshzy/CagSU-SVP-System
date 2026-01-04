@@ -127,4 +127,109 @@ class PpmpItem extends Model
     {
         return $query->where('app_item_id', $appItemId);
     }
+
+    /**
+     * Check if this item is available for the current quarter
+     */
+    public function isAvailableForCurrentQuarter(): bool
+    {
+        $currentQuarter = $this->getCurrentQuarter();
+
+        return $this->hasQuantityForQuarter($currentQuarter)
+            && $this->getRemainingQuantity($currentQuarter) > 0;
+    }
+
+    /**
+     * Check if this item has quantity allocated for a specific quarter
+     */
+    public function hasQuantityForQuarter(int $quarter): bool
+    {
+        return $this->getQuarterlyQuantity($quarter) > 0;
+    }
+
+    /**
+     * Get the availability status for a specific quarter
+     * Returns: 'past', 'current', 'future', or 'unavailable'
+     */
+    public function getQuarterStatus(int $currentQuarter): string
+    {
+        // Find which quarter(s) this item has quantity allocated
+        $allocatedQuarters = [];
+        for ($q = 1; $q <= 4; $q++) {
+            if ($this->hasQuantityForQuarter($q)) {
+                $allocatedQuarters[] = $q;
+            }
+        }
+
+        if (empty($allocatedQuarters)) {
+            return 'unavailable';
+        }
+
+        // Check if any allocated quarter is the current quarter
+        if (in_array($currentQuarter, $allocatedQuarters)) {
+            return 'current';
+        }
+
+        // Check if all allocated quarters are in the past
+        if (max($allocatedQuarters) < $currentQuarter) {
+            return 'past';
+        }
+
+        // Otherwise, it's in a future quarter
+        return 'future';
+    }
+
+    /**
+     * Get remaining quantity for current quarter with real-time PR usage tracking
+     */
+    public function getRemainingQuantityForCurrentQuarter(): int
+    {
+        $currentQuarter = $this->getCurrentQuarter();
+
+        return $this->getRemainingQuantity($currentQuarter);
+    }
+
+    /**
+     * Get the next available quarter for this item
+     */
+    public function getNextAvailableQuarter(): ?int
+    {
+        $currentQuarter = $this->getCurrentQuarter();
+
+        for ($q = $currentQuarter + 1; $q <= 4; $q++) {
+            if ($this->hasQuantityForQuarter($q)) {
+                return $q;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Get the month range label for a specific quarter
+     */
+    public function getQuarterMonths(?int $quarter = null): string
+    {
+        if ($quarter === null) {
+            $quarter = $this->getNextAvailableQuarter();
+        }
+
+        return match ($quarter) {
+            1 => 'January to March',
+            2 => 'April to June',
+            3 => 'July to September',
+            4 => 'October to December',
+            default => 'Unknown',
+        };
+    }
+
+    /**
+     * Get the current quarter based on today's date
+     */
+    protected function getCurrentQuarter(): int
+    {
+        $month = now()->month;
+
+        return (int) ceil($month / 3);
+    }
 }
