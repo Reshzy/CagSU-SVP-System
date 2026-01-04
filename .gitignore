@@ -24,6 +24,7 @@ Thumbs.db
 .idea/
 .vscode/
 .fleet/
+.cursor/
 .nova/
 .zed/
 auth.json
