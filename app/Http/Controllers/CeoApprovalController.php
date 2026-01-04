@@ -5,11 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\PurchaseRequest;
 use App\Models\WorkflowApproval;
 use App\Notifications\PurchaseRequestStatusUpdated;
+use App\Services\WorkflowRouter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
-use App\Services\WorkflowRouter;
 
 class CeoApprovalController extends Controller
 {
@@ -26,7 +26,8 @@ class CeoApprovalController extends Controller
     public function show(PurchaseRequest $purchaseRequest): View
     {
         abort_unless($purchaseRequest->status === 'ceo_approval', 403);
-        $purchaseRequest->load(['requester', 'department', 'items', 'documents']);
+        $purchaseRequest->load(['requester', 'department', 'items', 'documents', 'activities.user']);
+
         return view('ceo.purchase_requests.show', compact('purchaseRequest'));
     }
 
@@ -83,5 +84,3 @@ class CeoApprovalController extends Controller
         return redirect()->route('ceo.purchase-requests.index')->with('status', 'Decision recorded.');
     }
 }
-
-

@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\PurchaseRequest;
 use App\Models\WorkflowApproval;
 use App\Notifications\PurchaseRequestStatusUpdated;
-use App\Services\BacResolutionService;
 use App\Services\WorkflowRouter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,13 +26,13 @@ class BudgetEarmarkController extends Controller
     public function edit(PurchaseRequest $purchaseRequest): View
     {
         abort_unless($purchaseRequest->status === 'budget_office_review', 403);
-        $purchaseRequest->load(['items', 'requester']);
-        
+        $purchaseRequest->load(['items', 'requester', 'activities.user', 'department', 'documents']);
+
         // Get CEO approval details
         $ceoApproval = WorkflowApproval::where('purchase_request_id', $purchaseRequest->id)
             ->where('step_name', 'ceo_initial_approval')
             ->first();
-        
+
         return view('budget.purchase_requests.edit', compact('purchaseRequest', 'ceoApproval'));
     }
 
@@ -85,7 +84,7 @@ class BudgetEarmarkController extends Controller
         $purchaseRequest->budget_code = $validated['budget_code'] ?? null;
         $purchaseRequest->procurement_type = $validated['procurement_type'];
 
-        if (!empty($validated['remarks'])) {
+        if (! empty($validated['remarks'])) {
             $purchaseRequest->current_step_notes = $validated['remarks'];
         }
         $purchaseRequest->status = 'ceo_approval';
@@ -135,7 +134,7 @@ class BudgetEarmarkController extends Controller
         $purchaseRequest->rejection_reason = $validated['rejection_reason'];
         $purchaseRequest->rejected_by = Auth::id();
         $purchaseRequest->rejected_at = now();
-        if (!empty($validated['remarks'])) {
+        if (! empty($validated['remarks'])) {
             $purchaseRequest->current_step_notes = $validated['remarks'];
         }
         $purchaseRequest->status_updated_at = now();

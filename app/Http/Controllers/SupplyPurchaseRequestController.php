@@ -15,20 +15,74 @@ class SupplyPurchaseRequestController extends Controller
     public function index(Request $request): View
     {
         $statusFilter = $request->string('status')->toString();
+        $searchTerm = $request->string('search')->toString();
+        $departmentFilter = $request->integer('department');
+        $dateFrom = $request->date('date_from');
+        $dateTo = $request->date('date_to');
+        $sortBy = $request->string('sort_by', 'created_at')->toString();
+        $sortOrder = $request->string('sort_order', 'desc')->toString();
 
-        $query = PurchaseRequest::with(['requester', 'department'])
-            ->where('is_archived', false)
-            ->latest();
+        $query = PurchaseRequest::with(['requester', 'department', 'items'])
+            ->withCount('items')
+            ->where('is_archived', false);
 
+        // Search by PR number, purpose, or requester name
+        if ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('pr_number', 'like', "%{$searchTerm}%")
+                    ->orWhere('purpose', 'like', "%{$searchTerm}%")
+                    ->orWhereHas('requester', function ($q) use ($searchTerm) {
+                        $q->where('name', 'like', "%{$searchTerm}%");
+                    });
+            });
+        }
+
+        // Filter by status
         if ($statusFilter) {
             $query->where('status', $statusFilter);
         } else {
             $query->whereIn('status', ['submitted', 'supply_office_review', 'bac_evaluation', 'bac_approved']);
         }
 
+        // Filter by department
+        if ($departmentFilter) {
+            $query->where('department_id', $departmentFilter);
+        }
+
+        // Filter by date range
+        if ($dateFrom) {
+            $query->whereDate('submitted_at', '>=', $dateFrom);
+        }
+        if ($dateTo) {
+            $query->whereDate('submitted_at', '<=', $dateTo);
+        }
+
+        // Sorting
+        $allowedSorts = ['created_at', 'submitted_at', 'estimated_total', 'pr_number', 'status'];
+        if (in_array($sortBy, $allowedSorts)) {
+            $query->orderBy($sortBy, $sortOrder === 'asc' ? 'asc' : 'desc');
+        } else {
+            $query->latest();
+        }
+
         $requests = $query->paginate(15)->withQueryString();
 
-        return view('supply.purchase_requests.index', compact('requests', 'statusFilter'));
+        // Get departments for filter dropdown
+        $departments = \App\Models\Department::where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return view('supply.purchase_requests.index', compact(
+            'requests',
+            'statusFilter',
+            'searchTerm',
+            'departmentFilter',
+            'dateFrom',
+            'dateTo',
+            'sortBy',
+            'sortOrder',
+            'departments'
+        ));
     }
 
     public function show(PurchaseRequest $purchaseRequest): View
@@ -40,6 +94,8 @@ class SupplyPurchaseRequestController extends Controller
             'returnedBy',
             'replacesPr.requester',
             'replacedByPr',
+            'activities.user',
+            'documents',
         ]);
 
         return view('supply.purchase_requests.show', compact('purchaseRequest'));

@@ -158,6 +158,18 @@
                     </form>
                 </div>
             </div>
+
+            <!-- Activity Timeline -->
+            <div class="mt-6">
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                    <div class="bg-gradient-to-r from-cagsu-maroon to-cagsu-orange px-6 py-4">
+                        <h3 class="text-lg font-bold text-white">Activity Timeline</h3>
+                    </div>
+                    <div class="p-6">
+                        <x-pr-timeline :activities="$purchaseRequest->activities" />
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

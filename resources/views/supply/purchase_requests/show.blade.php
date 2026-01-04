@@ -1,0 +1,370 @@
+@section('title', 'PR Details - ' . $purchaseRequest->pr_number)
+
+<x-app-layout>
+    <x-slot name="header">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <a href="{{ route('supply.purchase-requests.index') }}" class="text-gray-600 hover:text-gray-900">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                </a>
+                <h2 class="font-semibold text-2xl text-gray-800 leading-tight">{{ $purchaseRequest->pr_number }}</h2>
+                
+                @php
+                    $statusColors = [
+                        'submitted' => 'bg-blue-100 text-blue-800',
+                        'supply_office_review' => 'bg-yellow-100 text-yellow-800',
+                        'budget_office_review' => 'bg-purple-100 text-purple-800',
+                        'bac_evaluation' => 'bg-orange-100 text-orange-800',
+                        'bac_approved' => 'bg-green-100 text-green-800',
+                        'rejected' => 'bg-red-100 text-red-800',
+                        'cancelled' => 'bg-gray-100 text-gray-800',
+                        'returned_by_supply' => 'bg-yellow-100 text-yellow-800',
+                    ];
+                    $statusColor = $statusColors[$purchaseRequest->status] ?? 'bg-gray-100 text-gray-800';
+                @endphp
+                <span class="px-3 py-1 text-sm font-semibold rounded-full {{ $statusColor }}">
+                    {{ str_replace('_', ' ', Str::title($purchaseRequest->status)) }}
+                </span>
+            </div>
+        </div>
+    </x-slot>
+
+    <div class="py-8">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Main Content -->
+                <div class="lg:col-span-2 space-y-6">
+                    
+                    <!-- Basic Information Card -->
+                    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                        <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-900">Purchase Request Information</h3>
+                        </div>
+                        <div class="p-6 space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Requester</label>
+                                    <p class="text-gray-900 font-medium">{{ $purchaseRequest->requester?->name }}</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Department</label>
+                                    <p class="text-gray-900 font-medium">{{ $purchaseRequest->department?->name }}</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Estimated Total</label>
+                                    <p class="text-gray-900 font-semibold text-lg">₱{{ number_format($purchaseRequest->estimated_total, 2) }}</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Date Submitted</label>
+                                    <p class="text-gray-900">{{ $purchaseRequest->submitted_at?->format('F d, Y h:i A') ?? $purchaseRequest->created_at->format('F d, Y h:i A') }}</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Date Needed</label>
+                                    <p class="text-gray-900">{{ $purchaseRequest->date_needed?->format('F d, Y') ?? 'Not specified' }}</p>
+                                </div>
+                            </div>
+
+                            <div class="pt-4 border-t">
+                                <label class="text-sm font-medium text-gray-600">Purpose</label>
+                                <p class="text-gray-900 mt-1">{{ $purchaseRequest->purpose }}</p>
+                            </div>
+
+                            @if($purchaseRequest->justification)
+                            <div>
+                                <label class="text-sm font-medium text-gray-600">Justification</label>
+                                <p class="text-gray-900 mt-1">{{ $purchaseRequest->justification }}</p>
+                            </div>
+                            @endif
+
+                            @if($purchaseRequest->funding_source)
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Funding Source</label>
+                                    <p class="text-gray-900">{{ $purchaseRequest->funding_source }}</p>
+                                </div>
+                                @if($purchaseRequest->budget_code)
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Budget Code</label>
+                                    <p class="text-gray-900">{{ $purchaseRequest->budget_code }}</p>
+                                </div>
+                                @endif
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+
+                    <!-- Items Card -->
+                    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                        <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-900">Requested Items ({{ $purchaseRequest->items->count() }})</h3>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Name</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Specifications</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
+                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
+                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Cost</th>
+                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    @foreach($purchaseRequest->items as $item)
+                                    <tr>
+                                        <td class="px-6 py-4">
+                                            <div class="text-sm font-medium text-gray-900">{{ $item->item_name }}</div>
+                                            @if($item->item_code)
+                                            <div class="text-xs text-gray-500">Code: {{ $item->item_code }}</div>
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <div class="text-sm text-gray-900">{{ Str::limit($item->detailed_specifications, 50) }}</div>
+                                        </td>
+                                        <td class="px-6 py-4 text-sm text-gray-900">{{ $item->unit_of_measure }}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-900 text-right">{{ number_format($item->quantity_requested) }}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-900 text-right">₱{{ number_format($item->estimated_unit_cost, 2) }}</td>
+                                        <td class="px-6 py-4 text-sm font-medium text-gray-900 text-right">₱{{ number_format($item->estimated_total_cost, 2) }}</td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                                <tfoot class="bg-gray-50">
+                                    <tr>
+                                        <td colspan="5" class="px-6 py-4 text-sm font-semibold text-gray-900 text-right">Total:</td>
+                                        <td class="px-6 py-4 text-sm font-bold text-gray-900 text-right">₱{{ number_format($purchaseRequest->estimated_total, 2) }}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Documents Card -->
+                    @if($purchaseRequest->documents->count() > 0)
+                    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                        <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-900">Attachments</h3>
+                        </div>
+                        <div class="p-6">
+                            <div class="space-y-2">
+                                @foreach($purchaseRequest->documents as $doc)
+                                <a href="{{ route('files.show', $doc) }}" target="_blank" class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition">
+                                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    <span class="text-sm font-medium text-cagsu-maroon hover:text-cagsu-orange">{{ $doc->file_name }}</span>
+                                </a>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                    @endif
+
+                    <!-- Notes & Remarks -->
+                    @if($purchaseRequest->current_step_notes || $purchaseRequest->return_remarks || $purchaseRequest->rejection_reason)
+                    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                        <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-900">Notes & Remarks</h3>
+                        </div>
+                        <div class="p-6 space-y-3">
+                            @if($purchaseRequest->current_step_notes)
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <label class="text-sm font-medium text-blue-800">Current Step Notes</label>
+                                <p class="text-sm text-blue-900 mt-1">{{ $purchaseRequest->current_step_notes }}</p>
+                            </div>
+                            @endif
+
+                            @if($purchaseRequest->return_remarks)
+                            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                                <label class="text-sm font-medium text-yellow-800">Return Remarks</label>
+                                <p class="text-sm text-yellow-900 mt-1">{{ $purchaseRequest->return_remarks }}</p>
+                                @if($purchaseRequest->returnedBy)
+                                <p class="text-xs text-yellow-700 mt-2">Returned by: {{ $purchaseRequest->returnedBy->name }} on {{ $purchaseRequest->returned_at?->format('F d, Y h:i A') }}</p>
+                                @endif
+                            </div>
+                            @endif
+
+                            @if($purchaseRequest->rejection_reason)
+                            <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                                <label class="text-sm font-medium text-red-800">Rejection Reason</label>
+                                <p class="text-sm text-red-900 mt-1">{{ $purchaseRequest->rejection_reason }}</p>
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+                    @endif
+
+                    <!-- Replacement Information -->
+                    @if($purchaseRequest->replacesPr)
+                    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                        <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-900">Replacement Information</h3>
+                        </div>
+                        <div class="p-6">
+                            <p class="text-sm text-gray-600">This PR replaces:</p>
+                            <a href="{{ route('supply.purchase-requests.show', $purchaseRequest->replacesPr) }}" class="text-cagsu-maroon hover:text-cagsu-orange font-medium">
+                                {{ $purchaseRequest->replacesPr->pr_number }}
+                            </a>
+                            <p class="text-xs text-gray-500 mt-1">Submitted by {{ $purchaseRequest->replacesPr->requester?->name }}</p>
+                        </div>
+                    </div>
+                    @endif
+                    
+                </div>
+
+                <!-- Action Sidebar -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white rounded-lg shadow-sm overflow-hidden sticky top-6">
+                        <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-900">Actions</h3>
+                        </div>
+                        <div class="p-6 space-y-4">
+                            
+                            <!-- Start Review -->
+                            @if($purchaseRequest->status === 'submitted')
+                            <form action="{{ route('supply.purchase-requests.status', $purchaseRequest) }}" method="POST">
+                                @csrf
+                                @method('PUT')
+                                <input type="hidden" name="action" value="start_review">
+                                <button type="submit" class="w-full px-4 py-3 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition font-medium">
+                                    <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                                    </svg>
+                                    Start Review
+                                </button>
+                            </form>
+                            @endif
+
+                            <!-- Activate (Send to Budget) -->
+                            @if(in_array($purchaseRequest->status, ['submitted', 'supply_office_review']))
+                            <div x-data="{ showNotes: false }">
+                                <button @click="showNotes = !showNotes" class="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium">
+                                    <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    Activate & Send to Budget
+                                </button>
+                                
+                                <div x-show="showNotes" x-cloak class="mt-2">
+                                    <form action="{{ route('supply.purchase-requests.status', $purchaseRequest) }}" method="POST" class="space-y-3">
+                                        @csrf
+                                        @method('PUT')
+                                        <input type="hidden" name="action" value="activate">
+                                        <textarea name="notes" rows="3" placeholder="Optional notes..." class="w-full border-gray-300 rounded-lg focus:border-cagsu-maroon focus:ring-cagsu-maroon"></textarea>
+                                        <div class="flex gap-2">
+                                            <button type="submit" class="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium">
+                                                Confirm
+                                            </button>
+                                            <button type="button" @click="showNotes = false" class="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            @endif
+
+                            <!-- Return to Department -->
+                            @if(in_array($purchaseRequest->status, ['submitted', 'supply_office_review']))
+                            <div x-data="{ showReturn: false }">
+                                <button @click="showReturn = !showReturn" class="w-full px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition font-medium">
+                                    <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
+                                    </svg>
+                                    Return to Department
+                                </button>
+                                
+                                <div x-show="showReturn" x-cloak class="mt-2">
+                                    <form action="{{ route('supply.purchase-requests.status', $purchaseRequest) }}" method="POST" class="space-y-3">
+                                        @csrf
+                                        @method('PUT')
+                                        <input type="hidden" name="action" value="return">
+                                        <textarea name="return_remarks" rows="3" placeholder="Reason for return (required)..." class="w-full border-gray-300 rounded-lg focus:border-cagsu-maroon focus:ring-cagsu-maroon" required></textarea>
+                                        <div class="flex gap-2">
+                                            <button type="submit" class="flex-1 px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 text-sm font-medium">
+                                                Return PR
+                                            </button>
+                                            <button type="button" @click="showReturn = false" class="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            @endif
+
+                            <!-- Reject -->
+                            @if(in_array($purchaseRequest->status, ['submitted', 'supply_office_review']))
+                            <div x-data="{ showReject: false }">
+                                <button @click="showReject = !showReject" class="w-full px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium">
+                                    <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                    Reject PR
+                                </button>
+                                
+                                <div x-show="showReject" x-cloak class="mt-2">
+                                    <form action="{{ route('supply.purchase-requests.status', $purchaseRequest) }}" method="POST" class="space-y-3" onsubmit="return confirm('Are you sure you want to reject this PR? This action cannot be undone.');">
+                                        @csrf
+                                        @method('PUT')
+                                        <input type="hidden" name="action" value="reject">
+                                        <textarea name="rejection_reason" rows="3" placeholder="Rejection reason (required)..." class="w-full border-gray-300 rounded-lg focus:border-cagsu-maroon focus:ring-cagsu-maroon" required></textarea>
+                                        <div class="flex gap-2">
+                                            <button type="submit" class="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium">
+                                                Confirm Rejection
+                                            </button>
+                                            <button type="button" @click="showReject = false" class="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            @endif
+
+                            <!-- Create Purchase Order -->
+                            @if(in_array($purchaseRequest->status, ['bac_evaluation', 'bac_approved']))
+                            <a href="{{ route('supply.purchase-orders.create', $purchaseRequest) }}" class="block w-full px-4 py-3 bg-cagsu-maroon text-white rounded-lg hover:bg-cagsu-orange transition font-medium text-center">
+                                <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                Create Purchase Order
+                            </a>
+                            @endif
+
+                            <!-- Info Section -->
+                            <div class="pt-4 border-t space-y-3">
+                                <div>
+                                    <label class="text-xs font-medium text-gray-600">Current Handler</label>
+                                    <p class="text-sm text-gray-900">{{ $purchaseRequest->currentHandler?->name ?? 'Unassigned' }}</p>
+                                </div>
+                                <div>
+                                    <label class="text-xs font-medium text-gray-600">Last Updated</label>
+                                    <p class="text-sm text-gray-900">{{ $purchaseRequest->status_updated_at?->diffForHumans() ?? $purchaseRequest->updated_at->diffForHumans() }}</p>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Activity Timeline -->
+            <div class="mt-6">
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                    <div class="bg-gradient-to-r from-cagsu-maroon to-cagsu-orange px-6 py-4">
+                        <h3 class="text-lg font-bold text-white">Activity Timeline</h3>
+                    </div>
+                    <div class="p-6">
+                        <x-pr-timeline :activities="$purchaseRequest->activities" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</x-app-layout>
+
