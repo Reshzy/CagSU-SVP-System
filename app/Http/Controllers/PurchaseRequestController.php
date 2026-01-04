@@ -12,6 +12,7 @@ use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestItem;
 use App\Notifications\PurchaseRequestSubmitted;
 use App\Services\PpmpQuarterlyTracker;
+use App\Services\PurchaseRequestActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -37,6 +38,28 @@ class PurchaseRequestController extends Controller
             ->get();
 
         return view('purchase_requests.index', compact('requests', 'returnedPrs'));
+    }
+
+    public function show(PurchaseRequest $purchaseRequest): View
+    {
+        // Ensure the PR belongs to the current user
+        if ($purchaseRequest->requester_id !== Auth::id()) {
+            abort(403, 'Unauthorized access to this purchase request.');
+        }
+
+        // Load relationships
+        $purchaseRequest->load([
+            'department',
+            'requester',
+            'items',
+            'documents',
+            'replacesPr',
+            'replacedByPr',
+            'returnedBy',
+            'activities.user',
+        ]);
+
+        return view('purchase_requests.show', compact('purchaseRequest'));
     }
 
     public function create(Request $request): View
@@ -94,20 +117,20 @@ class PurchaseRequestController extends Controller
             ->with('status', 'Purchase Request submitted successfully.');
     }
 
-    public function createReplacement(PurchaseRequest $purchaseRequest): View
+    public function createReplacement(PurchaseRequest $originalPr): View
     {
         // Ensure the PR is returned and belongs to the current user
-        if ($purchaseRequest->status !== 'returned_by_supply' || $purchaseRequest->requester_id !== Auth::id()) {
+        if ($originalPr->status !== 'returned_by_supply' || $originalPr->requester_id !== Auth::id()) {
             abort(403, 'Unauthorized to create replacement for this PR.');
         }
 
         $data = $this->preparePrCreationData();
 
         // Load the original PR with items
-        $purchaseRequest->load(['items.ppmpItem', 'returnedBy']);
+        $originalPr->load(['items.ppmpItem', 'returnedBy']);
 
         // Add original PR to the data
-        $data['originalPr'] = $purchaseRequest;
+        $data['originalPr'] = $originalPr;
 
         return view('purchase_requests.create_replacement', $data);
     }
@@ -159,6 +182,10 @@ class PurchaseRequestController extends Controller
 
             // Handle attachments
             $this->handleAttachments($request, $purchaseRequest);
+
+            // Log replacement creation activity
+            $activityLogger = app(PurchaseRequestActivityLogger::class);
+            $activityLogger->logReplacementCreation($purchaseRequest, $originalPr);
 
             // Notify Supply Office
             $this->notifySupplyOffice($purchaseRequest);
