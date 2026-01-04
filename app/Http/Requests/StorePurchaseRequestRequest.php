@@ -3,6 +3,8 @@
 namespace App\Http\Requests;
 
 use App\Models\DepartmentBudget;
+use App\Models\PpmpItem;
+use App\Services\PpmpQuarterlyTracker;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 
@@ -30,16 +32,31 @@ class StorePurchaseRequestRequest extends FormRequest
     {
         return [
             'purpose' => ['required', 'string', 'max:255'],
-            'justification' => ['nullable', 'string'],
+            'justification' => ['required', 'string'],
 
             // Multiple items from PPMP or custom
             'items' => ['required', 'array', 'min:1'],
-            'items.*.ppmp_item_id' => ['nullable', 'exists:ppmp_items,id'],
+            'items.*.ppmp_item_id' => [
+                'nullable',
+                'exists:ppmp_items,id',
+                function ($attribute, $value, $fail) {
+                    if ($value) {
+                        $this->validatePpmpItemQuarter($value, $attribute, $fail);
+                    }
+                },
+            ],
             'items.*.item_code' => ['nullable', 'string', 'max:100'],
             'items.*.item_name' => ['required', 'string', 'max:255'],
             'items.*.detailed_specifications' => ['nullable', 'string'],
             'items.*.unit_of_measure' => ['required', 'string', 'max:50'],
-            'items.*.quantity_requested' => ['required', 'integer', 'min:1'],
+            'items.*.quantity_requested' => [
+                'required',
+                'integer',
+                'min:1',
+                function ($attribute, $value, $fail) {
+                    $this->validateQuantityAgainstPpmpQuarter($attribute, $value, $fail);
+                },
+            ],
             'items.*.estimated_unit_cost' => ['required', 'numeric', 'min:0'],
 
             // Attachments (optional)
@@ -55,6 +72,7 @@ class StorePurchaseRequestRequest extends FormRequest
         return [
             'purpose.required' => 'The purpose of the purchase request is required.',
             'purpose.max' => 'The purpose may not be greater than 255 characters.',
+            'justification.required' => 'The justification for the purchase request is required.',
             'justification.string' => 'The justification must be a valid text.',
 
             'items.required' => 'At least one item must be selected for the purchase request.',
@@ -73,6 +91,87 @@ class StorePurchaseRequestRequest extends FormRequest
             'attachments.*.file' => 'All attachments must be valid files.',
             'attachments.*.max' => 'Each attachment may not be greater than 10MB.',
         ];
+    }
+
+    /**
+     * Validate that PPMP item belongs to current quarter and has quantity
+     */
+    protected function validatePpmpItemQuarter($ppmpItemId, string $attribute, $fail): void
+    {
+        $ppmpItem = PpmpItem::with(['ppmp', 'appItem'])->find($ppmpItemId);
+
+        if (! $ppmpItem) {
+            $fail('The selected PPMP item does not exist.');
+
+            return;
+        }
+
+        // Check if PPMP is validated
+        if ($ppmpItem->ppmp->status !== 'validated') {
+            $fail("The PPMP for item '{$ppmpItem->appItem->item_name}' must be validated before creating a PR.");
+
+            return;
+        }
+
+        $quarterlyTracker = app(PpmpQuarterlyTracker::class);
+        $currentQuarter = $quarterlyTracker->getQuarterFromDate();
+
+        // Check if item has quantity allocated for current quarter
+        if (! $ppmpItem->hasQuantityForQuarter($currentQuarter)) {
+            $quarterLabel = $quarterlyTracker->getQuarterLabel($currentQuarter);
+            $nextQuarter = $ppmpItem->getNextAvailableQuarter();
+
+            if ($nextQuarter) {
+                $nextQuarterLabel = $quarterlyTracker->getQuarterLabel($nextQuarter);
+                $fail("Item '{$ppmpItem->appItem->item_name}' is not allocated for the current quarter (Q{$currentQuarter} - {$quarterLabel}). This item is available in Q{$nextQuarter} ({$nextQuarterLabel}).");
+            } else {
+                $fail("Item '{$ppmpItem->appItem->item_name}' is not allocated for the current quarter (Q{$currentQuarter} - {$quarterLabel}).");
+            }
+
+            return;
+        }
+
+        // Check if there's remaining quantity for current quarter
+        $remainingQty = $ppmpItem->getRemainingQuantity($currentQuarter);
+        if ($remainingQty <= 0) {
+            $quarterLabel = $quarterlyTracker->getQuarterLabel($currentQuarter);
+            $fail("Item '{$ppmpItem->appItem->item_name}' has no remaining quantity for Q{$currentQuarter} ({$quarterLabel}). All {$ppmpItem->getQuarterlyQuantity($currentQuarter)} units have been requested.");
+        }
+    }
+
+    /**
+     * Validate requested quantity doesn't exceed remaining quarter allocation
+     */
+    protected function validateQuantityAgainstPpmpQuarter(string $attribute, $quantity, $fail): void
+    {
+        // Extract the item index from attribute (e.g., "items.0.quantity_requested" -> 0)
+        preg_match('/items\.(\d+)\.quantity_requested/', $attribute, $matches);
+        if (! isset($matches[1])) {
+            return;
+        }
+
+        $itemIndex = $matches[1];
+        $items = $this->input('items', []);
+
+        if (! isset($items[$itemIndex]['ppmp_item_id'])) {
+            return; // Skip validation for custom items
+        }
+
+        $ppmpItemId = $items[$itemIndex]['ppmp_item_id'];
+        $ppmpItem = PpmpItem::with('appItem')->find($ppmpItemId);
+
+        if (! $ppmpItem) {
+            return;
+        }
+
+        $quarterlyTracker = app(PpmpQuarterlyTracker::class);
+        $currentQuarter = $quarterlyTracker->getQuarterFromDate();
+        $remainingQty = $ppmpItem->getRemainingQuantity($currentQuarter);
+
+        if ($quantity > $remainingQty) {
+            $quarterLabel = $quarterlyTracker->getQuarterLabel($currentQuarter);
+            $fail("Requested quantity ({$quantity}) for '{$ppmpItem->appItem->item_name}' exceeds remaining quantity ({$remainingQty}) for Q{$currentQuarter} ({$quarterLabel}).");
+        }
     }
 
     /**
