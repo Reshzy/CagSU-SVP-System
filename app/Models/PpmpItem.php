@@ -83,21 +83,20 @@ class PpmpItem extends Model
     }
 
     /**
-     * Get remaining quantity for a specific quarter (not yet in PRs)
+     * Get remaining quantity for a specific quarter (not yet in active PRs)
      */
     public function getRemainingQuantity(?int $quarter = null): int
     {
         $plannedQty = $quarter ? $this->getQuarterlyQuantity($quarter) : $this->total_quantity;
 
         $usedQty = $this->purchaseRequestItems()
-            ->whereHas('purchaseRequest', function ($query) use ($quarter) {
-                if ($quarter) {
-                    // Filter by quarter based on created_at
-                    $startMonth = ($quarter - 1) * 3 + 1;
-                    $endMonth = $quarter * 3;
-                    $query->whereMonth('created_at', '>=', $startMonth)
-                        ->whereMonth('created_at', '<=', $endMonth);
-                }
+            ->when($quarter, function ($query) use ($quarter) {
+                // Filter by ppmp_quarter column if quarter specified
+                $query->where('ppmp_quarter', $quarter);
+            })
+            ->whereHas('purchaseRequest', function ($query) {
+                // Exclude items from returned, rejected, or cancelled PRs
+                $query->whereNotIn('status', ['returned_by_supply', 'rejected', 'cancelled']);
             })
             ->sum('quantity_requested');
 
