@@ -22,6 +22,8 @@ class PurchaseRequest extends Model
         'submitted_at' => 'datetime',
         'approved_at' => 'datetime',
         'completed_at' => 'datetime',
+        'returned_at' => 'datetime',
+        'rejected_at' => 'datetime',
     ];
 
     public function requester()
@@ -92,6 +94,11 @@ class PurchaseRequest extends Model
     public function aoqItemDecisions()
     {
         return $this->hasMany(AoqItemDecision::class);
+    }
+
+    public function activities()
+    {
+        return $this->hasMany(PurchaseRequestActivity::class)->orderByDesc('created_at');
     }
 
     /**
