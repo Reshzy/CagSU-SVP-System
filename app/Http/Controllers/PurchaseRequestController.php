@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StorePurchaseRequestRequest;
+use App\Http\Requests\StoreReplacementPurchaseRequestRequest;
 use App\Models\DepartmentBudget;
 use App\Models\Document;
 use App\Models\Ppmp;
@@ -39,91 +41,24 @@ class PurchaseRequestController extends Controller
 
     public function create(Request $request): View
     {
-        $user = Auth::user();
-        $fiscalYear = date('Y');
+        $data = $this->preparePrCreationData();
 
-        if (!$user->department_id) {
-            abort(403, 'You must be assigned to a department to create purchase requests.');
-        }
-
-        // Get department's validated PPMP
-        $ppmp = Ppmp::forDepartment($user->department_id)
-            ->forFiscalYear($fiscalYear)
-            ->validated()
-            ->with(['items.appItem'])
-            ->first();
-
-        if (!$ppmp) {
-            abort(403, 'Your department must have a validated PPMP before creating purchase requests.');
-        }
-
-        // Group PPMP items by APP item category
-        $ppmpItems = $ppmp->items
-            ->filter(function ($item) {
-                return $item->appItem !== null;
-            })
-            ->groupBy(function ($item) {
-                return $item->appItem->category;
-            });
-
-        $ppmpCategories = $ppmpItems->keys()->sort()->values();
-
-        // Get department budget information
-        $departmentBudget = DepartmentBudget::getOrCreateForDepartment($user->department_id, $fiscalYear);
-
-        // Get current quarter for quarterly tracking
-        $quarterlyTracker = app(PpmpQuarterlyTracker::class);
-        $currentQuarter = $quarterlyTracker->getQuarterFromDate();
-
-        return view('purchase_requests.create', [
-            'ppmp' => $ppmp,
-            'ppmpCategories' => $ppmpCategories,
-            'ppmpItems' => $ppmpItems,
-            'departmentBudget' => $departmentBudget,
-            'fiscalYear' => $fiscalYear,
-            'currentQuarter' => $currentQuarter,
-        ]);
+        return view('purchase_requests.create', $data);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StorePurchaseRequestRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'purpose' => ['required', 'string', 'max:255'],
-            'justification' => ['nullable', 'string'],
-
-            // Multiple items from PPMP or custom
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.ppmp_item_id' => ['nullable', 'exists:ppmp_items,id'],
-            'items.*.item_code' => ['nullable', 'string', 'max:100'],
-            'items.*.item_name' => ['required', 'string', 'max:255'],
-            'items.*.detailed_specifications' => ['nullable', 'string'],
-            'items.*.unit_of_measure' => ['required', 'string', 'max:50'],
-            'items.*.quantity_requested' => ['required', 'integer', 'min:1'],
-            'items.*.estimated_unit_cost' => ['required', 'numeric', 'min:0'],
-
-            // Attachments (optional)
-            'attachments.*' => ['file', 'max:10240'],
-        ]);
-
-        $user = Auth::user();
-
-        // Calculate total cost
-        $totalCost = 0;
-        foreach ($validated['items'] as $item) {
-            $totalCost += (float) $item['estimated_unit_cost'] * (int) $item['quantity_requested'];
-        }
-
         // Check budget availability
-        if ($user->department_id) {
-            $fiscalYear = date('Y');
-            $budget = DepartmentBudget::getOrCreateForDepartment($user->department_id, $fiscalYear);
-
-            if (! $budget->canReserve($totalCost)) {
-                return back()
-                    ->withInput()
-                    ->withErrors(['budget' => 'Insufficient budget. Available: ₱'.number_format($budget->getAvailableBudget(), 2).', Required: ₱'.number_format($totalCost, 2)]);
-            }
+        $budgetCheck = $request->checkBudgetAvailability();
+        if (! $budgetCheck['can_reserve']) {
+            return back()
+                ->withInput()
+                ->withErrors(['budget' => $budgetCheck['error']]);
         }
+
+        $validated = $request->validated();
+        $totalCost = $request->calculateTotalCost();
+        $user = Auth::user();
 
         DB::transaction(function () use ($validated, $request, $totalCost, $user) {
             $purchaseRequest = PurchaseRequest::create([
@@ -146,65 +81,13 @@ class PurchaseRequestController extends Controller
             ]);
 
             // Create items
-            foreach ($validated['items'] as $itemData) {
-                $estimatedTotal = (float) $itemData['estimated_unit_cost'] * (int) $itemData['quantity_requested'];
+            $this->createPurchaseRequestItems($purchaseRequest, $validated['items']);
 
-                // Determine item category from APP item
-                $itemCategory = null;
-                if (! empty($itemData['ppmp_item_id'])) {
-                    // Get PPMP item to extract category from APP item
-                    $ppmpItem = PpmpItem::with('appItem')->find($itemData['ppmp_item_id']);
-                    if ($ppmpItem && $ppmpItem->appItem) {
-                        // Store the APP item category
-                        $itemCategory = $ppmpItem->appItem->category;
-                    }
-                }
-
-                PurchaseRequestItem::create([
-                    'purchase_request_id' => $purchaseRequest->id,
-                    'ppmp_item_id' => $itemData['ppmp_item_id'] ?? null,
-                    'item_code' => $itemData['item_code'] ?? null,
-                    'item_name' => $itemData['item_name'] ?? null,
-                    'detailed_specifications' => $itemData['detailed_specifications'] ?? null,
-                    'unit_of_measure' => $itemData['unit_of_measure'] ?? null,
-                    'quantity_requested' => $itemData['quantity_requested'],
-                    'estimated_unit_cost' => $itemData['estimated_unit_cost'],
-                    'estimated_total_cost' => $estimatedTotal,
-                    'item_category' => $itemCategory,
-                ]);
-            }
-
-            if ($request->hasFile('attachments')) {
-                foreach ($request->file('attachments') as $file) {
-                    $path = $file->store('documents', 'public');
-                    Document::create([
-                        'document_number' => self::generateNextDocumentNumber(),
-                        'documentable_type' => PurchaseRequest::class,
-                        'documentable_id' => $purchaseRequest->id,
-                        'document_type' => 'purchase_request',
-                        'title' => $file->getClientOriginalName(),
-                        'description' => 'PR Attachment',
-                        'file_name' => $file->getClientOriginalName(),
-                        'file_path' => $path,
-                        'file_extension' => $file->getClientOriginalExtension(),
-                        'file_size' => $file->getSize(),
-                        'mime_type' => $file->getClientMimeType(),
-                        'uploaded_by' => Auth::id(),
-                        'is_public' => false,
-                        'status' => 'approved',
-                    ]);
-                }
-            }
+            // Handle attachments
+            $this->handleAttachments($request, $purchaseRequest);
 
             // Notify Supply Office for review
-            try {
-                $supplyUsers = \App\Models\User::role('Supply Officer')->get();
-                foreach ($supplyUsers as $user) {
-                    $user->notify(new PurchaseRequestSubmitted($purchaseRequest));
-                }
-            } catch (\Throwable $e) {
-                // silently ignore if roles not set yet
-            }
+            $this->notifySupplyOffice($purchaseRequest);
         });
 
         return redirect()->route('purchase-requests.index')
@@ -218,87 +101,30 @@ class PurchaseRequestController extends Controller
             abort(403, 'Unauthorized to create replacement for this PR.');
         }
 
-        $user = Auth::user();
-
-        // Get PPMP items for user's college only
-        $ppmpQuery = PpmpItem::active();
-
-        if ($user->department_id) {
-            $ppmpQuery->forCollege($user->department_id);
-        }
-
-        $ppmpCategories = (clone $ppmpQuery)
-            ->select('category')
-            ->distinct()
-            ->orderBy('category')
-            ->pluck('category');
-
-        $ppmpItems = $ppmpQuery
-            ->orderBy('category')
-            ->orderBy('item_name')
-            ->get()
-            ->groupBy('category');
-
-        // Get department budget information
-        $fiscalYear = date('Y');
-        $departmentBudget = null;
-
-        if ($user->department_id) {
-            $departmentBudget = DepartmentBudget::getOrCreateForDepartment($user->department_id, $fiscalYear);
-        }
+        $data = $this->preparePrCreationData();
 
         // Load the original PR with items
         $purchaseRequest->load(['items.ppmpItem', 'returnedBy']);
 
-        return view('purchase_requests.create_replacement', [
-            'ppmpCategories' => $ppmpCategories,
-            'ppmpItems' => $ppmpItems,
-            'departmentBudget' => $departmentBudget,
-            'fiscalYear' => $fiscalYear,
-            'originalPr' => $purchaseRequest,
-        ]);
+        // Add original PR to the data
+        $data['originalPr'] = $purchaseRequest;
+
+        return view('purchase_requests.create_replacement', $data);
     }
 
-    public function storeReplacement(Request $request, PurchaseRequest $originalPr): RedirectResponse
+    public function storeReplacement(StoreReplacementPurchaseRequestRequest $request, PurchaseRequest $originalPr): RedirectResponse
     {
-        // Ensure the PR is returned and belongs to the current user
-        if ($originalPr->status !== 'returned_by_supply' || $originalPr->requester_id !== Auth::id()) {
-            abort(403, 'Unauthorized to create replacement for this PR.');
-        }
-
-        $validated = $request->validate([
-            'purpose' => ['required', 'string', 'max:255'],
-            'justification' => ['nullable', 'string'],
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.ppmp_item_id' => ['nullable', 'exists:ppmp_items,id'],
-            'items.*.item_code' => ['nullable', 'string', 'max:100'],
-            'items.*.item_name' => ['required', 'string', 'max:255'],
-            'items.*.detailed_specifications' => ['nullable', 'string'],
-            'items.*.unit_of_measure' => ['required', 'string', 'max:50'],
-            'items.*.quantity_requested' => ['required', 'integer', 'min:1'],
-            'items.*.estimated_unit_cost' => ['required', 'numeric', 'min:0'],
-            'attachments.*' => ['file', 'max:10240'],
-        ]);
-
-        $user = Auth::user();
-
-        // Calculate total cost
-        $totalCost = 0;
-        foreach ($validated['items'] as $item) {
-            $totalCost += (float) $item['estimated_unit_cost'] * (int) $item['quantity_requested'];
-        }
-
         // Check budget availability
-        if ($user->department_id) {
-            $fiscalYear = date('Y');
-            $budget = DepartmentBudget::getOrCreateForDepartment($user->department_id, $fiscalYear);
-
-            if (! $budget->canReserve($totalCost)) {
-                return back()
-                    ->withInput()
-                    ->withErrors(['budget' => 'Insufficient budget. Available: ₱'.number_format($budget->getAvailableBudget(), 2).', Required: ₱'.number_format($totalCost, 2)]);
-            }
+        $budgetCheck = $request->checkBudgetAvailability();
+        if (! $budgetCheck['can_reserve']) {
+            return back()
+                ->withInput()
+                ->withErrors(['budget' => $budgetCheck['error']]);
         }
+
+        $validated = $request->validated();
+        $totalCost = $request->calculateTotalCost();
+        $user = Auth::user();
 
         DB::transaction(function () use ($validated, $request, $totalCost, $user, $originalPr) {
             $purchaseRequest = PurchaseRequest::create([
@@ -329,66 +155,143 @@ class PurchaseRequestController extends Controller
             ]);
 
             // Create items
-            foreach ($validated['items'] as $itemData) {
-                $estimatedTotal = (float) $itemData['estimated_unit_cost'] * (int) $itemData['quantity_requested'];
-                $itemCategory = null;
+            $this->createPurchaseRequestItems($purchaseRequest, $validated['items']);
 
-                if (! empty($itemData['ppmp_item_id'])) {
-                    $ppmpItem = PpmpItem::find($itemData['ppmp_item_id']);
-                    if ($ppmpItem) {
-                        $itemCategory = $ppmpItem->category;
-                    }
-                }
-
-                PurchaseRequestItem::create([
-                    'purchase_request_id' => $purchaseRequest->id,
-                    'ppmp_item_id' => $itemData['ppmp_item_id'] ?? null,
-                    'item_code' => $itemData['item_code'] ?? null,
-                    'item_name' => $itemData['item_name'] ?? null,
-                    'detailed_specifications' => $itemData['detailed_specifications'] ?? null,
-                    'unit_of_measure' => $itemData['unit_of_measure'] ?? null,
-                    'quantity_requested' => $itemData['quantity_requested'],
-                    'estimated_unit_cost' => $itemData['estimated_unit_cost'],
-                    'estimated_total_cost' => $estimatedTotal,
-                    'item_category' => $itemCategory,
-                ]);
-            }
-
-            if ($request->hasFile('attachments')) {
-                foreach ($request->file('attachments') as $file) {
-                    $path = $file->store('documents', 'public');
-                    Document::create([
-                        'document_number' => self::generateNextDocumentNumber(),
-                        'documentable_type' => PurchaseRequest::class,
-                        'documentable_id' => $purchaseRequest->id,
-                        'document_type' => 'purchase_request',
-                        'title' => $file->getClientOriginalName(),
-                        'description' => 'PR Attachment',
-                        'file_name' => $file->getClientOriginalName(),
-                        'file_path' => $path,
-                        'file_extension' => $file->getClientOriginalExtension(),
-                        'file_size' => $file->getSize(),
-                        'mime_type' => $file->getClientMimeType(),
-                        'uploaded_by' => Auth::id(),
-                        'is_public' => false,
-                        'status' => 'approved',
-                    ]);
-                }
-            }
+            // Handle attachments
+            $this->handleAttachments($request, $purchaseRequest);
 
             // Notify Supply Office
-            try {
-                $supplyUsers = \App\Models\User::role('Supply Officer')->get();
-                foreach ($supplyUsers as $user) {
-                    $user->notify(new PurchaseRequestSubmitted($purchaseRequest));
-                }
-            } catch (\Throwable $e) {
-                // silently ignore if roles not set yet
-            }
+            $this->notifySupplyOffice($purchaseRequest);
         });
 
         return redirect()->route('purchase-requests.index')
             ->with('status', 'Replacement PR created successfully and submitted for review.');
+    }
+
+    /**
+     * Prepare common data for PR creation views.
+     */
+    protected function preparePrCreationData(): array
+    {
+        $user = Auth::user();
+        $fiscalYear = date('Y');
+
+        if (! $user->department_id) {
+            abort(403, 'You must be assigned to a department to create purchase requests.');
+        }
+
+        // Get department's validated PPMP
+        $ppmp = Ppmp::forDepartment($user->department_id)
+            ->forFiscalYear($fiscalYear)
+            ->validated()
+            ->with(['items.appItem'])
+            ->first();
+
+        if (! $ppmp) {
+            abort(403, 'Your department must have a validated PPMP before creating purchase requests.');
+        }
+
+        // Group PPMP items by APP item category
+        $ppmpItems = $ppmp->items
+            ->filter(function ($item) {
+                return $item->appItem !== null;
+            })
+            ->groupBy(function ($item) {
+                return $item->appItem->category;
+            });
+
+        $ppmpCategories = $ppmpItems->keys()->sort()->values();
+
+        // Get department budget information
+        $departmentBudget = DepartmentBudget::getOrCreateForDepartment($user->department_id, $fiscalYear);
+
+        // Get current quarter for quarterly tracking
+        $quarterlyTracker = app(PpmpQuarterlyTracker::class);
+        $currentQuarter = $quarterlyTracker->getQuarterFromDate();
+
+        return [
+            'ppmp' => $ppmp,
+            'ppmpCategories' => $ppmpCategories,
+            'ppmpItems' => $ppmpItems,
+            'departmentBudget' => $departmentBudget,
+            'fiscalYear' => $fiscalYear,
+            'currentQuarter' => $currentQuarter,
+        ];
+    }
+
+    /**
+     * Create purchase request items from validated data.
+     */
+    protected function createPurchaseRequestItems(PurchaseRequest $purchaseRequest, array $items): void
+    {
+        foreach ($items as $itemData) {
+            $estimatedTotal = (float) $itemData['estimated_unit_cost'] * (int) $itemData['quantity_requested'];
+
+            // Determine item category from APP item
+            $itemCategory = null;
+            if (! empty($itemData['ppmp_item_id'])) {
+                $ppmpItem = PpmpItem::with('appItem')->find($itemData['ppmp_item_id']);
+                if ($ppmpItem && $ppmpItem->appItem) {
+                    $itemCategory = $ppmpItem->appItem->category;
+                }
+            }
+
+            PurchaseRequestItem::create([
+                'purchase_request_id' => $purchaseRequest->id,
+                'ppmp_item_id' => $itemData['ppmp_item_id'] ?? null,
+                'item_code' => $itemData['item_code'] ?? null,
+                'item_name' => $itemData['item_name'] ?? null,
+                'detailed_specifications' => $itemData['detailed_specifications'] ?? null,
+                'unit_of_measure' => $itemData['unit_of_measure'] ?? null,
+                'quantity_requested' => $itemData['quantity_requested'],
+                'estimated_unit_cost' => $itemData['estimated_unit_cost'],
+                'estimated_total_cost' => $estimatedTotal,
+                'item_category' => $itemCategory,
+            ]);
+        }
+    }
+
+    /**
+     * Handle file attachments for the purchase request.
+     */
+    protected function handleAttachments($request, PurchaseRequest $purchaseRequest): void
+    {
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $path = $file->store('documents', 'public');
+                Document::create([
+                    'document_number' => self::generateNextDocumentNumber(),
+                    'documentable_type' => PurchaseRequest::class,
+                    'documentable_id' => $purchaseRequest->id,
+                    'document_type' => 'purchase_request',
+                    'title' => $file->getClientOriginalName(),
+                    'description' => 'PR Attachment',
+                    'file_name' => $file->getClientOriginalName(),
+                    'file_path' => $path,
+                    'file_extension' => $file->getClientOriginalExtension(),
+                    'file_size' => $file->getSize(),
+                    'mime_type' => $file->getClientMimeType(),
+                    'uploaded_by' => Auth::id(),
+                    'is_public' => false,
+                    'status' => 'approved',
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Notify Supply Office about the new purchase request.
+     */
+    protected function notifySupplyOffice(PurchaseRequest $purchaseRequest): void
+    {
+        try {
+            $supplyUsers = \App\Models\User::role('Supply Officer')->get();
+            foreach ($supplyUsers as $user) {
+                $user->notify(new PurchaseRequestSubmitted($purchaseRequest));
+            }
+        } catch (\Throwable $e) {
+            // silently ignore if roles not set yet
+        }
     }
 
     protected static function generateNextDocumentNumber(): string
