@@ -53,7 +53,7 @@
                         </div>
                     </div>
 
-                    <form action="{{ route('purchase-requests.store-replacement', $originalPr) }}" method="POST" enctype="multipart/form-data" id="prForm" @submit="prepareSubmit">
+                    <form action="{{ route('purchase-requests.replacement.store', $originalPr) }}" method="POST" enctype="multipart/form-data" id="prForm" @submit="prepareSubmit">
                         @csrf
                         
                         <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
@@ -238,7 +238,7 @@
                                         type="text" 
                                         id="purpose" 
                                         name="purpose" 
-                                        x-model="prDetails.purpose"
+                                        value="{{ old('purpose', $originalPr->purpose) }}"
                                         required
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                         placeholder="Enter purpose of procurement"
@@ -252,11 +252,11 @@
                                     <textarea 
                                         id="justification" 
                                         name="justification"
-                                        x-model="prDetails.justification"
                                         rows="3"
+                                        required
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                         placeholder="Why is this procurement needed?"
-                                    ></textarea>
+                                    >{{ old('justification', $originalPr->justification) }}</textarea>
                                 </div>
 
                                 <div>
