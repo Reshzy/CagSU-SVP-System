@@ -17,7 +17,9 @@ class DatabaseSeeder extends Seeder
         $this->call([
             PositionSeeder::class, // Run first to populate positions table
             RolePermissionSeeder::class,
-            PurchaseRequestSeeder::class,
+            CollegeSeeder::class,
+            ComprehensiveUserSeeder::class,
+            // PurchaseRequestSeeder::class,
         ]);
     }
 }

@@ -243,47 +243,47 @@ class RolePermissionSeeder extends Seeder
         ]);
 
         // Create Departments
-        $departments = [
-            ['name' => 'Administrative Office', 'code' => 'ADMIN', 'description' => 'Main administrative office'],
-            ['name' => 'Academic Affairs', 'code' => 'ACAD', 'description' => 'Academic affairs department'],
-            ['name' => 'Finance Office', 'code' => 'FINANCE', 'description' => 'Financial management and budgeting'],
-            ['name' => 'Information Technology', 'code' => 'IT', 'description' => 'IT services and support'],
-            ['name' => 'Human Resources', 'code' => 'HR', 'description' => 'Human resources management'],
-            ['name' => 'Facilities Management', 'code' => 'FACILITY', 'description' => 'Campus facilities and maintenance'],
-            ['name' => 'Security Office', 'code' => 'SECURITY', 'description' => 'Campus security services'],
-        ];
+        // $departments = [
+        //     ['name' => 'Administrative Office', 'code' => 'ADMIN', 'description' => 'Main administrative office'],
+        //     ['name' => 'Academic Affairs', 'code' => 'ACAD', 'description' => 'Academic affairs department'],
+        //     ['name' => 'Finance Office', 'code' => 'FINANCE', 'description' => 'Financial management and budgeting'],
+        //     ['name' => 'Information Technology', 'code' => 'IT', 'description' => 'IT services and support'],
+        //     ['name' => 'Human Resources', 'code' => 'HR', 'description' => 'Human resources management'],
+        //     ['name' => 'Facilities Management', 'code' => 'FACILITY', 'description' => 'Campus facilities and maintenance'],
+        //     ['name' => 'Security Office', 'code' => 'SECURITY', 'description' => 'Campus security services'],
+        // ];
 
-        foreach ($departments as $dept) {
-            Department::create($dept);
-        }
+        // foreach ($departments as $dept) {
+        //     Department::create($dept);
+        // }
 
         // Create System Admin User
-        $adminUser = User::create([
-            'name' => 'CagSU System Administrator',
-            'email' => 'admin@cagsu.edu.ph',
-            'password' => bcrypt('admin123'),
-            'department_id' => 1,
-            'employee_id' => 'CAGSU-ADMIN-001',
-            'position' => 'System Administrator',
-            'phone' => '+63-123-456-7890',
-            'is_active' => true,
-            'email_verified_at' => now(),
-        ]);
-        $adminUser->assignRole('System Admin');
+        // $adminUser = User::create([
+        //     'name' => 'CagSU System Administrator',
+        //     'email' => 'admin@cagsu.edu.ph',
+        //     'password' => bcrypt('admin123'),
+        //     'department_id' => 1,
+        //     'employee_id' => 'CAGSU-ADMIN-001',
+        //     'position' => 'System Administrator',
+        //     'phone' => '+63-123-456-7890',
+        //     'is_active' => true,
+        //     'email_verified_at' => now(),
+        // ]);
+        // $adminUser->assignRole('System Admin');
 
         // Create Sample Supply Officer
-        $supplyUser = User::create([
-            'name' => 'Supply Officer',
-            'email' => 'supply@cagsu.edu.ph',
-            'password' => bcrypt('supply123'),
-            'department_id' => 1,
-            'employee_id' => 'CAGSU-SUPPLY-001',
-            'position' => 'Supply Officer',
-            'phone' => '+63-123-456-7891',
-            'is_active' => true,
-            'email_verified_at' => now(),
-        ]);
-        $supplyUser->assignRole('Supply Officer');
+        // $supplyUser = User::create([
+        //     'name' => 'Supply Officer',
+        //     'email' => 'supply@cagsu.edu.ph',
+        //     'password' => bcrypt('supply123'),
+        //     'department_id' => 1,
+        //     'employee_id' => 'CAGSU-SUPPLY-001',
+        //     'position' => 'Supply Officer',
+        //     'phone' => '+63-123-456-7891',
+        //     'is_active' => true,
+        //     'email_verified_at' => now(),
+        // ]);
+        // $supplyUser->assignRole('Supply Officer');
 
         $this->command->info('Roles, permissions, departments, and sample users created successfully!');
     }
