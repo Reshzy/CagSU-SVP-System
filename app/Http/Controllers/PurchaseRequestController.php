@@ -191,7 +191,19 @@ class PurchaseRequestController extends Controller
             abort(403, 'Your department must have a validated PPMP before creating purchase requests.');
         }
 
-        // Group PPMP items by APP item category
+        // Get current quarter for quarterly tracking
+        $quarterlyTracker = app(PpmpQuarterlyTracker::class);
+        $currentQuarter = $quarterlyTracker->getQuarterFromDate();
+
+        // Quarter labels
+        $quarterLabels = [
+            1 => 'January to March',
+            2 => 'April to June',
+            3 => 'July to September',
+            4 => 'October to December',
+        ];
+
+        // Group PPMP items by APP item category and add quarter status
         $ppmpItems = $ppmp->items
             ->filter(function ($item) {
                 return $item->appItem !== null;
@@ -200,22 +212,32 @@ class PurchaseRequestController extends Controller
                 return $item->appItem->category;
             });
 
+        // Categorize items with quarter status information
+        $categorizedItems = $ppmpItems->map(function ($items) use ($currentQuarter) {
+            return $items->map(function ($item) use ($currentQuarter) {
+                return [
+                    'item' => $item,
+                    'quarterStatus' => $item->getQuarterStatus($currentQuarter),
+                    'remainingQty' => $item->getRemainingQuantityForCurrentQuarter(),
+                    'currentQuarterQty' => $item->getQuarterlyQuantity($currentQuarter),
+                ];
+            });
+        });
+
         $ppmpCategories = $ppmpItems->keys()->sort()->values();
 
         // Get department budget information
         $departmentBudget = DepartmentBudget::getOrCreateForDepartment($user->department_id, $fiscalYear);
 
-        // Get current quarter for quarterly tracking
-        $quarterlyTracker = app(PpmpQuarterlyTracker::class);
-        $currentQuarter = $quarterlyTracker->getQuarterFromDate();
-
         return [
             'ppmp' => $ppmp,
             'ppmpCategories' => $ppmpCategories,
             'ppmpItems' => $ppmpItems,
+            'categorizedItems' => $categorizedItems,
             'departmentBudget' => $departmentBudget,
             'fiscalYear' => $fiscalYear,
             'currentQuarter' => $currentQuarter,
+            'quarterLabel' => $quarterLabels[$currentQuarter],
         ];
     }
 
@@ -224,19 +246,15 @@ class PurchaseRequestController extends Controller
      */
     protected function createPurchaseRequestItems(PurchaseRequest $purchaseRequest, array $items): void
     {
+        $quarterlyTracker = app(PpmpQuarterlyTracker::class);
+        $currentQuarter = $quarterlyTracker->getQuarterFromDate();
+
         foreach ($items as $itemData) {
             $estimatedTotal = (float) $itemData['estimated_unit_cost'] * (int) $itemData['quantity_requested'];
 
             // Determine item category from APP item
             $itemCategory = null;
-            if (! empty($itemData['ppmp_item_id'])) {
-                $ppmpItem = PpmpItem::with('appItem')->find($itemData['ppmp_item_id']);
-                if ($ppmpItem && $ppmpItem->appItem) {
-                    $itemCategory = $ppmpItem->appItem->category;
-                }
-            }
-
-            PurchaseRequestItem::create([
+            $prItemData = [
                 'purchase_request_id' => $purchaseRequest->id,
                 'ppmp_item_id' => $itemData['ppmp_item_id'] ?? null,
                 'item_code' => $itemData['item_code'] ?? null,
@@ -246,8 +264,23 @@ class PurchaseRequestController extends Controller
                 'quantity_requested' => $itemData['quantity_requested'],
                 'estimated_unit_cost' => $itemData['estimated_unit_cost'],
                 'estimated_total_cost' => $estimatedTotal,
-                'item_category' => $itemCategory,
-            ]);
+                'ppmp_quarter' => $currentQuarter,
+            ];
+
+            if (! empty($itemData['ppmp_item_id'])) {
+                $ppmpItem = PpmpItem::with('appItem')->find($itemData['ppmp_item_id']);
+                if ($ppmpItem && $ppmpItem->appItem) {
+                    $itemCategory = $ppmpItem->appItem->category;
+
+                    // Store quarter tracking information
+                    $prItemData['ppmp_planned_qty_for_quarter'] = $ppmpItem->getQuarterlyQuantity($currentQuarter);
+                    $prItemData['ppmp_remaining_qty_at_creation'] = $ppmpItem->getRemainingQuantity($currentQuarter);
+                }
+            }
+
+            $prItemData['item_category'] = $itemCategory;
+
+            PurchaseRequestItem::create($prItemData);
         }
     }
 
