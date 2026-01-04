@@ -1,46 +1,71 @@
-@section('title', 'New Purchase Request')
-
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-2xl text-gray-800 leading-tight">{{ __('Create Purchase Request') }}</h2>
+        <h2 class="font-semibold text-xl text-gray-800 dark:text-black leading-tight">
+            {{ __('Create Purchase Request') }} - FY {{ $fiscalYear }}
+        </h2>
     </x-slot>
 
-    <div class="py-8">
-        <div class="max-w-screen-2xl mx-auto sm:px-6 lg:px-8">
+    <div class="py-12" x-data="prManager()">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             @if ($errors->any())
-            <div class="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
-                <strong class="font-bold">Error!</strong>
-                <ul class="mt-2 list-disc list-inside">
-                    @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                    <strong class="font-bold">Error!</strong>
+                    <ul class="mt-2 list-disc list-inside">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
             @endif
 
-            <form action="{{ route('purchase-requests.store') }}" method="POST" enctype="multipart/form-data" id="prForm">
-                @csrf
+            <div class="flex gap-6">
+                <!-- Main Content Area -->
+                <div class="flex-1">
+                    <!-- Budget Status -->
+                    <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg mb-6">
+                        <div class="p-6">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200">Budget Available</h3>
+                                <div class="text-2xl font-bold text-white">₱<span x-text="formatNumber(budgetAvailable)">{{ number_format($departmentBudget->getAvailableBudget(), 2) }}</span></div>
+                            </div>
+                            <div class="mt-2 flex justify-between items-center">
+                                <span class="text-sm text-gray-600 dark:text-gray-400">PR Total: ₱<span x-text="formatNumber(prTotal)">0.00</span></span>
+                                <span class="text-sm" :class="budgetRemaining >= 0 ? 'text-green-600' : 'text-red-600'">
+                                    Remaining: ₱<span x-text="formatNumber(budgetRemaining)">{{ number_format($departmentBudget->getAvailableBudget(), 2) }}</span>
+                                </span>
+                            </div>
+                            <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
+                                <div class="h-2 rounded-full transition-all duration-300" 
+                                     :class="budgetRemaining >= 0 ? 'bg-blue-600' : 'bg-red-600'"
+                                     :style="`width: ${Math.min(100, (prTotal / budgetAvailable) * 100)}%`">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                    <!-- Left Column: PPMP Catalog (40% - 2/5) -->
-                    <div class="lg:col-span-2">
-                        <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg sticky top-4">
+                    <form action="{{ route('purchase-requests.store') }}" method="POST" enctype="multipart/form-data" id="prForm" @submit="prepareSubmit">
+                        @csrf
+                        
+                        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                             <div class="p-6">
-                                <h3 class="text-lg font-semibold mb-4">PPMP Catalog</h3>
-
-                                <!-- Search Box + Close All button -->
-                                <div class="mb-4">
-                                    <div class="flex items-center space-x-2">
-                                        <input type="text" id="ppmpSearch"
-                                            placeholder="Search items by name or code..."
-                                            class="flex-1 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                        <button type="button" id="closeAllCategoriesBtn" title="Close all categories"
-                                            class="px-3 py-2 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300">Close all</button>
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200">Select Items from PPMP</h3>
+                                    <div class="text-sm text-gray-600 dark:text-gray-400">
+                                        <span x-text="selectedCount"></span> items selected
                                     </div>
-                                    <p class="text-xs text-gray-500 mt-1">Tip: Search will automatically show matching categories</p>
+                                </div>
+                                
+                                <!-- Search Box -->
+                                <div class="mb-6">
+                                    <input 
+                                        type="text" 
+                                        x-model="searchQuery"
+                                        placeholder="Search items by name, code, or category..."
+                                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                    />
                                 </div>
 
-                                <!-- Categories Accordion (main first, then Part 2 separated) -->
+                                <!-- Categories Accordion -->
                                 @php
                                     $mainCategories = [];
                                     $part2Categories = [];
@@ -52,675 +77,544 @@
                                             $mainCategories[$category] = $items;
                                         }
                                     }
-                                    $catIndex = 0;
                                 @endphp
 
-                                <div class="space-y-2 max-h-[600px] overflow-y-auto" id="ppmpCatalog">
-                                    @foreach($mainCategories as $category => $items)
-                                    <div class="border border-gray-200 rounded-lg">
-                                        <button type="button"
-                                            class="w-full px-4 py-3 text-left font-medium text-gray-700 hover:bg-gray-50 flex justify-between items-center category-toggle"
-                                            data-category="{{ $catIndex }}">
-                                            <span class="text-sm">{{ $category }}</span>
-                                            <svg class="w-5 h-5 transform transition-transform category-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                            </svg>
-                                        </button>
-
-                                        <div class="category-items hidden px-4 py-2 space-y-2 bg-gray-50" data-category="{{ $catIndex }}">
-                                            @foreach($items as $item)
-                                            @php
-                                                $isPriceEditable = str_contains(strtoupper($category), 'SOFTWARE') || 
-                                                                   str_contains(strtoupper($category), 'PART II') || 
-                                                                   str_contains(strtoupper($category), 'OTHER ITEMS');
-                                            @endphp
-                                            <div class="border border-gray-300 rounded p-3 hover:border-indigo-500 bg-white ppmp-item"
-                                                data-search="{{ strtolower($item->item_name . ' ' . $item->item_code . ' ' . $category) }}"
-                                                data-category-name="{{ $category }}">
-                                                <div class="flex justify-between items-start mb-2">
-                                                    <div class="flex-1">
-                                                        <div class="text-sm font-medium text-gray-900">{{ $item->item_name }}</div>
-                                                        <div class="text-xs text-gray-500">{{ $item->item_code }}</div>
-                                                        @if($isPriceEditable)
-                                                            <span class="inline-block mt-1 px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded">Custom Price</span>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                                <div class="flex justify-between items-center mt-2">
-                                                    <div class="flex-1">
-                                                        <span class="text-xs text-gray-600">{{ $item->unit_of_measure }}</span>
-                                                        @if($isPriceEditable)
-                                                            <div class="mt-1">
-                                                                <span class="text-xs text-gray-600">Default: ₱{{ number_format($item->unit_price, 2) }}</span>
-                                                            </div>
-                                                        @else
-                                                            <span class="text-sm font-semibold text-gray-900 ml-2">₱{{ number_format($item->unit_price, 2) }}</span>
-                                                        @endif
-                                                    </div>
-                                                    <button type="button"
-                                                        class="add-to-pr px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700"
-                                                        data-id="{{ $item->id }}"
-                                                        data-name="{{ $item->item_name }}"
-                                                        data-code="{{ $item->item_code }}"
-                                                        data-unit="{{ $item->unit_of_measure }}"
-                                                        data-price="{{ $item->unit_price }}"
-                                                        data-specs="{{ $item->specifications }}"
-                                                        data-price-editable="{{ $isPriceEditable ? 'true' : 'false' }}">
-                                                        Add to PR
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            @endforeach
-                                        </div>
-                                    </div>
-                                    @php $catIndex++; @endphp
-                                    @endforeach
-
-                                    @if(count($part2Categories) > 0)
-                                    <div class="border-t pt-4 mt-4">
-                                        <h4 class="text-sm font-semibold text-gray-700 mb-2">Part 2 / Other Items</h4>
-                                        @foreach($part2Categories as $category => $items)
-                                        <div class="border border-gray-200 rounded-lg mt-2">
-                                            <button type="button"
-                                                class="w-full px-4 py-3 text-left font-medium text-gray-700 hover:bg-gray-50 flex justify-between items-center category-toggle"
-                                                data-category="{{ $catIndex }}">
-                                                <span class="text-sm">{{ $category }}</span>
-                                                <svg class="w-5 h-5 transform transition-transform category-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                @foreach ($mainCategories as $category => $items)
+                                    <div class="mb-4 border border-gray-200 dark:border-gray-700 rounded-lg"
+                                         x-show="categoryVisible('{{ $category }}', {{ json_encode($items->pluck('appItem.item_name')->toArray()) }}, {{ json_encode($items->pluck('appItem.item_code')->toArray()) }})">
+                                        <!-- Category Header -->
+                                        <div class="bg-gray-50 dark:bg-gray-900 px-4 py-3 cursor-pointer flex justify-between items-center"
+                                             @click="toggleCategory('{{ $category }}')">
+                                            <div class="flex items-center gap-2">
+                                                <svg class="w-5 h-5 transition-transform duration-200" 
+                                                     :class="{'rotate-90': expandedCategories.includes('{{ $category }}')}"
+                                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                                                 </svg>
-                                            </button>
+                                                <h4 class="text-md font-semibold text-gray-800 dark:text-gray-200">{{ $category }}</h4>
+                                                <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full dark:bg-blue-900 dark:text-blue-300">
+                                                    {{ $items->count() }} items
+                                                </span>
+                                            </div>
+                                        </div>
 
-                                            <div class="category-items hidden px-4 py-2 space-y-2 bg-gray-50" data-category="{{ $catIndex }}">
-                                                @foreach($items as $item)
+                                        <!-- Category Items -->
+                                        <div x-show="expandedCategories.includes('{{ $category }}')" 
+                                             x-transition
+                                             class="p-4 space-y-2">
+                                            @foreach ($items as $item)
                                                 @php
                                                     $isPriceEditable = str_contains(strtoupper($category), 'SOFTWARE') || 
                                                                        str_contains(strtoupper($category), 'PART II') || 
                                                                        str_contains(strtoupper($category), 'OTHER ITEMS');
                                                 @endphp
-                                                <div class="border border-gray-300 rounded p-3 hover:border-indigo-500 bg-white ppmp-item"
-                                                    data-search="{{ strtolower($item->item_name . ' ' . $item->item_code . ' ' . $category) }}"
-                                                    data-category-name="{{ $category }}">
-                                                    <div class="flex justify-between items-start mb-2">
+                                                <div class="border border-gray-200 dark:border-gray-700 rounded p-3 hover:border-indigo-500 transition-colors"
+                                                     x-show="itemVisible('{{ $item->appItem->item_name }}', '{{ $item->appItem->item_code }}', '{{ $category }}')">
+                                                    <div class="flex justify-between items-start">
                                                         <div class="flex-1">
-                                                            <div class="text-sm font-medium text-gray-900">{{ $item->item_name }}</div>
-                                                            <div class="text-xs text-gray-500">{{ $item->item_code }}</div>
-                                                            @if($isPriceEditable)
-                                                                <span class="inline-block mt-1 px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded">Custom Price</span>
-                                                            @endif
-                                                        </div>
-                                                    </div>
-                                                    <div class="flex justify-between items-center mt-2">
-                                                        <div class="flex-1">
-                                                            <span class="text-xs text-gray-600">{{ $item->unit_of_measure }}</span>
-                                                            @if($isPriceEditable)
-                                                                <div class="mt-1">
-                                                                    <span class="text-xs text-gray-600">Default: ₱{{ number_format($item->unit_price, 2) }}</span>
-                                                                </div>
-                                                            @else
-                                                                <span class="text-sm font-semibold text-gray-900 ml-2">₱{{ number_format($item->unit_price, 2) }}</span>
-                                                            @endif
+                                                            <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ $item->appItem->item_name }}</div>
+                                                            <div class="text-xs text-gray-500">{{ $item->appItem->item_code }}</div>
+                                                            <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                                                {{ $item->appItem->unit_of_measure }}
+                                                                @if($isPriceEditable)
+                                                                    <span class="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs">Custom Price</span>
+                                                                @else
+                                                                    <span class="ml-2 font-semibold">₱{{ number_format($item->estimated_unit_cost, 2) }}</span>
+                                                                @endif
+                                                            </div>
                                                         </div>
                                                         <button type="button"
-                                                            class="add-to-pr px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700"
-                                                            data-id="{{ $item->id }}"
-                                                            data-name="{{ $item->item_name }}"
-                                                            data-code="{{ $item->item_code }}"
-                                                            data-unit="{{ $item->unit_of_measure }}"
-                                                            data-price="{{ $item->unit_price }}"
-                                                            data-specs="{{ $item->specifications }}"
-                                                            data-price-editable="{{ $isPriceEditable ? 'true' : 'false' }}">
-                                                            Add to PR
+                                                            @click="addItem({{ $item->id }}, {
+                                                                id: {{ $item->id }},
+                                                                name: '{{ addslashes($item->appItem->item_name) }}',
+                                                                code: '{{ $item->appItem->item_code }}',
+                                                                unit: '{{ $item->appItem->unit_of_measure }}',
+                                                                price: {{ $item->estimated_unit_cost }},
+                                                                specs: '{{ addslashes($item->appItem->specifications ?? '') }}',
+                                                                isPriceEditable: {{ $isPriceEditable ? 'true' : 'false' }}
+                                                            })"
+                                                            :disabled="isSelected({{ $item->id }})"
+                                                            class="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                                            <span x-show="!isSelected({{ $item->id }})">Add to PR</span>
+                                                            <span x-show="isSelected({{ $item->id }})">Added</span>
                                                         </button>
                                                     </div>
                                                 </div>
-                                                @endforeach
-                                            </div>
+                                            @endforeach
                                         </div>
-                                        @php $catIndex++; @endphp
+                                    </div>
+                                @endforeach
+
+                                @if(count($part2Categories) > 0)
+                                    <div class="border-t pt-4 mt-4">
+                                        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Part 2 / Other Items</h4>
+                                        @foreach($part2Categories as $category => $items)
+                                            <div class="mb-4 border border-gray-200 dark:border-gray-700 rounded-lg"
+                                                 x-show="categoryVisible('{{ $category }}', {{ json_encode($items->pluck('appItem.item_name')->toArray()) }}, {{ json_encode($items->pluck('appItem.item_code')->toArray()) }})">
+                                                <div class="bg-gray-50 dark:bg-gray-900 px-4 py-3 cursor-pointer flex justify-between items-center"
+                                                     @click="toggleCategory('{{ $category }}')">
+                                                    <div class="flex items-center gap-2">
+                                                        <svg class="w-5 h-5 transition-transform duration-200" 
+                                                             :class="{'rotate-90': expandedCategories.includes('{{ $category }}')}"
+                                                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                                        </svg>
+                                                        <h4 class="text-md font-semibold text-gray-800 dark:text-gray-200">{{ $category }}</h4>
+                                                        <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full dark:bg-blue-900 dark:text-blue-300">
+                                                            {{ $items->count() }} items
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <div x-show="expandedCategories.includes('{{ $category }}')" 
+                                                     x-transition
+                                                     class="p-4 space-y-2">
+                                                    @foreach ($items as $item)
+                                                        @php
+                                                            $isPriceEditable = true;
+                                                        @endphp
+                                                        <div class="border border-gray-200 dark:border-gray-700 rounded p-3 hover:border-indigo-500 transition-colors"
+                                                             x-show="itemVisible('{{ $item->appItem->item_name }}', '{{ $item->appItem->item_code }}', '{{ $category }}')">
+                                                            <div class="flex justify-between items-start">
+                                                                <div class="flex-1">
+                                                                    <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ $item->appItem->item_name }}</div>
+                                                                    <div class="text-xs text-gray-500">{{ $item->appItem->item_code }}</div>
+                                                                    <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                                                        {{ $item->appItem->unit_of_measure }}
+                                                                        <span class="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs">Custom Price</span>
+                                                                    </div>
+                                                                </div>
+                                                                <button type="button"
+                                                                    @click="addItem({{ $item->id }}, {
+                                                                        id: {{ $item->id }},
+                                                                        name: '{{ addslashes($item->appItem->item_name) }}',
+                                                                        code: '{{ $item->appItem->item_code }}',
+                                                                        unit: '{{ $item->appItem->unit_of_measure }}',
+                                                                        price: {{ $item->estimated_unit_cost }},
+                                                                        specs: '{{ addslashes($item->appItem->specifications ?? '') }}',
+                                                                        isPriceEditable: true
+                                                                    })"
+                                                                    :disabled="isSelected({{ $item->id }})"
+                                                                    class="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                                                    <span x-show="!isSelected({{ $item->id }})">Add to PR</span>
+                                                                    <span x-show="isSelected({{ $item->id }})">Added</span>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </div>
                                         @endforeach
                                     </div>
-                                    @endif
+                                @endif
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Sticky Summary Sidebar -->
+                <div class="w-96 sticky top-4 self-start space-y-6">
+                    <!-- PR Details Form -->
+                    <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+                        <div class="p-4">
+                            <h3 class="text-lg font-bold mb-4 text-gray-800 dark:text-gray-200">PR Details</h3>
+                            
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="purpose" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Purpose <span class="text-red-500">*</span>
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        id="purpose" 
+                                        name="purpose" 
+                                        x-model="prDetails.purpose"
+                                        required
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        placeholder="Enter purpose of procurement"
+                                    />
                                 </div>
 
-                                <!-- Info Note -->
-                                <div class="mt-6 border-t pt-4">
-                                    <div class="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                                        <p class="text-xs text-blue-800">
-                                            <strong>Note:</strong> All items shown are from the official PS-DBM PPMP catalog. 
-                                            Software and Part II items allow custom pricing as they may vary by supplier.
-                                        </p>
-                                    </div>
+                                <div>
+                                    <label for="justification" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Justification
+                                    </label>
+                                    <textarea 
+                                        id="justification" 
+                                        name="justification"
+                                        x-model="prDetails.justification"
+                                        rows="3"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        placeholder="Why is this procurement needed?"
+                                    ></textarea>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        Attachments (Optional)
+                                    </label>
+                                    <input 
+                                        type="file" 
+                                        name="attachments[]" 
+                                        multiple
+                                        class="block w-full text-sm text-gray-500
+                                            file:mr-4 file:py-2 file:px-4
+                                            file:rounded-md file:border-0
+                                            file:text-sm file:font-semibold
+                                            file:bg-indigo-50 file:text-indigo-700
+                                            hover:file:bg-indigo-100"
+                                    />
+                                    <p class="mt-1 text-xs text-gray-500">Max 10MB per file</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Right Column: PR Form (60% - 3/5) -->
-                    <div class="lg:col-span-3 space-y-6">
-                        <!-- Budget Summary Card -->
-                        @if($departmentBudget)
-                        <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                            <div class="p-6">
-                                <h3 class="text-lg font-semibold mb-4">Budget Summary (FY {{ $fiscalYear }})</h3>
+                    <!-- Selected Items Summary -->
+                    <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+                        <div class="p-4">
+                            <h3 class="text-lg font-bold mb-4 text-gray-800 dark:text-gray-200">Selected Items</h3>
+                            
+                            <div class="mb-4 text-sm">
+                                <div class="flex justify-between mb-2 text-gray-600 dark:text-gray-400">
+                                    <span>Total Items:</span>
+                                    <span class="font-semibold text-white" x-text="selectedCount">0</span>
+                                </div>
+                                <div class="flex justify-between mb-2 text-gray-600 dark:text-gray-400">
+                                    <span>Total Cost:</span>
+                                    <span class="font-semibold text-white">₱<span x-text="formatNumber(prTotal)">0.00</span></span>
+                                </div>
+                            </div>
 
-                                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    <div class="bg-blue-50 p-3 rounded">
-                                        <div class="text-xs text-gray-600">Allocated</div>
-                                        <div class="text-lg font-bold text-blue-600">₱{{ number_format($departmentBudget->allocated_budget, 2) }}</div>
-                                    </div>
+                            <div class="max-h-96 overflow-y-auto space-y-2" x-show="selectedCount > 0">
+                                <template x-for="item in selectedItems" :key="item.id">
+                                    <div class="bg-gray-50 dark:bg-gray-900 p-3 rounded text-sm border border-gray-200 dark:border-gray-700">
+                                        <div class="flex justify-between items-start mb-2">
+                                            <div class="flex-1">
+                                                <div class="font-semibold text-gray-800 dark:text-gray-200" x-text="item.name"></div>
+                                                <div class="text-xs text-gray-500" x-text="item.code"></div>
+                                            </div>
+                                            <button 
+                                                type="button"
+                                                @click="removeItem(item.id)"
+                                                class="text-red-500 hover:text-red-700 ml-2">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                        
+                                        <div class="space-y-2">
+                                            <div class="flex items-center gap-2" x-show="item.isPriceEditable">
+                                                <label class="text-xs text-gray-600 dark:text-gray-400 w-16">Price:</label>
+                                                <div class="flex items-center flex-1">
+                                                    <span class="text-xs mr-1">₱</span>
+                                                    <input 
+                                                        type="number" 
+                                                        step="0.01" 
+                                                        min="0"
+                                                        :value="item.price"
+                                                        @input="updatePrice(item.id, $event.target.value)"
+                                                        class="w-full text-xs rounded border-gray-300"
+                                                    />
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="flex items-center gap-2" x-show="!item.isPriceEditable">
+                                                <label class="text-xs text-gray-600 dark:text-gray-400 w-16">Price:</label>
+                                                <span class="text-xs text-white">₱<span x-text="formatNumber(item.price)"></span></span>
+                                            </div>
 
-                                    <div class="bg-red-50 p-3 rounded">
-                                        <div class="text-xs text-gray-600">Utilized</div>
-                                        <div class="text-lg font-bold text-red-600">₱{{ number_format($departmentBudget->utilized_budget, 2) }}</div>
-                                    </div>
+                                            <div class="flex items-center gap-2">
+                                                <label class="text-xs text-gray-600 dark:text-gray-400 w-16">Quantity:</label>
+                                                <input 
+                                                    type="number" 
+                                                    min="1"
+                                                    :value="item.quantity"
+                                                    @input="updateQuantity(item.id, $event.target.value)"
+                                                    class="w-20 text-xs rounded border-gray-300"
+                                                />
+                                            </div>
 
-                                    <div class="bg-yellow-50 p-3 rounded">
-                                        <div class="text-xs text-gray-600">Reserved</div>
-                                        <div class="text-lg font-bold text-yellow-600">₱{{ number_format($departmentBudget->reserved_budget, 2) }}</div>
-                                    </div>
-
-                                    <div class="bg-green-50 p-3 rounded">
-                                        <div class="text-xs text-gray-600">Available</div>
-                                        <div class="text-lg font-bold text-green-600" id="availableBudget">
-                                            ₱{{ number_format($departmentBudget->getAvailableBudget(), 2) }}
+                                            <div class="flex items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                                <label class="text-xs text-gray-600 dark:text-gray-400 w-16">Subtotal:</label>
+                                                <span class="text-xs font-semibold text-white">₱<span x-text="formatNumber(item.price * item.quantity)"></span></span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-
-                                <div class="mt-4 p-3 bg-purple-50 rounded">
-                                    <div class="flex justify-between items-center">
-                                        <span class="text-sm text-gray-700 font-medium">Current PR Total:</span>
-                                        <span class="text-xl font-bold text-purple-600" id="currentPrTotal">₱0.00</span>
-                                    </div>
-                                    <div class="mt-2 flex justify-between items-center text-sm">
-                                        <span class="text-gray-600">Remaining After PR:</span>
-                                        <span class="font-semibold" id="remainingAfterPr">₱{{ number_format($departmentBudget->getAvailableBudget(), 2) }}</span>
-                                    </div>
-                                </div>
+                                </template>
                             </div>
-                        </div>
-                        @else
-                        <div class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
-                            Warning: No budget information available. Please contact your budget officer.
-                        </div>
-                        @endif
 
-                        <!-- PR Basic Information -->
-                        <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                            <div class="p-6 space-y-4">
-                                <h3 class="text-lg font-semibold mb-4">Purchase Request Details</h3>
-
-                                <div>
-                                    <x-input-label for="purpose" value="Purpose" />
-                                    <x-text-input id="purpose" name="purpose" type="text" class="mt-1 block w-full" :value="old('purpose')" required />
-                                    <x-input-error :messages="$errors->get('purpose')" class="mt-2" />
-                                </div>
-
-                                <div>
-                                    <x-input-label for="justification" value="Justification" />
-                                    <textarea id="justification" name="justification" class="mt-1 block w-full border-gray-300 rounded-md" rows="3">{{ old('justification') }}</textarea>
-                                    <x-input-error :messages="$errors->get('justification')" class="mt-2" />
-                                </div>
+                            <div x-show="selectedCount === 0" class="text-center text-gray-500 text-sm py-8">
+                                No items selected yet
                             </div>
-                        </div>
 
-                        <!-- Selected Items -->
-                        <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                            <div class="p-6">
-                                <h3 class="text-lg font-semibold mb-4">Selected Items</h3>
-
-                                <div id="selectedItems" class="space-y-3">
-                                    <div class="text-center text-gray-500 py-8" id="emptyState">
-                                        No items selected yet. Add items from the PPMP catalog on the left.
-                                    </div>
-                                </div>
+                            <!-- Submit Button -->
+                            <div class="mt-6 flex gap-2">
+                                <a href="{{ route('purchase-requests.index') }}" 
+                                   class="flex-1 text-center px-4 py-2 bg-gray-500 hover:bg-gray-700 text-white font-bold rounded">
+                                    Cancel
+                                </a>
+                                <button 
+                                    type="submit"
+                                    form="prForm"
+                                    :disabled="!canSubmit"
+                                    class="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-700 text-white font-bold rounded disabled:opacity-50 disabled:cursor-not-allowed">
+                                    Submit PR
+                                </button>
                             </div>
-                        </div>
-
-                        <!-- Attachments -->
-                        <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                            <div class="p-6">
-                                <x-input-label for="attachments" value="Attachments (Optional)" />
-                                <input id="attachments" name="attachments[]" type="file" multiple class="mt-1 block w-full" />
-                                <p class="mt-1 text-sm text-gray-600">You can attach multiple files (max 10MB each)</p>
-                                <x-input-error :messages="$errors->get('attachments.*')" class="mt-2" />
-                            </div>
-                        </div>
-
-                        <!-- Submit Button -->
-                        <div class="flex justify-end space-x-3">
-                            <a href="{{ route('purchase-requests.index') }}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200">Cancel</a>
-                            <button type="submit" id="submitBtn"
-                                class="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                disabled>
-                                Submit PR
-                            </button>
                         </div>
                     </div>
                 </div>
-            </form>
+            </div>
+        </div>
+
+        <!-- Custom Price Modal -->
+        <div x-show="showPriceModal" 
+             x-cloak
+             class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center"
+             @click.self="closePriceModal">
+            <div class="relative p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
+                <div class="mt-3">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">Set Custom Price</h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                        Item: <span class="font-semibold" x-text="priceModalItem.name"></span>
+                    </p>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Unit Price (₱)
+                        </label>
+                        <input 
+                            type="number" 
+                            x-model="priceModalItem.customPrice"
+                            step="0.01" 
+                            min="0.01"
+                            placeholder="Enter price"
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            @keydown.enter="saveCustomPrice"
+                            @keydown.escape="closePriceModal"
+                        />
+                    </div>
+                    <div class="flex gap-2 justify-end">
+                        <button 
+                            type="button"
+                            @click="closePriceModal"
+                            class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            Cancel
+                        </button>
+                        <button 
+                            type="button"
+                            @click="saveCustomPrice"
+                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            Save Price
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     @push('scripts')
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            let selectedItems = [];
-            let itemCounter = 0;
-            const availableBudget = {{ $departmentBudget ? $departmentBudget->getAvailableBudget() : 0 }};
+        function prManager() {
+            return {
+                searchQuery: '',
+                expandedCategories: [],
+                selectedItems: [],
+                budgetAvailable: {{ $departmentBudget->getAvailableBudget() }},
+                showPriceModal: false,
+                priceModalItem: { id: null, name: '', customPrice: null, data: null },
+                prDetails: {
+                    purpose: '{{ old('purpose', '') }}',
+                    justification: '{{ old('justification', '') }}'
+                },
 
-            // Category toggle via event delegation on the catalog container
-            const ppmpCatalog = document.getElementById('ppmpCatalog');
-            if (ppmpCatalog) {
-                ppmpCatalog.addEventListener('click', function(e) {
-                    // Find the closest toggle button clicked (or parent of an inner element)
-                    const btn = e.target.closest('.category-toggle');
-                    if (!btn) return;
-                    e.preventDefault();
-
-                    const parent = btn.parentElement;
-                    let itemsDiv = null;
-
-                    // Try adjacent sibling first
-                    if (parent && parent.nextElementSibling && parent.nextElementSibling.classList.contains('category-items')) {
-                        itemsDiv = parent.nextElementSibling;
+                init() {
+                    // Load expanded state from localStorage
+                    const stored = localStorage.getItem('prExpandedCategories');
+                    if (stored) {
+                        this.expandedCategories = JSON.parse(stored);
                     }
+                },
 
-                    // Fallback: query by data-category
-                    if (!itemsDiv) {
-                        const categoryIndex = btn.dataset.category;
-                        itemsDiv = document.querySelector(`.category-items[data-category="${categoryIndex}"]`);
-                    }
+                get selectedCount() {
+                    return this.selectedItems.length;
+                },
 
-                    const svg = btn.querySelector('.category-arrow');
+                get prTotal() {
+                    return this.selectedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                },
 
-                    if (!itemsDiv) return;
-                    itemsDiv.classList.toggle('hidden');
-                    if (svg) svg.classList.toggle('rotate-180');
-                });
-            } else {
-                // PPMP Catalog element not found; nothing to bind
-            }
+                get budgetRemaining() {
+                    return this.budgetAvailable - this.prTotal;
+                },
 
-            // Search functionality with smart category opening/closing
-            document.getElementById('ppmpSearch').addEventListener('input', function(e) {
-                const searchTerm = e.target.value.toLowerCase().trim();
-                
-                if (!searchTerm) {
-                    // Reset: show all items and close all categories
-                    document.querySelectorAll('.ppmp-item').forEach(item => {
-                        item.style.display = 'block';
-                    });
-                    document.querySelectorAll('.category-items').forEach(categoryDiv => {
-                        categoryDiv.classList.add('hidden');
-                    });
-                    document.querySelectorAll('.category-arrow').forEach(arrow => {
-                        arrow.classList.remove('rotate-180');
-                    });
-                    return;
-                }
-                
-                // Track which categories have matches
-                const categoriesWithMatches = new Set();
-                
-                // Search through items
-                document.querySelectorAll('.ppmp-item').forEach(item => {
-                    const searchData = item.dataset.search;
-                    const categoryName = item.dataset.categoryName;
-                    
-                    if (searchData.includes(searchTerm)) {
-                        item.style.display = 'block';
-                        categoriesWithMatches.add(categoryName);
+                get canSubmit() {
+                    return this.selectedCount > 0 && 
+                           this.budgetRemaining >= 0 && 
+                           this.prDetails.purpose.trim() !== '';
+                },
+
+                isSelected(itemId) {
+                    return this.selectedItems.some(item => item.ppmpItemId === itemId);
+                },
+
+                toggleCategory(category) {
+                    const index = this.expandedCategories.indexOf(category);
+                    if (index > -1) {
+                        this.expandedCategories.splice(index, 1);
                     } else {
-                        item.style.display = 'none';
+                        this.expandedCategories.push(category);
                     }
-                });
-                
-                // Open/close categories based on matches
-                document.querySelectorAll('.category-toggle').forEach(btn => {
-                    const categoryIndex = btn.dataset.category;
-                    const categoryText = btn.querySelector('span').textContent.trim();
-                    const categoryDiv = document.querySelector(`.category-items[data-category="${categoryIndex}"]`);
-                    const arrow = btn.querySelector('.category-arrow');
-                    
-                    if (categoriesWithMatches.has(categoryText)) {
-                        // Open category with matches
-                        categoryDiv.classList.remove('hidden');
-                        if (arrow) arrow.classList.add('rotate-180');
-                    } else {
-                        // Close category without matches
-                        categoryDiv.classList.add('hidden');
-                        if (arrow) arrow.classList.remove('rotate-180');
-                    }
-                });
-            });
+                    localStorage.setItem('prExpandedCategories', JSON.stringify(this.expandedCategories));
+                },
 
-            // Close all categories button
-            const closeAllBtn = document.getElementById('closeAllCategoriesBtn');
-            if (closeAllBtn) {
-                closeAllBtn.addEventListener('click', function() {
-                    document.querySelectorAll('.category-items').forEach(div => div.classList.add('hidden'));
-                    document.querySelectorAll('.category-arrow').forEach(arrow => arrow.classList.remove('rotate-180'));
-                });
-            }
-
-            // Add to PR from PPMP
-            // Price modal helpers
-            const priceModal = document.createElement('div');
-            // We'll insert an inline modal markup in DOM (created below in the blade). Use handlers to control it.
-
-            let pendingPriceData = null;
-
-            let __previousActiveElement = null;
-
-            function openPriceModal(data) {
-                pendingPriceData = data; // store button dataset values
-                const overlay = document.getElementById('priceModal');
-                const nameEl = document.getElementById('priceModalItemName');
-                const input = document.getElementById('priceModalInput');
-                const err = document.getElementById('priceModalError');
-
-                if (!overlay || !input) return;
-
-                // remember previous focused element to restore on close
-                __previousActiveElement = document.activeElement;
-
-                nameEl.textContent = data.name + ' — ' + data.unit + ' (default ₱' + parseFloat(data.price).toFixed(2) + ')';
-                input.value = parseFloat(data.price).toFixed(2);
-                err.classList.add('hidden');
-
-                // show overlay (remove hidden)
-                overlay.classList.remove('hidden');
-
-                // focus input
-                setTimeout(() => input.focus(), 50);
-            }
-
-            function closePriceModal() {
-                const overlay = document.getElementById('priceModal');
-                if (!overlay) return;
-
-                // hide overlay
-                overlay.classList.add('hidden');
-
-                // restore focus
-                if (__previousActiveElement && typeof __previousActiveElement.focus === 'function') {
-                    try { __previousActiveElement.focus(); } catch (e) {}
-                }
-
-                pendingPriceData = null;
-            }
-
-            // Modal button handlers
-            document.getElementById('priceModalSave')?.addEventListener('click', function() {
-                const input = document.getElementById('priceModalInput');
-                const err = document.getElementById('priceModalError');
-                const val = parseFloat(input.value);
-                if (isNaN(val) || val < 0) {
-                    err.classList.remove('hidden');
-                    err.textContent = 'Please enter a valid non-negative number';
-                    return;
-                }
-
-                if (!pendingPriceData) {
-                    closePriceModal();
-                    return;
-                }
-
-                const item = {
-                    id: itemCounter++,
-                    ppmp_item_id: pendingPriceData.id,
-                    name: pendingPriceData.name,
-                    code: pendingPriceData.code,
-                    unit: pendingPriceData.unit,
-                    price: val,
-                    defaultPrice: parseFloat(pendingPriceData.price),
-                    specs: pendingPriceData.specs,
-                    quantity: 1,
-                    isPriceEditable: true
-                };
-
-                selectedItems.push(item);
-                renderSelectedItems();
-                updateTotals();
-                closePriceModal();
-            });
-
-            // Attach cancel handlers to both cancel controls
-            document.querySelectorAll('.priceModalCancel').forEach(btn => btn.addEventListener('click', closePriceModal));
-
-            // Close modal on overlay click (only when clicking the backdrop, not the panel)
-            document.getElementById('priceModal')?.addEventListener('click', function(e) {
-                if (e.target === this) closePriceModal();
-            });
-
-            // Close modal on Escape key
-            document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape') {
-                    const overlay = document.getElementById('priceModal');
-                    if (overlay && !overlay.classList.contains('hidden')) {
-                        closePriceModal();
-                    }
-                }
-            });
-
-            document.querySelectorAll('.add-to-pr').forEach(button => {
-                button.addEventListener('click', function() {
-                    const isPriceEditable = this.dataset.priceEditable === 'true';
-                    const defaultPrice = parseFloat(this.dataset.price);
-
-                    if (isPriceEditable) {
-                        // open modal and wait for user input
-                        openPriceModal({
-                            id: this.dataset.id,
-                            name: this.dataset.name,
-                            code: this.dataset.code,
-                            unit: this.dataset.unit,
-                            price: this.dataset.price,
-                            specs: this.dataset.specs
-                        });
+                addItem(itemId, itemData) {
+                    if (this.isSelected(itemId)) {
                         return;
                     }
 
-                    // Non-editable price: add directly
-                    const item = {
-                        id: itemCounter++,
-                        ppmp_item_id: this.dataset.id,
-                        name: this.dataset.name,
-                        code: this.dataset.code,
-                        unit: this.dataset.unit,
-                        price: defaultPrice,
-                        defaultPrice: defaultPrice,
-                        specs: this.dataset.specs,
-                        quantity: 1,
-                        isPriceEditable: false
-                    };
-
-                    selectedItems.push(item);
-                    renderSelectedItems();
-                    updateTotals();
-                });
-            });
-
-            function renderSelectedItems() {
-                const container = document.getElementById('selectedItems');
-
-                if (selectedItems.length === 0) {
-                    // Recreate the empty state placeholder when there are no items
-                    container.innerHTML = `
-                        <div class="text-center text-gray-500 py-8" id="emptyState">
-                            No items selected yet. Add items from the PPMP catalog on the left.
-                        </div>
-                    `;
-                    return;
-                }
-
-                // Build list of selected items
-                container.innerHTML = selectedItems.map(item => {
-                    const isPriceCustomized = item.isPriceEditable && item.price !== item.defaultPrice;
-                    const priceDisplay = item.isPriceEditable 
-                        ? `<div class="text-sm text-gray-600 mt-1">
-                             <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">Custom Price</span>
-                             ${isPriceCustomized ? `<span class="text-xs text-gray-500 ml-2">(Default: ₱${item.defaultPrice.toFixed(2)})</span>` : ''}
-                           </div>`
-                        : '';
-                    
-                    return `
-                    <div class="border border-gray-300 rounded-lg p-4 ${item.isPriceEditable ? 'border-yellow-300 bg-yellow-50' : ''}" data-item-id="${item.id}">
-                        <div class="flex justify-between items-start">
-                            <div class="flex-1">
-                                <div class="font-medium text-gray-900">${item.name}</div>
-                                <div class="text-sm text-gray-500">${item.code}</div>
-                                ${priceDisplay}
-                            </div>
-                            <button type="button" class="text-red-600 hover:text-red-800" onclick="removeItem(${item.id})">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                </svg>
-                            </button>
-                        </div>
-                        <div class="mt-3 space-y-2">
-                            ${item.isPriceEditable ? `
-                            <div class="flex items-center space-x-2">
-                                <label class="text-sm text-gray-700 w-24">Unit Price:</label>
-                                <div class="flex items-center space-x-1">
-                                    <span class="text-sm">₱</span>
-                                    <input type="number" step="0.01" min="0" value="${item.price.toFixed(2)}"
-                                        class="w-32 border-gray-300 rounded-md text-sm price-input"
-                                        data-item-id="${item.id}"
-                                        onchange="updatePrice(${item.id}, this.value)">
-                                    <span class="text-xs text-gray-500">per ${item.unit}</span>
-                                </div>
-                            </div>
-                            ` : `
-                            <div class="flex items-center space-x-2">
-                                <label class="text-sm text-gray-700 w-24">Unit Price:</label>
-                                <span class="text-sm text-gray-900">₱${item.price.toFixed(2)} per ${item.unit}</span>
-                            </div>
-                            `}
-                            <div class="flex items-center space-x-2">
-                                <label class="text-sm text-gray-700 w-24">Quantity:</label>
-                                <input type="number" min="1" value="${item.quantity}"
-                                    class="w-24 border-gray-300 rounded-md quantity-input text-sm"
-                                    data-item-id="${item.id}"
-                                    onchange="updateQuantity(${item.id}, this.value)">
-                            </div>
-                            <div class="flex items-center space-x-2 pt-2 border-t">
-                                <label class="text-sm text-gray-700 w-24 font-medium">Subtotal:</label>
-                                <span class="text-base font-semibold text-gray-900">₱${(item.price * item.quantity).toFixed(2)}</span>
-                            </div>
-                        </div>
-                        <input type="hidden" name="items[${item.id}][ppmp_item_id]" value="${item.ppmp_item_id || ''}">
-                        <input type="hidden" name="items[${item.id}][item_code]" value="${escapeHtml(item.code || '')}">
-                        <input type="hidden" name="items[${item.id}][item_name]" value="${escapeHtml(item.name)}">
-                        <input type="hidden" name="items[${item.id}][unit_of_measure]" value="${escapeHtml(item.unit)}">
-                        <input type="hidden" name="items[${item.id}][detailed_specifications]" value="${escapeHtml(item.specs)}">
-                        <input type="hidden" name="items[${item.id}][quantity_requested]" value="${item.quantity}">
-                        <input type="hidden" name="items[${item.id}][estimated_unit_cost]" value="${item.price}">
-                    </div>
-                    `;
-                }).join('');
-            }
-
-            function escapeHtml(text) {
-                const div = document.createElement('div');
-                div.textContent = text;
-                return div.innerHTML;
-            }
-
-            function removeItem(itemId) {
-                selectedItems = selectedItems.filter(item => item.id !== itemId);
-                renderSelectedItems();
-                updateTotals();
-            }
-
-            function updateQuantity(itemId, quantity) {
-                const item = selectedItems.find(i => i.id === itemId);
-                if (item) {
-                    item.quantity = parseInt(quantity) || 1;
-                    renderSelectedItems();
-                    updateTotals();
-                }
-            }
-
-            function updatePrice(itemId, price) {
-                const item = selectedItems.find(i => i.id === itemId);
-                if (item && item.isPriceEditable) {
-                    const newPrice = parseFloat(price);
-                    if (!isNaN(newPrice) && newPrice >= 0) {
-                        item.price = newPrice;
-                        renderSelectedItems();
-                        updateTotals();
-                    }
-                }
-            }
-
-            function updateTotals() {
-                const total = selectedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                document.getElementById('currentPrTotal').textContent = '₱' + total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-
-                const remaining = availableBudget - total;
-                const remainingEl = document.getElementById('remainingAfterPr');
-                remainingEl.textContent = '₱' + remaining.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-
-                if (remaining < 0) {
-                    remainingEl.classList.add('text-red-600');
-                    remainingEl.classList.remove('text-green-600');
-                } else {
-                    remainingEl.classList.add('text-green-600');
-                    remainingEl.classList.remove('text-red-600');
-                }
-
-                // Enable/disable submit button
-                const submitBtn = document.getElementById('submitBtn');
-                if (selectedItems.length > 0 && remaining >= 0) {
-                    submitBtn.disabled = false;
-                } else {
-                    submitBtn.disabled = true;
-                }
-            }
-
-            // Make functions globally accessible for inline event handlers
-            window.removeItem = removeItem;
-            window.updateQuantity = updateQuantity;
-            window.updatePrice = updatePrice;
-        });
-    </script>
-        @include('components.price-modal')
-        <script>
-            // Focus trap for price modal
-            (function() {
-                function getFocusable(el) {
-                    return Array.from(el.querySelectorAll('a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])')).filter(e => e.offsetParent !== null);
-                }
-
-                const overlay = document.getElementById('priceModal');
-                const panel = document.getElementById('priceModalPanel');
-
-                function trapFocus(e) {
-                    if (!overlay || overlay.classList.contains('hidden')) return;
-                    if (e.key !== 'Tab') return;
-                    const focusables = getFocusable(panel);
-                    if (focusables.length === 0) return;
-                    const first = focusables[0];
-                    const last = focusables[focusables.length - 1];
-
-                    if (e.shiftKey) {
-                        if (document.activeElement === first) {
-                            e.preventDefault();
-                            last.focus();
-                        }
+                    if (itemData.isPriceEditable) {
+                        // Show modal for custom price
+                        this.priceModalItem = {
+                            id: itemId,
+                            name: itemData.name,
+                            customPrice: itemData.price,
+                            data: itemData
+                        };
+                        this.showPriceModal = true;
                     } else {
-                        if (document.activeElement === last) {
-                            e.preventDefault();
-                            first.focus();
+                        // Add directly with fixed price
+                        this.selectedItems.push({
+                            id: Date.now(),
+                            ppmpItemId: itemId,
+                            name: itemData.name,
+                            code: itemData.code,
+                            unit: itemData.unit,
+                            price: itemData.price,
+                            specs: itemData.specs,
+                            quantity: 1,
+                            isPriceEditable: false
+                        });
+                    }
+                },
+
+                saveCustomPrice() {
+                    const price = parseFloat(this.priceModalItem.customPrice);
+                    if (!price || price <= 0) {
+                        alert('Please enter a valid price greater than 0');
+                        return;
+                    }
+
+                    const data = this.priceModalItem.data;
+                    this.selectedItems.push({
+                        id: Date.now(),
+                        ppmpItemId: this.priceModalItem.id,
+                        name: data.name,
+                        code: data.code,
+                        unit: data.unit,
+                        price: price,
+                        specs: data.specs,
+                        quantity: 1,
+                        isPriceEditable: true
+                    });
+
+                    this.closePriceModal();
+                },
+
+                closePriceModal() {
+                    this.showPriceModal = false;
+                    this.priceModalItem = { id: null, name: '', customPrice: null, data: null };
+                },
+
+                removeItem(itemId) {
+                    const index = this.selectedItems.findIndex(item => item.id === itemId);
+                    if (index > -1) {
+                        this.selectedItems.splice(index, 1);
+                    }
+                },
+
+                updateQuantity(itemId, value) {
+                    const item = this.selectedItems.find(i => i.id === itemId);
+                    if (item) {
+                        item.quantity = parseInt(value) || 1;
+                    }
+                },
+
+                updatePrice(itemId, value) {
+                    const item = this.selectedItems.find(i => i.id === itemId);
+                    if (item && item.isPriceEditable) {
+                        const newPrice = parseFloat(value);
+                        if (!isNaN(newPrice) && newPrice >= 0) {
+                            item.price = newPrice;
                         }
                     }
+                },
+
+                categoryVisible(category, itemNames, itemCodes) {
+                    if (!this.searchQuery) return true;
+                    const query = this.searchQuery.toLowerCase();
+                    
+                    if (category.toLowerCase().includes(query)) return true;
+                    
+                    return itemNames.some(name => name.toLowerCase().includes(query)) ||
+                           itemCodes.some(code => code.toLowerCase().includes(query));
+                },
+
+                itemVisible(itemName, itemCode, category) {
+                    if (!this.searchQuery) return true;
+                    const query = this.searchQuery.toLowerCase();
+                    return itemName.toLowerCase().includes(query) ||
+                           itemCode.toLowerCase().includes(query) ||
+                           category.toLowerCase().includes(query);
+                },
+
+                prepareSubmit(event) {
+                    // Validate before submit
+                    if (!this.canSubmit) {
+                        event.preventDefault();
+                        if (this.selectedCount === 0) {
+                            alert('Please select at least one item.');
+                        } else if (this.budgetRemaining < 0) {
+                            alert('Total cost exceeds available budget.');
+                        } else if (this.prDetails.purpose.trim() === '') {
+                            alert('Please enter the purpose of the purchase request.');
+                        }
+                        return;
+                    }
+
+                    // Add hidden inputs for form submission
+                    const form = event.target;
+                    
+                    // Remove old dynamic inputs
+                    form.querySelectorAll('.dynamic-input').forEach(el => el.remove());
+
+                    // Add selected items data
+                    this.selectedItems.forEach((item, index) => {
+                        this.addHiddenInput(form, `items[${index}][ppmp_item_id]`, item.ppmpItemId);
+                        this.addHiddenInput(form, `items[${index}][item_code]`, item.code);
+                        this.addHiddenInput(form, `items[${index}][item_name]`, item.name);
+                        this.addHiddenInput(form, `items[${index}][unit_of_measure]`, item.unit);
+                        this.addHiddenInput(form, `items[${index}][detailed_specifications]`, item.specs);
+                        this.addHiddenInput(form, `items[${index}][quantity_requested]`, item.quantity);
+                        this.addHiddenInput(form, `items[${index}][estimated_unit_cost]`, item.price);
+                    });
+                },
+
+                addHiddenInput(form, name, value) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = name;
+                    input.value = value || '';
+                    input.className = 'dynamic-input';
+                    form.appendChild(input);
+                },
+
+                formatNumber(num) {
+                    return parseFloat(num || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
                 }
-
-                document.addEventListener('keydown', trapFocus);
-            })();
-        </script>
+            }
+        }
+    </script>
     @endpush
-
 </x-app-layout>
