@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use App\Models\Department;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -15,6 +15,7 @@ class CeoUserManagementController extends Controller
         // Handle reset
         if ($request->boolean('reset')) {
             $request->session()->forget('ceo.users.filters');
+
             return redirect()->route('ceo.users.index');
         }
 
@@ -56,7 +57,7 @@ class CeoUserManagementController extends Controller
             'department_id' => $departmentId,
         ]));
 
-        $departments = Department::orderBy('name')->get(['id','name']);
+        $departments = Department::orderBy('name')->get(['id', 'name']);
 
         return view('ceo.users.index', [
             'users' => $users,
@@ -93,14 +94,15 @@ class CeoUserManagementController extends Controller
      */
     private function assignRoleBasedOnPosition(User $user): void
     {
-        if (!$user->position) {
+        if (! $user->position) {
             // Default to End User if no position
             $user->assignRole('End User');
+
             return;
         }
 
         $positionName = $user->position->name;
-        
+
         // Map positions to roles
         $positionRoleMap = [
             'System Administrator' => 'System Admin',
@@ -112,11 +114,12 @@ class CeoUserManagementController extends Controller
             'BAC Secretary' => 'BAC Secretariat',
             'Accounting Officer' => 'Accounting Office',
             'Canvassing Officer' => 'Canvassing Unit',
+            'Dean' => 'Dean', // College dean
             'Employee' => 'End User', // Default for regular employees
         ];
 
         $roleName = $positionRoleMap[$positionName] ?? 'End User';
-        
+
         // Remove any existing roles and assign the new one
         $user->syncRoles([$roleName]);
     }
@@ -129,8 +132,7 @@ class CeoUserManagementController extends Controller
             'rejected_at' => now(),
             'rejected_by' => $request->user()->id,
         ]);
+
         return redirect()->route('ceo.users.index')->with('status', 'User rejected.');
     }
 }
-
-

@@ -11,7 +11,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasRoles;
+    use HasFactory, HasRoles, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -110,11 +110,11 @@ class User extends Authenticatable
     public function getPrimarySVPRole()
     {
         $roles = $this->getRoleNames();
-        
+
         // Priority order for primary role determination
         $rolePriority = [
             'System Admin',
-            'Executive Officer', 
+            'Executive Officer',
             'Supply Officer',
             'BAC Chair',
             'Budget Office',
@@ -122,16 +122,33 @@ class User extends Authenticatable
             'BAC Secretariat',
             'Canvassing Unit',
             'Accounting Office',
+            'Dean',
             'End User',
-            'Supplier'
+            'Supplier',
         ];
-        
+
         foreach ($rolePriority as $role) {
             if ($roles->contains($role)) {
                 return $role;
             }
         }
-        
+
         return 'End User'; // Default role
+    }
+
+    /**
+     * Scope a query to exclude archived users.
+     */
+    public function scopeNotArchived($query)
+    {
+        return $query->where('is_archived', false);
+    }
+
+    /**
+     * Scope a query to users belonging to a specific college.
+     */
+    public function scopeForCollege($query, int $collegeId)
+    {
+        return $query->where('department_id', $collegeId);
     }
 }

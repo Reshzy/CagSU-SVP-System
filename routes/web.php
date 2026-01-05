@@ -1,27 +1,29 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\PurchaseRequestController;
-use App\Http\Controllers\SupplyPurchaseRequestController;
-use App\Http\Controllers\ReportsController;
-use App\Http\Controllers\BudgetEarmarkController;
-use App\Http\Controllers\CeoApprovalController;
-use App\Http\Controllers\BacQuotationController;
+use App\Http\Controllers\AccountingDisbursementController;
+use App\Http\Controllers\Api\BudgetCheckController;
+use App\Http\Controllers\AppItemController;
 use App\Http\Controllers\BacMeetingController;
 use App\Http\Controllers\BacProcurementMethodController;
-use App\Http\Controllers\PurchaseOrderController;
-use App\Http\Controllers\AccountingDisbursementController;
-use App\Http\Controllers\InventoryReceiptController;
-use App\Http\Controllers\SupplierRegistrationController;
-use App\Http\Controllers\SupplierQuotationPublicController;
-use App\Http\Controllers\SupplierPOStatusController;
-use App\Http\Controllers\SupplierCommunicationController;
-use App\Http\Controllers\DocumentController;
-use App\Http\Controllers\CeoUserManagementController;
-use App\Http\Controllers\CeoDepartmentController;
+use App\Http\Controllers\BacQuotationController;
+use App\Http\Controllers\BudgetEarmarkController;
 use App\Http\Controllers\BudgetManagementController;
-use App\Http\Controllers\Api\BudgetCheckController;
+use App\Http\Controllers\CeoApprovalController;
+use App\Http\Controllers\CeoDepartmentController;
+use App\Http\Controllers\CeoUserManagementController;
+use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\InventoryReceiptController;
+use App\Http\Controllers\PpmpController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PurchaseOrderController;
+use App\Http\Controllers\PurchaseRequestController;
+use App\Http\Controllers\ReportsController;
+use App\Http\Controllers\SupplierCommunicationController;
+use App\Http\Controllers\SupplierPOStatusController;
+use App\Http\Controllers\SupplierQuotationPublicController;
+use App\Http\Controllers\SupplierRegistrationController;
+use App\Http\Controllers\SupplyPurchaseRequestController;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('landing');
@@ -53,11 +55,29 @@ Route::middleware('auth')->group(function () {
 
     // Purchase Requests
     Route::resource('purchase-requests', PurchaseRequestController::class)
-        ->only(['index', 'create', 'store']);
+        ->only(['index', 'create', 'store', 'show']);
+
+    // Replacement PR workflow (for returned PRs)
+    Route::get('/purchase-requests/{originalPr}/replacement/create', [PurchaseRequestController::class, 'createReplacement'])
+        ->name('purchase-requests.replacement.create');
+    Route::post('/purchase-requests/{originalPr}/replacement', [PurchaseRequestController::class, 'storeReplacement'])
+        ->name('purchase-requests.replacement.store');
+
+    // PPMP Management (Department Users)
+    Route::prefix('ppmp')->group(function () {
+        Route::get('/', [PpmpController::class, 'index'])->name('ppmp.index');
+        Route::get('/create', [PpmpController::class, 'create'])->name('ppmp.create');
+        Route::post('/', [PpmpController::class, 'store'])->name('ppmp.store');
+        Route::get('/{ppmp}/edit', [PpmpController::class, 'edit'])->name('ppmp.edit');
+        Route::put('/{ppmp}', [PpmpController::class, 'update'])->name('ppmp.update');
+        Route::post('/{ppmp}/validate', [PpmpController::class, 'validate'])->name('ppmp.validate');
+        Route::get('/{ppmp}/summary', [PpmpController::class, 'summary'])->name('ppmp.summary');
+    });
 
     // Supply Officer - Purchase Requests Management
     Route::middleware('can:edit-purchase-request')->group(function () {
         Route::get('/supply/purchase-requests', [SupplyPurchaseRequestController::class, 'index'])->name('supply.purchase-requests.index');
+        Route::get('/supply/purchase-requests/{purchaseRequest}', [SupplyPurchaseRequestController::class, 'show'])->name('supply.purchase-requests.show');
         Route::put('/supply/purchase-requests/{purchaseRequest}/status', [SupplyPurchaseRequestController::class, 'updateStatus'])->name('supply.purchase-requests.status');
 
         // Purchase Orders
@@ -72,6 +92,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/supply/purchase-orders/{purchaseOrder}/inventory-receipts/create', [InventoryReceiptController::class, 'create'])->name('supply.inventory-receipts.create');
         Route::post('/supply/purchase-orders/{purchaseOrder}/inventory-receipts', [InventoryReceiptController::class, 'store'])->name('supply.inventory-receipts.store');
         Route::get('/supply/inventory-receipts/{inventoryReceipt}', [InventoryReceiptController::class, 'show'])->name('supply.inventory-receipts.show');
+
+        // APP Management (Annual Procurement Plan)
+        Route::get('/supply/app', [AppItemController::class, 'index'])->name('supply.app.index');
+        Route::get('/supply/app/import', [AppItemController::class, 'import'])->name('supply.app.import');
+        Route::post('/supply/app/import', [AppItemController::class, 'processImport'])->name('supply.app.process');
     });
 
     // Canvassing Unit - Supplier management
@@ -166,13 +191,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/bac/procurement-method', [BacProcurementMethodController::class, 'index'])->name('bac.procurement-method.index');
         Route::get('/bac/procurement-method/{purchaseRequest}/edit', [BacProcurementMethodController::class, 'edit'])->name('bac.procurement-method.edit');
         Route::put('/bac/procurement-method/{purchaseRequest}', [BacProcurementMethodController::class, 'update'])->name('bac.procurement-method.update');
-        
+
         Route::get('/bac/quotations', [BacQuotationController::class, 'index'])->name('bac.quotations.index');
         Route::get('/bac/quotations/{purchaseRequest}/manage', [BacQuotationController::class, 'manage'])->name('bac.quotations.manage');
         Route::post('/bac/quotations/{purchaseRequest}', [BacQuotationController::class, 'store'])->name('bac.quotations.store');
         Route::put('/bac/quotations/{quotation}/evaluate', [BacQuotationController::class, 'evaluate'])->name('bac.quotations.evaluate');
         Route::put('/bac/quotations/{purchaseRequest}/finalize', [BacQuotationController::class, 'finalize'])->name('bac.quotations.finalize');
-        
+
         // BAC Resolution
         Route::get('/bac/quotations/{purchaseRequest}/resolution/download', [BacQuotationController::class, 'downloadResolution'])->name('bac.quotations.resolution.download');
         Route::post('/bac/quotations/{purchaseRequest}/resolution/regenerate', [BacQuotationController::class, 'regenerateResolution'])->name('bac.quotations.resolution.regenerate');
@@ -197,4 +222,4 @@ Route::middleware('auth')->group(function () {
     });
 });
 
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';

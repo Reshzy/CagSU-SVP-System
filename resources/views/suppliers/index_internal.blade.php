@@ -2,7 +2,7 @@
 
 <x-app-layout>
 	<x-slot name="header">
-		<div class="flex items-center justify-between">
+		<div class="flex items-center justify-between gap-4">
 			<h2 class="font-semibold text-2xl text-gray-800 leading-tight">{{ __('Suppliers') }}</h2>
 			<div class="flex items-center gap-2">
 				@can('manage-suppliers')

@@ -44,6 +44,7 @@ class AssignRolesToApprovedUsers extends Command
             'BAC Secretary' => 'BAC Secretariat',
             'Accounting Officer' => 'Accounting Office',
             'Canvassing Officer' => 'Canvassing Unit',
+            'Dean' => 'Dean',
             'Employee' => 'End User',
         ];
 
@@ -53,8 +54,9 @@ class AssignRolesToApprovedUsers extends Command
         foreach ($users as $user) {
             // Skip if user already has roles
             if ($user->roles->isNotEmpty()) {
-                $this->line("Skipping {$user->name} - already has role(s): " . $user->roles->pluck('name')->join(', '));
+                $this->line("Skipping {$user->name} - already has role(s): ".$user->roles->pluck('name')->join(', '));
                 $skipped++;
+
                 continue;
             }
 
