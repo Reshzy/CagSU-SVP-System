@@ -2,7 +2,7 @@
 
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between gap-4">
             <div>
                 <h2 class="font-semibold text-2xl text-gray-800 leading-tight">Purchase Request Details</h2>
                 <p class="text-sm text-gray-600 mt-1">{{ $purchaseRequest->pr_number }}</p>

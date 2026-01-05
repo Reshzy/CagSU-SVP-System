@@ -112,45 +112,50 @@
                                         <div x-show="expandedCategories.includes('{{ $category }}')" 
                                              x-transition
                                              class="p-4 space-y-2">
-                                            @foreach ($items as $item)
-                                                @php
-                                                    $isPriceEditable = str_contains(strtoupper($category), 'SOFTWARE') || 
-                                                                       str_contains(strtoupper($category), 'PART II') || 
-                                                                       str_contains(strtoupper($category), 'OTHER ITEMS');
-                                                @endphp
-                                                <div class="border border-gray-200 dark:border-gray-700 rounded p-3 hover:border-indigo-500 transition-colors"
-                                                     x-show="itemVisible('{{ $item->appItem->item_name }}', '{{ $item->appItem->item_code }}', '{{ $category }}')">
-                                                    <div class="flex justify-between items-start">
-                                                        <div class="flex-1">
-                                                            <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ $item->appItem->item_name }}</div>
-                                                            <div class="text-xs text-gray-500">{{ $item->appItem->item_code }}</div>
-                                                            <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                                                {{ $item->appItem->unit_of_measure }}
-                                                                @if($isPriceEditable)
-                                                                    <span class="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs">Custom Price</span>
-                                                                @else
-                                                                    <span class="ml-2 font-semibold">₱{{ number_format($item->estimated_unit_cost, 2) }}</span>
-                                                                @endif
-                                                            </div>
-                                                        </div>
-                                                        <button type="button"
-                                                            @click="addItem({{ $item->id }}, {
-                                                                id: {{ $item->id }},
-                                                                name: '{{ addslashes($item->appItem->item_name) }}',
-                                                                code: '{{ $item->appItem->item_code }}',
-                                                                unit: '{{ $item->appItem->unit_of_measure }}',
-                                                                price: {{ $item->estimated_unit_cost }},
-                                                                specs: '{{ addslashes($item->appItem->specifications ?? '') }}',
-                                                                isPriceEditable: {{ $isPriceEditable ? 'true' : 'false' }}
-                                                            })"
-                                                            :disabled="isSelected({{ $item->id }})"
-                                                            class="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                                                            <span x-show="!isSelected({{ $item->id }})">Add to PR</span>
-                                                            <span x-show="isSelected({{ $item->id }})">Added</span>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            @endforeach
+                            @foreach ($items as $item)
+                                @php
+                                    $isPriceEditable = str_contains(strtoupper($category), 'SOFTWARE') || 
+                                                       str_contains(strtoupper($category), 'PART II') || 
+                                                       str_contains(strtoupper($category), 'OTHER ITEMS');
+                                    
+                                    // Get quarter status for this item
+                                    $itemData = $categorizedItems[$category]->firstWhere('item.id', $item->id);
+                                    $remainingQty = $itemData['remainingQty'] ?? 999;
+                                @endphp
+                                <div class="border border-gray-200 dark:border-gray-700 rounded p-3 hover:border-indigo-500 transition-colors"
+                                     x-show="itemVisible('{{ $item->appItem->item_name }}', '{{ $item->appItem->item_code }}', '{{ $category }}')">
+                                    <div class="flex justify-between items-start">
+                                        <div class="flex-1">
+                                            <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ $item->appItem->item_name }}</div>
+                                            <div class="text-xs text-gray-500">{{ $item->appItem->item_code }}</div>
+                                            <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                                {{ $item->appItem->unit_of_measure }}
+                                                @if($isPriceEditable)
+                                                    <span class="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs">Custom Price</span>
+                                                @else
+                                                    <span class="ml-2 font-semibold">₱{{ number_format($item->estimated_unit_cost, 2) }}</span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        <button type="button"
+                                            @click="addItem({{ $item->id }}, {
+                                                id: {{ $item->id }},
+                                                name: '{{ addslashes($item->appItem->item_name) }}',
+                                                code: '{{ $item->appItem->item_code }}',
+                                                unit: '{{ $item->appItem->unit_of_measure }}',
+                                                price: {{ $item->estimated_unit_cost }},
+                                                specs: '{{ addslashes($item->appItem->specifications ?? '') }}',
+                                                isPriceEditable: {{ $isPriceEditable ? 'true' : 'false' }},
+                                                maxQuantity: {{ $remainingQty }}
+                                            })"
+                                            :disabled="isSelected({{ $item->id }})"
+                                            class="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                            <span x-show="!isSelected({{ $item->id }})">Add to PR</span>
+                                            <span x-show="isSelected({{ $item->id }})">Added</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            @endforeach
                                         </div>
                                     </div>
                                 @endforeach
@@ -179,39 +184,44 @@
                                                 <div x-show="expandedCategories.includes('{{ $category }}')" 
                                                      x-transition
                                                      class="p-4 space-y-2">
-                                                    @foreach ($items as $item)
-                                                        @php
-                                                            $isPriceEditable = true;
-                                                        @endphp
-                                                        <div class="border border-gray-200 dark:border-gray-700 rounded p-3 hover:border-indigo-500 transition-colors"
-                                                             x-show="itemVisible('{{ $item->appItem->item_name }}', '{{ $item->appItem->item_code }}', '{{ $category }}')">
-                                                            <div class="flex justify-between items-start">
-                                                                <div class="flex-1">
-                                                                    <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ $item->appItem->item_name }}</div>
-                                                                    <div class="text-xs text-gray-500">{{ $item->appItem->item_code }}</div>
-                                                                    <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                                                        {{ $item->appItem->unit_of_measure }}
-                                                                        <span class="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs">Custom Price</span>
-                                                                    </div>
-                                                                </div>
-                                                                <button type="button"
-                                                                    @click="addItem({{ $item->id }}, {
-                                                                        id: {{ $item->id }},
-                                                                        name: '{{ addslashes($item->appItem->item_name) }}',
-                                                                        code: '{{ $item->appItem->item_code }}',
-                                                                        unit: '{{ $item->appItem->unit_of_measure }}',
-                                                                        price: {{ $item->estimated_unit_cost }},
-                                                                        specs: '{{ addslashes($item->appItem->specifications ?? '') }}',
-                                                                        isPriceEditable: true
-                                                                    })"
-                                                                    :disabled="isSelected({{ $item->id }})"
-                                                                    class="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                                                                    <span x-show="!isSelected({{ $item->id }})">Add to PR</span>
-                                                                    <span x-show="isSelected({{ $item->id }})">Added</span>
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    @endforeach
+                                    @foreach ($items as $item)
+                                        @php
+                                            $isPriceEditable = true;
+                                            
+                                            // Get quarter status for this item
+                                            $itemData = $categorizedItems[$category]->firstWhere('item.id', $item->id);
+                                            $remainingQty = $itemData['remainingQty'] ?? 999;
+                                        @endphp
+                                        <div class="border border-gray-200 dark:border-gray-700 rounded p-3 hover:border-indigo-500 transition-colors"
+                                             x-show="itemVisible('{{ $item->appItem->item_name }}', '{{ $item->appItem->item_code }}', '{{ $category }}')">
+                                            <div class="flex justify-between items-start">
+                                                <div class="flex-1">
+                                                    <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ $item->appItem->item_name }}</div>
+                                                    <div class="text-xs text-gray-500">{{ $item->appItem->item_code }}</div>
+                                                    <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                                        {{ $item->appItem->unit_of_measure }}
+                                                        <span class="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs">Custom Price</span>
+                                                    </div>
+                                                </div>
+                                                <button type="button"
+                                                    @click="addItem({{ $item->id }}, {
+                                                        id: {{ $item->id }},
+                                                        name: '{{ addslashes($item->appItem->item_name) }}',
+                                                        code: '{{ $item->appItem->item_code }}',
+                                                        unit: '{{ $item->appItem->unit_of_measure }}',
+                                                        price: {{ $item->estimated_unit_cost }},
+                                                        specs: '{{ addslashes($item->appItem->specifications ?? '') }}',
+                                                        isPriceEditable: true,
+                                                        maxQuantity: {{ $remainingQty }}
+                                                    })"
+                                                    :disabled="isSelected({{ $item->id }})"
+                                                    class="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                                    <span x-show="!isSelected({{ $item->id }})">Add to PR</span>
+                                                    <span x-show="isSelected({{ $item->id }})">Added</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    @endforeach
                                                 </div>
                                             </div>
                                         @endforeach
@@ -231,32 +241,33 @@
                             
                             <div class="space-y-4">
                                 <div>
-                                    <label for="purpose" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Purpose <span class="text-red-500">*</span>
-                                    </label>
-                                    <input 
-                                        type="text" 
-                                        id="purpose" 
-                                        name="purpose" 
-                                        value="{{ old('purpose', $originalPr->purpose) }}"
-                                        required
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                        placeholder="Enter purpose of procurement"
-                                    />
+                    <label for="purpose" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Purpose <span class="text-red-500">*</span>
+                    </label>
+                    <input 
+                        type="text" 
+                        id="purpose" 
+                        name="purpose" 
+                        x-model="prDetails.purpose"
+                        required
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        placeholder="Enter purpose of procurement"
+                    />
                                 </div>
 
                                 <div>
-                                    <label for="justification" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Justification
-                                    </label>
-                                    <textarea 
-                                        id="justification" 
-                                        name="justification"
-                                        rows="3"
-                                        required
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                        placeholder="Why is this procurement needed?"
-                                    >{{ old('justification', $originalPr->justification) }}</textarea>
+                    <label for="justification" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Justification <span class="text-red-500">*</span>
+                    </label>
+                    <textarea 
+                        id="justification" 
+                        name="justification"
+                        x-model="prDetails.justification"
+                        required
+                        rows="3"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        placeholder="Why is this procurement needed?"
+                    ></textarea>
                                 </div>
 
                                 <div>
@@ -335,16 +346,22 @@
                                                 <span class="text-xs text-white">₱<span x-text="formatNumber(item.price)"></span></span>
                                             </div>
 
-                                            <div class="flex items-center gap-2">
-                                                <label class="text-xs text-gray-600 dark:text-gray-400 w-16">Quantity:</label>
-                                                <input 
-                                                    type="number" 
-                                                    min="1"
-                                                    :value="item.quantity"
-                                                    @input="updateQuantity(item.id, $event.target.value)"
-                                                    class="w-20 text-xs rounded border-gray-300"
-                                                />
-                                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="text-xs text-gray-600 dark:text-gray-400 w-16">Quantity:</label>
+                                <div class="flex-1">
+                                    <input 
+                                        type="number" 
+                                        min="1"
+                                        :max="item.maxQuantity || 999"
+                                        :value="item.quantity"
+                                        @input="updateQuantity(item.id, $event.target.value)"
+                                        class="w-20 text-xs rounded border-gray-300"
+                                    />
+                                    <span x-show="item.maxQuantity" class="text-xs text-gray-500 ml-1">
+                                        / <span x-text="item.maxQuantity"></span> max
+                                    </span>
+                                </div>
+                            </div>
 
                                             <div class="flex items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
                                                 <label class="text-xs text-gray-600 dark:text-gray-400 w-16">Subtotal:</label>
@@ -438,6 +455,7 @@
                     purpose: '{{ old('purpose', $originalPr->purpose) }}',
                     justification: '{{ old('justification', $originalPr->justification) }}'
                 },
+                ppmpItemLimits: @json($categorizedItems->flatten(1)->values()),
 
                 init() {
                     // Load expanded state from localStorage
@@ -448,6 +466,13 @@
 
                     // Pre-populate with original PR items
                     @foreach($originalPr->items as $originalItem)
+                        @php
+                            $itemLimit = null;
+                            if ($originalItem->ppmp_item_id) {
+                                $itemLimit = $categorizedItems->flatten(1)->firstWhere('item.id', $originalItem->ppmp_item_id);
+                            }
+                            $maxQty = $itemLimit ? $itemLimit['remainingQty'] : 999;
+                        @endphp
                         this.selectedItems.push({
                             id: Date.now() + {{ $loop->index }},
                             ppmpItemId: {{ $originalItem->ppmp_item_id ?? 'null' }},
@@ -457,6 +482,7 @@
                             price: {{ $originalItem->estimated_unit_cost }},
                             specs: '{{ addslashes($originalItem->detailed_specifications ?? '') }}',
                             quantity: {{ $originalItem->quantity_requested }},
+                            maxQuantity: {{ $maxQty }},
                             isPriceEditable: {{ str_contains(strtoupper($originalItem->item_category ?? ''), 'SOFTWARE') || str_contains(strtoupper($originalItem->item_category ?? ''), 'PART') ? 'true' : 'false' }}
                         });
                     @endforeach
@@ -477,7 +503,8 @@
                 get canSubmit() {
                     return this.selectedCount > 0 && 
                            this.budgetRemaining >= 0 && 
-                           this.prDetails.purpose.trim() !== '';
+                           this.prDetails.purpose.trim() !== '' &&
+                           this.prDetails.justification.trim() !== '';
                 },
 
                 isSelected(itemId) {
@@ -510,6 +537,7 @@
                         this.showPriceModal = true;
                     } else {
                         // Add directly with fixed price
+                        const itemLimit = this.ppmpItemLimits.find(i => i.item && i.item.id === itemId);
                         this.selectedItems.push({
                             id: Date.now(),
                             ppmpItemId: itemId,
@@ -519,6 +547,7 @@
                             price: itemData.price,
                             specs: itemData.specs,
                             quantity: 1,
+                            maxQuantity: itemData.maxQuantity || (itemLimit ? itemLimit.remainingQty : 999),
                             isPriceEditable: false
                         });
                     }
@@ -532,6 +561,8 @@
                     }
 
                     const data = this.priceModalItem.data;
+                    const itemLimit = this.ppmpItemLimits.find(i => i.item && i.item.id === this.priceModalItem.id);
+                    
                     this.selectedItems.push({
                         id: Date.now(),
                         ppmpItemId: this.priceModalItem.id,
@@ -541,6 +572,7 @@
                         price: price,
                         specs: data.specs,
                         quantity: 1,
+                        maxQuantity: data.maxQuantity || (itemLimit ? itemLimit.remainingQty : 999),
                         isPriceEditable: true
                     });
 
@@ -561,9 +593,19 @@
 
                 updateQuantity(itemId, value) {
                     const item = this.selectedItems.find(i => i.id === itemId);
-                    if (item) {
-                        item.quantity = parseInt(value) || 1;
+                    if (!item) return;
+
+                    const newQty = parseInt(value) || 1;
+                    
+                    // Validate against remaining PPMP quantity
+                    if (item.maxQuantity && newQty > item.maxQuantity) {
+                        alert(`Cannot exceed remaining quantity (${item.maxQuantity} available for current quarter)`);
+                        // Reset to max quantity
+                        item.quantity = item.maxQuantity;
+                        return;
                     }
+                    
+                    item.quantity = newQty;
                 },
 
                 updatePrice(itemId, value) {
@@ -604,6 +646,8 @@
                             alert('Total cost exceeds available budget.');
                         } else if (this.prDetails.purpose.trim() === '') {
                             alert('Please enter the purpose of the purchase request.');
+                        } else if (this.prDetails.justification.trim() === '') {
+                            alert('Please enter the justification for the purchase request.');
                         }
                         return;
                     }
@@ -613,6 +657,10 @@
                     
                     // Remove old dynamic inputs
                     form.querySelectorAll('.dynamic-input').forEach(el => el.remove());
+
+                    // Add purpose and justification from Alpine.js state
+                    this.addHiddenInput(form, 'purpose', this.prDetails.purpose);
+                    this.addHiddenInput(form, 'justification', this.prDetails.justification);
 
                     // Add selected items data
                     this.selectedItems.forEach((item, index) => {
