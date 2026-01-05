@@ -231,8 +231,24 @@ class ComprehensiveUserSeeder extends Seeder
         ];
 
         foreach ($colleges as $index => $collegeData) {
-            // Find or create the college department
+            // Find or create the college department - check by both code and name
             $college = Department::where('code', $collegeData['code'])->first();
+            
+            // If not found by code, check by name
+            if (!$college) {
+                $college = Department::where('name', $collegeData['name'])->first();
+                
+                // If found by name but code differs, update the code
+                if ($college && $college->code !== $collegeData['code']) {
+                    $college->update([
+                        'code' => $collegeData['code'],
+                        'description' => $collegeData['description'],
+                        'is_active' => true,
+                        'is_archived' => false,
+                    ]);
+                }
+            }
+
             if (!$college) {
                 $college = Department::create([
                     'name' => $collegeData['name'],

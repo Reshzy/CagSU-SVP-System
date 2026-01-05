@@ -243,19 +243,19 @@ class RolePermissionSeeder extends Seeder
         ]);
 
         // Create Departments
-        // $departments = [
-        //     ['name' => 'Administrative Office', 'code' => 'ADMIN', 'description' => 'Main administrative office'],
-        //     ['name' => 'Academic Affairs', 'code' => 'ACAD', 'description' => 'Academic affairs department'],
-        //     ['name' => 'Finance Office', 'code' => 'FINANCE', 'description' => 'Financial management and budgeting'],
-        //     ['name' => 'Information Technology', 'code' => 'IT', 'description' => 'IT services and support'],
-        //     ['name' => 'Human Resources', 'code' => 'HR', 'description' => 'Human resources management'],
-        //     ['name' => 'Facilities Management', 'code' => 'FACILITY', 'description' => 'Campus facilities and maintenance'],
-        //     ['name' => 'Security Office', 'code' => 'SECURITY', 'description' => 'Campus security services'],
-        // ];
+        $departments = [
+            ['name' => 'Administrative Office', 'code' => 'ADMIN', 'description' => 'Main administrative office'],
+            // ['name' => 'Academic Affairs', 'code' => 'ACAD', 'description' => 'Academic affairs department'],
+            // ['name' => 'Finance Office', 'code' => 'FINANCE', 'description' => 'Financial management and budgeting'],
+            // ['name' => 'Information Technology', 'code' => 'IT', 'description' => 'IT services and support'],
+            // ['name' => 'Human Resources', 'code' => 'HR', 'description' => 'Human resources management'],
+            // ['name' => 'Facilities Management', 'code' => 'FACILITY', 'description' => 'Campus facilities and maintenance'],
+            // ['name' => 'Security Office', 'code' => 'SECURITY', 'description' => 'Campus security services'],
+        ];
 
-        // foreach ($departments as $dept) {
-        //     Department::create($dept);
-        // }
+        foreach ($departments as $dept) {
+            Department::create($dept);
+        }
 
         // Create System Admin User
         // $adminUser = User::create([
