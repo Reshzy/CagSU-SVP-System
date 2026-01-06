@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Models\PurchaseRequest;
+use App\Services\PpmpQuarterlyTracker;
 use App\Services\PurchaseRequestActivityLogger;
 use Illuminate\Support\Facades\Log;
 
@@ -13,6 +14,19 @@ class PurchaseRequestObserver
     public function __construct(PurchaseRequestActivityLogger $activityLogger)
     {
         $this->activityLogger = $activityLogger;
+    }
+
+    /**
+     * Handle the PurchaseRequest "creating" event.
+     * Set pr_quarter before creating the PR
+     */
+    public function creating(PurchaseRequest $purchaseRequest): void
+    {
+        // Automatically set pr_quarter if not already set
+        if ($purchaseRequest->pr_quarter === null) {
+            $quarterlyTracker = app(PpmpQuarterlyTracker::class);
+            $purchaseRequest->pr_quarter = $quarterlyTracker->getQuarterFromDate();
+        }
     }
 
     /**
