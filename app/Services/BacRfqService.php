@@ -17,16 +17,17 @@ use PhpOffice\PhpWord\SimpleType\JcTable;
 class BacRfqService
 {
     private PhpWord $phpWord;
+
     private $section;
+
     private PurchaseRequest $purchaseRequest;
+
     private array $data;
 
     /**
      * Generate RFQ document for a Purchase Request
-     * 
-     * @param PurchaseRequest $purchaseRequest
-     * @param array|null $signatoryData Array of signatory data (position, name, prefix, suffix)
-     * @return Document|null
+     *
+     * @param  array|null  $signatoryData  Array of signatory data (position, name, prefix, suffix)
      */
     public function generateRfq(PurchaseRequest $purchaseRequest, ?array $signatoryData = null): ?Document
     {
@@ -37,8 +38,8 @@ class BacRfqService
 
         // Save to storage and create document record
         $filename = $this->saveToStorage();
-        
-        if (!$filename) {
+
+        if (! $filename) {
             return null;
         }
 
@@ -87,12 +88,12 @@ class BacRfqService
             'canvassing_officer' => ['name' => 'Chanda T. Aquino', 'prefix' => null, 'suffix' => null],
         ];
 
-        // If signatories parameter is provided, use it
+        // If signatories parameter is provided, use it (for regeneration overrides)
         if ($signatories) {
             return array_merge($defaultSignatories, $signatories);
         }
 
-        // Otherwise, try to load from rfq_signatories table
+        // Try to load from rfq_signatories table (per-document overrides)
         if ($this->purchaseRequest->rfqSignatories && $this->purchaseRequest->rfqSignatories->isNotEmpty()) {
             $result = [];
             foreach ($this->purchaseRequest->rfqSignatories as $sig) {
@@ -102,16 +103,32 @@ class BacRfqService
                     'suffix' => $sig->suffix,
                 ];
             }
-            
+
             Log::info('Loaded RFQ signatories from DB', [
                 'count' => count($result),
-                'positions' => array_keys($result)
+                'positions' => array_keys($result),
             ]);
-            
+
             return array_merge($defaultSignatories, $result);
         }
 
-        // Fall back to defaults
+        // Try to load from BAC Signatories setup (auto-apply from configuration)
+        $signatoryLoader = new SignatoryLoaderService;
+        $requiredPositions = ['bac_chairperson', 'canvassing_officer'];
+        $bacSignatories = $signatoryLoader->loadActiveSignatories($requiredPositions, false);
+
+        if (! empty($bacSignatories)) {
+            Log::info('Loaded RFQ signatories from BAC Signatories setup', [
+                'count' => count($bacSignatories),
+                'positions' => array_keys($bacSignatories),
+            ]);
+
+            return array_merge($defaultSignatories, $bacSignatories);
+        }
+
+        // Fall back to hardcoded defaults
+        Log::info('Using hardcoded default signatories for RFQ');
+
         return $defaultSignatories;
     }
 
@@ -120,7 +137,7 @@ class BacRfqService
      */
     private function getProcurementHeaderText(string $procurementType): string
     {
-        return match($procurementType) {
+        return match ($procurementType) {
             'small_value_procurement' => 'For Small Value Procurement under Sec. 53.9 of the Revised IRR of R.A. 9184',
             'negotiated_procurement' => 'Negotiated Procurement (Agency-to-Agency) Under Section 53.5',
             'direct_contracting' => 'For Direct Contracting under Sec. 50 of the Revised IRR of R.A. 9184',
@@ -137,6 +154,7 @@ class BacRfqService
         try {
             $date = new DateTime($resolutionDate);
             $date->modify('+4 days');
+
             return $date->format('F j'); // Format as "November 15"
         } catch (\Exception $e) {
             return '';
@@ -148,7 +166,7 @@ class BacRfqService
      */
     private function initializeDocument(): void
     {
-        $this->phpWord = new PhpWord();
+        $this->phpWord = new PhpWord;
         $this->phpWord->setDefaultFontName('Century Gothic');
         $this->phpWord->setDefaultFontSize(10);
 
@@ -167,29 +185,29 @@ class BacRfqService
             'alignment' => Jc::CENTER,
             'spaceAfter' => 0,
         ]);
-        
+
         $this->phpWord->addFontStyle('HeaderFont', [
             'name' => 'Times New Roman',
             'bold' => true,
             'size' => 9,
         ]);
-        
+
         $this->phpWord->addFontStyle('CenterBold', [
             'bold' => true,
             'allCaps' => true,
         ]);
-        
+
         $this->phpWord->addFontStyle('UnderlineBold', [
             'bold' => true,
             'allCaps' => true,
             'underline' => 'single',
         ]);
-        
+
         $this->phpWord->addFontStyle('ConditionsText', [
             'name' => 'Times New Roman',
             'size' => 6,
         ]);
-        
+
         $this->phpWord->addParagraphStyle('ConditionsList', [
             'spaceAfter' => 0,
             'spaceBefore' => 0,
@@ -205,7 +223,7 @@ class BacRfqService
         $properties = $this->phpWord->getDocInfo();
         $properties->setCreator('Cagayan State University - BAC System');
         $properties->setTitle('Request for Quotation Document');
-        $properties->setSubject('Request for Quotation - RFQ No. ' . $this->data['rfq_no']);
+        $properties->setSubject('Request for Quotation - RFQ No. '.$this->data['rfq_no']);
     }
 
     /**
@@ -233,7 +251,7 @@ class BacRfqService
         $header->addText('Sanchez Mira, Cagayan', ['size' => 7, 'name' => 'Times New Roman', 'bold' => true], 'CenterHeader');
         $header->addText('REQUEST FOR QUOTATION', ['size' => 8, 'name' => 'Times New Roman', 'bold' => true], 'CenterHeader');
         $header->addText($this->getProcurementHeaderText($this->data['procurement_type']), ['size' => 6, 'italic' => true, 'name' => 'Times New Roman'], 'CenterHeader');
-        
+
         // Add logo
         $logoPath = public_path('images/logo.png');
         if (file_exists($logoPath)) {
@@ -285,9 +303,9 @@ class BacRfqService
         $cell1->addText('_______________________________', ['name' => 'Times New Roman', 'size' => 8], ['spaceAfter' => 0]);
         $cell1->addText('_______________________________', ['name' => 'Times New Roman', 'size' => 8], ['spaceAfter' => 0]);
         $cell1->addText('_______________________________', ['name' => 'Times New Roman', 'size' => 8], ['spaceAfter' => 0]);
-        
+
         $cell2 = $table->addCell(35 * 50);
-        $cell2->addText('RFQ NO: ' . $this->data['rfq_no'], ['name' => 'Times New Roman', 'size' => 8], ['spaceAfter' => 0]);
+        $cell2->addText('RFQ NO: '.$this->data['rfq_no'], ['name' => 'Times New Roman', 'size' => 8], ['spaceAfter' => 0]);
     }
 
     /**
@@ -300,7 +318,7 @@ class BacRfqService
             'spaceAfter' => 0,
             'spaceBefore' => 0,
         ]);
-        
+
         $run->addText('ㅤ', ['size' => 6]);
         $run->addTextBreak();
         $run->addText('The ', 'ConditionsText');
@@ -414,15 +432,15 @@ class BacRfqService
 
         for ($i = 0; $i < $totalRows; $i++) {
             $table->addRow();
-            
+
             if ($i < $itemCount) {
                 $item = $this->data['items'][$i];
                 $itemNumber = $i + 1;
-                
-                $table->addCell(Converter::cmToTwip(0.6), $cellStyle)->addText((string)$itemNumber, [], $paragraphCenter);
+
+                $table->addCell(Converter::cmToTwip(0.6), $cellStyle)->addText((string) $itemNumber, [], $paragraphCenter);
                 $table->addCell(Converter::cmToTwip(1.5), $cellStyle)->addText($item['unit_of_measure'] ?? '', ['allCaps' => true], $paragraphCenter);
                 $table->addCell(null, $cellStyle)->addText($item['item_name'] ?? '', ['allCaps' => true], $paragraphLeft);
-                $table->addCell(Converter::cmToTwip(2.2), $cellStyle)->addText((string)($item['quantity_requested'] ?? ''), [], $paragraphCenter);
+                $table->addCell(Converter::cmToTwip(2.2), $cellStyle)->addText((string) ($item['quantity_requested'] ?? ''), [], $paragraphCenter);
                 $table->addCell(Converter::cmToTwip(2.5), $cellStyle)->addText('', [], $paragraphLeft);
                 $table->addCell(Converter::cmToTwip(2.5), $cellStyle)->addText('', [], $paragraphLeft);
             } else {
@@ -458,10 +476,10 @@ class BacRfqService
         $cell1 = $table->addCell(Converter::cmToTwip(10 * 0.75), ['valign' => 'center']);
         $cell1->addText($this->data['canvasser'], ['name' => 'Times New Roman', 'size' => 9, 'allCaps' => true, 'bold' => true], ['spaceAfter' => 0, 'spaceBefore' => 0, 'alignment' => Jc::CENTER]);
         $cell1->addText('Canvasser:', ['name' => 'Times New Roman', 'size' => 6], ['spaceBefore' => 0, 'alignment' => Jc::CENTER]);
-        $cell1->addText('Resolution No.: ' . $this->data['resolution_no'], ['name' => 'Times New Roman', 'size' => 9, 'allCaps' => true, 'underline' => 'single', 'bold' => true], ['spaceAfter' => 0, 'spaceBefore' => 0, 'alignment' => Jc::START]);
-        
+        $cell1->addText('Resolution No.: '.$this->data['resolution_no'], ['name' => 'Times New Roman', 'size' => 9, 'allCaps' => true, 'underline' => 'single', 'bold' => true], ['spaceAfter' => 0, 'spaceBefore' => 0, 'alignment' => Jc::START]);
+
         $table->addCell(null);
-        
+
         $cell3 = $table->addCell(Converter::cmToTwip(7.2));
         $cell3->addText('________________________________________', [], ['alignment' => Jc::CENTER, 'spaceAfter' => 0, 'spaceBefore' => 0]);
         $cell3->addText('Printed Name and Signature/Date:', ['name' => 'Times New Roman', 'size' => 6], ['spaceAfter' => 0, 'spaceBefore' => 0, 'alignment' => Jc::CENTER]);
@@ -475,11 +493,11 @@ class BacRfqService
     private function saveToStorage(): ?string
     {
         try {
-            $filename = $this->data['rfq_no'] . '.docx';
-            $tempPath = storage_path('app/temp/' . $filename);
+            $filename = $this->data['rfq_no'].'.docx';
+            $tempPath = storage_path('app/temp/'.$filename);
 
             // Ensure temp directory exists
-            if (!is_dir(storage_path('app/temp'))) {
+            if (! is_dir(storage_path('app/temp'))) {
                 mkdir(storage_path('app/temp'), 0777, true);
             }
 
@@ -487,12 +505,12 @@ class BacRfqService
             $writer = IOFactory::createWriter($this->phpWord, 'Word2007');
             $writer->save($tempPath);
 
-            if (!file_exists($tempPath)) {
+            if (! file_exists($tempPath)) {
                 return null;
             }
 
             // Move to rfq directory
-            $finalPath = 'rfq/' . $filename;
+            $finalPath = 'rfq/'.$filename;
             Storage::put($finalPath, file_get_contents($tempPath));
 
             // Clean up temp file
@@ -500,7 +518,8 @@ class BacRfqService
 
             return $filename;
         } catch (\Exception $e) {
-            Log::error('Failed to generate RFQ: ' . $e->getMessage());
+            Log::error('Failed to generate RFQ: '.$e->getMessage());
+
             return null;
         }
     }
@@ -520,12 +539,12 @@ class BacRfqService
             if ($existingDoc) {
                 // Update existing document
                 $existingDoc->update([
-                    'document_number' => 'RFQ-' . now()->format('Y-m-d-His'),
-                    'title' => 'Request for Quotation - ' . $this->data['rfq_no'],
+                    'document_number' => 'RFQ-'.now()->format('Y-m-d-His'),
+                    'title' => 'Request for Quotation - '.$this->data['rfq_no'],
                     'file_name' => $filename,
-                    'file_path' => 'rfq/' . $filename,
+                    'file_path' => 'rfq/'.$filename,
                     'file_extension' => 'docx',
-                    'file_size' => Storage::size('rfq/' . $filename),
+                    'file_size' => Storage::size('rfq/'.$filename),
                     'mime_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                     'version' => $existingDoc->version + 1,
                     'status' => 'approved',
@@ -536,16 +555,16 @@ class BacRfqService
 
             // Create new document record
             return Document::create([
-                'document_number' => 'RFQ-' . now()->format('Y-m-d-His'),
+                'document_number' => 'RFQ-'.now()->format('Y-m-d-His'),
                 'documentable_type' => PurchaseRequest::class,
                 'documentable_id' => $this->purchaseRequest->id,
                 'document_type' => 'bac_rfq',
-                'title' => 'Request for Quotation - ' . $this->data['rfq_no'],
-                'description' => 'Request for Quotation for Purchase Request ' . $this->purchaseRequest->pr_number,
+                'title' => 'Request for Quotation - '.$this->data['rfq_no'],
+                'description' => 'Request for Quotation for Purchase Request '.$this->purchaseRequest->pr_number,
                 'file_name' => $filename,
-                'file_path' => 'rfq/' . $filename,
+                'file_path' => 'rfq/'.$filename,
                 'file_extension' => 'docx',
-                'file_size' => Storage::size('rfq/' . $filename),
+                'file_size' => Storage::size('rfq/'.$filename),
                 'mime_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                 'version' => 1,
                 'is_current_version' => true,
@@ -555,9 +574,9 @@ class BacRfqService
                 'status' => 'approved',
             ]);
         } catch (\Exception $e) {
-            Log::error('Failed to attach RFQ document: ' . $e->getMessage());
+            Log::error('Failed to attach RFQ document: '.$e->getMessage());
+
             return null;
         }
     }
 }
-

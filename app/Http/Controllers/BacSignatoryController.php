@@ -20,7 +20,11 @@ class BacSignatoryController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(15);
 
-        return view('bac.signatories.index', compact('signatories'));
+        // Get signatory status for validation display
+        $signatoryLoader = new \App\Services\SignatoryLoaderService;
+        $signatoryStatus = $signatoryLoader->getSignatoryStatus();
+
+        return view('bac.signatories.index', compact('signatories', 'signatoryStatus'));
     }
 
     /**
@@ -32,7 +36,7 @@ class BacSignatoryController extends Controller
         $bacUsers = User::whereHas('roles', function ($query) {
             $query->whereIn('name', ['BAC Chair', 'BAC Members', 'BAC Secretariat', 'Executive Officer', 'System Admin', 'Canvassing Unit']);
         })->orderBy('name')->get();
-        
+
         // If no users found with roles, get all users as fallback
         if ($bacUsers->isEmpty()) {
             $bacUsers = User::orderBy('name')->get();
@@ -88,6 +92,7 @@ class BacSignatoryController extends Controller
     public function show(BacSignatory $signatory): View
     {
         $signatory->load('user');
+
         return view('bac.signatories.show', compact('signatory'));
     }
 
@@ -97,12 +102,12 @@ class BacSignatoryController extends Controller
     public function edit(BacSignatory $signatory): View
     {
         $signatory->load('user');
-        
+
         // Get users with BAC-related roles, including Canvassing Unit
         $bacUsers = User::whereHas('roles', function ($query) {
             $query->whereIn('name', ['BAC Chair', 'BAC Members', 'BAC Secretariat', 'Executive Officer', 'System Admin', 'Canvassing Unit']);
         })->orderBy('name')->get();
-        
+
         // If no users found with roles, get all users as fallback
         if ($bacUsers->isEmpty()) {
             $bacUsers = User::orderBy('name')->get();
