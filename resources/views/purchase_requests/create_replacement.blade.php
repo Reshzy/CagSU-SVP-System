@@ -17,6 +17,25 @@
                 </p>
             </div>
 
+            <!-- Current Quarter Banner -->
+            <div class="bg-blue-50 dark:bg-blue-900 border-l-4 border-blue-500 p-4 mb-6 rounded-r-lg">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-6 w-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3 flex-1">
+                        <h3 class="text-lg font-medium text-blue-800 dark:text-blue-200">
+                            Creating PR for Q{{ $currentQuarter }} - {{ $quarterLabel }}
+                        </h3>
+                        <p class="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                            Only items allocated to the current quarter can be selected
+                        </p>
+                    </div>
+                </div>
+            </div>
+
             @if ($errors->any())
                 <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
                     <strong class="font-bold">Error!</strong>
@@ -120,22 +139,75 @@
                                     
                                     // Get quarter status for this item
                                     $itemData = $categorizedItems[$category]->firstWhere('item.id', $item->id);
-                                    $remainingQty = $itemData['remainingQty'] ?? 999;
+                                    $quarterStatus = $itemData['quarterStatus'] ?? 'unavailable';
+                                    $remainingQty = $itemData['remainingQty'] ?? 0;
+                                    $currentQuarterQty = $itemData['currentQuarterQty'] ?? 0;
+                                    $isAvailable = $quarterStatus === 'current' && $remainingQty > 0;
                                 @endphp
-                                <div class="border border-gray-200 dark:border-gray-700 rounded p-3 hover:border-indigo-500 transition-colors"
+                                <div class="border border-gray-200 dark:border-gray-700 rounded p-3 transition-colors {{ $isAvailable ? 'hover:border-indigo-500' : 'bg-gray-50 dark:bg-gray-900 opacity-60' }}"
                                      x-show="itemVisible('{{ $item->appItem->item_name }}', '{{ $item->appItem->item_code }}', '{{ $category }}')">
                                     <div class="flex justify-between items-start">
                                         <div class="flex-1">
-                                            <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ $item->appItem->item_name }}</div>
-                                            <div class="text-xs text-gray-500">{{ $item->appItem->item_code }}</div>
-                                            <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                                {{ $item->appItem->unit_of_measure }}
-                                                @if($isPriceEditable)
-                                                    <span class="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs">Custom Price</span>
+                                            <div class="flex items-start gap-2">
+                                                <div class="text-sm font-medium {{ $isAvailable ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-600' }}">
+                                                    {{ $item->appItem->item_name }}
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Quarter Status Badges -->
+                                            <div class="mt-1 flex flex-wrap gap-1">
+                                                @if($quarterStatus === 'current' && $remainingQty > 0)
+                                                    <span class="px-2 py-0.5 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded text-xs font-medium">
+                                                        Available - Q{{ $currentQuarter }}
+                                                    </span>
+                                                    <span class="px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded text-xs">
+                                                        {{ $remainingQty }} remaining
+                                                    </span>
+                                                @elseif($quarterStatus === 'past')
+                                                    <span class="px-2 py-0.5 bg-gray-300 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded text-xs">
+                                                        Past Quarter - Not Available
+                                                    </span>
+                                                @elseif($quarterStatus === 'future')
+                                                    <span class="px-2 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded text-xs">
+                                                        Available in Q{{ $item->getNextAvailableQuarter() }} - {{ $item->getQuarterMonths() }}
+                                                    </span>
+                                                @elseif($quarterStatus === 'current' && $remainingQty <= 0)
+                                                    <span class="px-2 py-0.5 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 rounded text-xs">
+                                                        Fully Utilized - Q{{ $currentQuarter }}
+                                                    </span>
                                                 @else
-                                                    <span class="ml-2 font-semibold">₱{{ number_format($item->estimated_unit_cost, 2) }}</span>
+                                                    <span class="px-2 py-0.5 bg-gray-300 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded text-xs">
+                                                        Not Allocated
+                                                    </span>
                                                 @endif
                                             </div>
+                                            
+                                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                {{ $item->appItem->item_code }}
+                                            </div>
+                                            
+                                            @if($isAvailable)
+                                                <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                                    {{ $item->appItem->unit_of_measure }}
+                                                    @if($isPriceEditable)
+                                                        <span class="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 rounded text-xs">Custom Price</span>
+                                                    @else
+                                                        • <span class="font-semibold">₱{{ number_format($item->estimated_unit_cost, 2) }}</span>
+                                                    @endif
+                                                </div>
+                                            @else
+                                                <div class="text-xs text-gray-500 dark:text-gray-600 mt-1 italic">
+                                                    @if($quarterStatus === 'past')
+                                                        This item was allocated to a past quarter
+                                                    @elseif($quarterStatus === 'future')
+                                                        Wait until {{ $item->getQuarterMonths($item->getNextAvailableQuarter()) }} to request this item
+                                                    @elseif($quarterStatus === 'current' && $remainingQty <= 0)
+                                                        All {{ $currentQuarterQty }} units have been requested
+                                                    @else
+                                                        No quantity allocated for any quarter
+                                                    @endif
+                                                </div>
+                                            @endif
                                         </div>
                                         <button type="button"
                                             @click="addItem({{ $item->id }}, {
@@ -148,10 +220,14 @@
                                                 isPriceEditable: {{ $isPriceEditable ? 'true' : 'false' }},
                                                 maxQuantity: {{ $remainingQty }}
                                             })"
-                                            :disabled="isSelected({{ $item->id }})"
-                                            class="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                                            <span x-show="!isSelected({{ $item->id }})">Add to PR</span>
-                                            <span x-show="isSelected({{ $item->id }})">Added</span>
+                                            :disabled="isSelected({{ $item->id }}) || !{{ $isAvailable ? 'true' : 'false' }}"
+                                            class="px-3 py-1 text-xs rounded transition-colors {{ $isAvailable ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed' }} disabled:opacity-50 disabled:cursor-not-allowed">
+                                            @if($isAvailable)
+                                                <span x-show="!isSelected({{ $item->id }})">Add to PR</span>
+                                                <span x-show="isSelected({{ $item->id }})">Added</span>
+                                            @else
+                                                <span>Not Available</span>
+                                            @endif
                                         </button>
                                     </div>
                                 </div>
@@ -190,18 +266,69 @@
                                             
                                             // Get quarter status for this item
                                             $itemData = $categorizedItems[$category]->firstWhere('item.id', $item->id);
-                                            $remainingQty = $itemData['remainingQty'] ?? 999;
+                                            $quarterStatus = $itemData['quarterStatus'] ?? 'unavailable';
+                                            $remainingQty = $itemData['remainingQty'] ?? 0;
+                                            $currentQuarterQty = $itemData['currentQuarterQty'] ?? 0;
+                                            $isAvailable = $quarterStatus === 'current' && $remainingQty > 0;
                                         @endphp
-                                        <div class="border border-gray-200 dark:border-gray-700 rounded p-3 hover:border-indigo-500 transition-colors"
+                                        <div class="border border-gray-200 dark:border-gray-700 rounded p-3 transition-colors {{ $isAvailable ? 'hover:border-indigo-500' : 'bg-gray-50 dark:bg-gray-900 opacity-60' }}"
                                              x-show="itemVisible('{{ $item->appItem->item_name }}', '{{ $item->appItem->item_code }}', '{{ $category }}')">
                                             <div class="flex justify-between items-start">
                                                 <div class="flex-1">
-                                                    <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ $item->appItem->item_name }}</div>
-                                                    <div class="text-xs text-gray-500">{{ $item->appItem->item_code }}</div>
-                                                    <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                                        {{ $item->appItem->unit_of_measure }}
-                                                        <span class="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs">Custom Price</span>
+                                                    <div class="text-sm font-medium {{ $isAvailable ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-600' }}">
+                                                        {{ $item->appItem->item_name }}
                                                     </div>
+                                                    
+                                                    <!-- Quarter Status Badges -->
+                                                    <div class="mt-1 flex flex-wrap gap-1">
+                                                        @if($quarterStatus === 'current' && $remainingQty > 0)
+                                                            <span class="px-2 py-0.5 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded text-xs font-medium">
+                                                                Available - Q{{ $currentQuarter }}
+                                                            </span>
+                                                            <span class="px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded text-xs">
+                                                                {{ $remainingQty }} remaining
+                                                            </span>
+                                                        @elseif($quarterStatus === 'past')
+                                                            <span class="px-2 py-0.5 bg-gray-300 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded text-xs">
+                                                                Past Quarter - Not Available
+                                                            </span>
+                                                        @elseif($quarterStatus === 'future')
+                                                            <span class="px-2 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded text-xs">
+                                                                Available in Q{{ $item->getNextAvailableQuarter() }} - {{ $item->getQuarterMonths() }}
+                                                            </span>
+                                                        @elseif($quarterStatus === 'current' && $remainingQty <= 0)
+                                                            <span class="px-2 py-0.5 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 rounded text-xs">
+                                                                Fully Utilized - Q{{ $currentQuarter }}
+                                                            </span>
+                                                        @else
+                                                            <span class="px-2 py-0.5 bg-gray-300 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded text-xs">
+                                                                Not Allocated
+                                                            </span>
+                                                        @endif
+                                                    </div>
+                                                    
+                                                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                        {{ $item->appItem->item_code }}
+                                                    </div>
+                                                    
+                                                    @if($isAvailable)
+                                                        <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                                            {{ $item->appItem->unit_of_measure }}
+                                                            <span class="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 rounded text-xs">Custom Price</span>
+                                                        </div>
+                                                    @else
+                                                        <div class="text-xs text-gray-500 dark:text-gray-600 mt-1 italic">
+                                                            @if($quarterStatus === 'past')
+                                                                This item was allocated to a past quarter
+                                                            @elseif($quarterStatus === 'future')
+                                                                Wait until {{ $item->getQuarterMonths($item->getNextAvailableQuarter()) }} to request this item
+                                                            @elseif($quarterStatus === 'current' && $remainingQty <= 0)
+                                                                All {{ $currentQuarterQty }} units have been requested
+                                                            @else
+                                                                No quantity allocated for any quarter
+                                                            @endif
+                                                        </div>
+                                                    @endif
                                                 </div>
                                                 <button type="button"
                                                     @click="addItem({{ $item->id }}, {
@@ -214,10 +341,14 @@
                                                         isPriceEditable: true,
                                                         maxQuantity: {{ $remainingQty }}
                                                     })"
-                                                    :disabled="isSelected({{ $item->id }})"
-                                                    class="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                                                    <span x-show="!isSelected({{ $item->id }})">Add to PR</span>
-                                                    <span x-show="isSelected({{ $item->id }})">Added</span>
+                                                    :disabled="isSelected({{ $item->id }}) || !{{ $isAvailable ? 'true' : 'false' }}"
+                                                    class="px-3 py-1 text-xs rounded transition-colors {{ $isAvailable ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed' }} disabled:opacity-50 disabled:cursor-not-allowed">
+                                                    @if($isAvailable)
+                                                        <span x-show="!isSelected({{ $item->id }})">Add to PR</span>
+                                                        <span x-show="isSelected({{ $item->id }})">Added</span>
+                                                    @else
+                                                        <span>Not Available</span>
+                                                    @endif
                                                 </button>
                                             </div>
                                         </div>
@@ -527,6 +658,13 @@
                         return;
                     }
 
+                    // Check if item is available for current quarter
+                    const itemLimit = this.ppmpItemLimits.find(i => i.item && i.item.id === itemId);
+                    if (!itemLimit || itemLimit.remainingQty <= 0) {
+                        alert('This item is not available for the current quarter or has no remaining quantity.');
+                        return;
+                    }
+
                     if (itemData.isPriceEditable) {
                         // Show modal for custom price
                         this.priceModalItem = {
@@ -538,7 +676,6 @@
                         this.showPriceModal = true;
                     } else {
                         // Add directly with fixed price
-                        const itemLimit = this.ppmpItemLimits.find(i => i.item && i.item.id === itemId);
                         this.selectedItems.push({
                             id: Date.now(),
                             ppmpItemId: itemId,
@@ -548,7 +685,7 @@
                             price: itemData.price,
                             specs: itemData.specs,
                             quantity: 1,
-                            maxQuantity: itemData.maxQuantity || (itemLimit ? itemLimit.remainingQty : 999),
+                            maxQuantity: itemData.maxQuantity || itemLimit.remainingQty,
                             isPriceEditable: false
                         });
                     }
