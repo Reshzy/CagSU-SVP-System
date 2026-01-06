@@ -76,7 +76,7 @@ class BacProcurementMethodController extends Controller
             'remarks' => ['nullable', 'string'],
             'signatories' => ['nullable', 'array'],
             'signatories.bac_chairman' => ['nullable', 'array'],
-            'signatories.bac_chairman.input_mode' => ['required', 'in:select,manual'],
+            'signatories.bac_chairman.input_mode' => ['required_with:signatories.bac_chairman', 'in:select,manual'],
             'signatories.bac_chairman.user_id' => ['nullable', 'exists:users,id'],
             'signatories.bac_chairman.name' => ['nullable', 'string', 'max:255'],
             'signatories.bac_chairman.selected_name' => ['nullable', 'string', 'max:255'],
