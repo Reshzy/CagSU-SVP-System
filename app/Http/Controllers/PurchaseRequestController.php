@@ -354,10 +354,14 @@ class PurchaseRequestController extends Controller
         }
     }
 
+    /**
+     * Generate next sequential document number in format: DOC-MMYY-####
+     * Example: DOC-0126-0001 (January 2026)
+     */
     protected static function generateNextDocumentNumber(): string
     {
-        $year = now()->year;
-        $prefix = 'DOC-'.$year.'-';
+        $monthYear = now()->format('my'); // MMYY format
+        $prefix = 'DOC-'.$monthYear.'-';
         $last = Document::where('document_number', 'like', $prefix.'%')
             ->orderByDesc('document_number')
             ->value('document_number');

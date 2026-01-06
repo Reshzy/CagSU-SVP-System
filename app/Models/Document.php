@@ -26,14 +26,15 @@ class Document extends Model
     }
 
     /**
-     * Generate next sequential document number like DOC-2025-0001
+     * Generate next sequential document number in format: DOC-MMYY-####
+     * Example: DOC-0126-0001 (January 2026)
      */
     public static function generateNextDocumentNumber(?\Illuminate\Support\Carbon $asOf = null): string
     {
         $asOf = $asOf ?: now();
-        $year = $asOf->year;
-        $prefix = 'DOC-' . $year . '-';
-        $last = static::where('document_number', 'like', $prefix . '%')
+        $monthYear = $asOf->format('my'); // MMYY format
+        $prefix = 'DOC-'.$monthYear.'-';
+        $last = static::where('document_number', 'like', $prefix.'%')
             ->orderByDesc('document_number')
             ->value('document_number');
 
@@ -43,8 +44,6 @@ class Document extends Model
             $next = intval(end($parts)) + 1;
         }
 
-        return $prefix . str_pad((string)$next, 4, '0', STR_PAD_LEFT);
+        return $prefix.str_pad((string) $next, 4, '0', STR_PAD_LEFT);
     }
 }
-
-

@@ -42,13 +42,14 @@ class AoqGeneration extends Model
     }
 
     /**
-     * Generate next AOQ reference number
+     * Generate next AOQ reference number in format: AOQ-MMYY-####
+     * Example: AOQ-0126-0001 (January 2026)
      */
     public static function generateNextReferenceNumber(): string
     {
-        $year = now()->year;
-        $prefix = 'AOQ-' . $year . '-';
-        $last = static::where('aoq_reference_number', 'like', $prefix . '%')
+        $monthYear = now()->format('my'); // MMYY format
+        $prefix = 'AOQ-'.$monthYear.'-';
+        $last = static::where('aoq_reference_number', 'like', $prefix.'%')
             ->orderByDesc('aoq_reference_number')
             ->value('aoq_reference_number');
         $next = 1;
@@ -56,7 +57,8 @@ class AoqGeneration extends Model
             $parts = explode('-', $last);
             $next = intval(end($parts)) + 1;
         }
-        return $prefix . str_pad((string)$next, 4, '0', STR_PAD_LEFT);
+
+        return $prefix.str_pad((string) $next, 4, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -72,9 +74,10 @@ class AoqGeneration extends Model
      */
     public function verifyIntegrity(): bool
     {
-        if (!$this->document_hash || !$this->exported_data_snapshot) {
+        if (! $this->document_hash || ! $this->exported_data_snapshot) {
             return false;
         }
+
         return $this->document_hash === $this->calculateHash();
     }
 }

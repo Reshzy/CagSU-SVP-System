@@ -133,11 +133,15 @@ class PurchaseRequest extends Model
         return $query->whereNotIn('status', ['returned_by_supply', 'rejected', 'cancelled']);
     }
 
+    /**
+     * Generate next PR number in format: PR-MMYY-####
+     * Example: PR-0126-0003 (January 2026)
+     */
     public static function generateNextPrNumber(?Carbon $asOf = null): string
     {
         $asOf = $asOf ?: now();
-        $year = $asOf->year;
-        $prefix = 'PR-'.$year.'-';
+        $monthYear = $asOf->format('my'); // MMYY format
+        $prefix = 'PR-'.$monthYear.'-';
         $last = static::where('pr_number', 'like', $prefix.'%')
             ->orderByDesc('pr_number')
             ->value('pr_number');
@@ -202,14 +206,14 @@ class PurchaseRequest extends Model
     }
 
     /**
-     * Generate next earmark ID in format: EM-MMDDYY-####
-     * Example: EM-102025-0042 (October 20, 2025)
+     * Generate next earmark ID in format: EM-MMYY-####
+     * Example: EM-0126-0042 (January 2026)
      */
     public static function generateNextEarmarkId(?Carbon $asOf = null): string
     {
         $asOf = $asOf ?: now();
-        $dateStr = $asOf->format('mdy'); // MMDDYY format
-        $prefix = 'EM-'.$dateStr.'-';
+        $monthYear = $asOf->format('my'); // MMYY format
+        $prefix = 'EM-'.$monthYear.'-';
 
         $last = static::where('earmark_id', 'like', $prefix.'%')
             ->orderByDesc('earmark_id')
@@ -226,15 +230,14 @@ class PurchaseRequest extends Model
     }
 
     /**
-     * Generate next resolution number in format: SV-YYYY-MM-####
-     * Example: SV-2025-10-0252 (October 2025)
+     * Generate next resolution number in format: RES-MMYY-####
+     * Example: RES-0126-0001 (January 2026)
      */
     public static function generateNextResolutionNumber(?Carbon $asOf = null): string
     {
         $asOf = $asOf ?: now();
-        $year = $asOf->year;
-        $month = $asOf->format('m');
-        $prefix = 'SV-'.$year.'-'.$month.'-';
+        $monthYear = $asOf->format('my'); // MMYY format
+        $prefix = 'RES-'.$monthYear.'-';
 
         $last = static::where('resolution_number', 'like', $prefix.'%')
             ->orderByDesc('resolution_number')
@@ -251,14 +254,14 @@ class PurchaseRequest extends Model
     }
 
     /**
-     * Generate next RFQ number in format: RFQ-YYYY-####
-     * Example: RFQ-2025-0042
+     * Generate next RFQ number in format: RFQ-MMYY-####
+     * Example: RFQ-0126-0001 (January 2026)
      */
     public static function generateNextRfqNumber(?Carbon $asOf = null): string
     {
         $asOf = $asOf ?: now();
-        $year = $asOf->year;
-        $prefix = 'RFQ-'.$year.'-';
+        $monthYear = $asOf->format('my'); // MMYY format
+        $prefix = 'RFQ-'.$monthYear.'-';
 
         $last = static::where('rfq_number', 'like', $prefix.'%')
             ->orderByDesc('rfq_number')

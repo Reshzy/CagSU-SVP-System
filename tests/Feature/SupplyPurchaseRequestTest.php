@@ -202,16 +202,16 @@ class SupplyPurchaseRequestTest extends TestCase
         $pr = PurchaseRequest::factory()->create([
             'requester_id' => $this->requester->id,
             'department_id' => $this->department->id,
-            'pr_number' => 'PR-2025-0001',
+            'pr_number' => 'PR-0126-0001',
             'status' => 'submitted',
         ]);
 
         $this->actingAs($this->supplyOfficer);
 
-        $response = $this->get(route('supply.purchase-requests.index', ['search' => 'PR-2025-0001']));
+        $response = $this->get(route('supply.purchase-requests.index', ['search' => 'PR-0126-0001']));
 
         $response->assertStatus(200);
-        $response->assertSee('PR-2025-0001');
+        $response->assertSee('PR-0126-0001');
     }
 
     public function test_return_requires_remarks(): void

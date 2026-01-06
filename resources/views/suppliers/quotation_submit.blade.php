@@ -11,7 +11,7 @@
 				@csrf
 				<div>
 					<label class="text-sm text-gray-600">PR Number</label>
-					<input type="text" name="pr_number" class="mt-1 block w-full border-gray-300 rounded-md" placeholder="PR-2025-0001" required />
+					<input type="text" name="pr_number" class="mt-1 block w-full border-gray-300 rounded-md" placeholder="PR-0126-0001" required />
 					<x-input-error :messages="$errors->get('pr_number')" class="mt-1" />
 				</div>
 				<div>
