@@ -218,7 +218,7 @@ class ComprehensiveUserSeeder extends Seeder
 
         // 13-22. College Users (Deans/End Users for each college)
         $colleges = [
-            ['name' => 'Calayan Extension', 'code' => 'CE', 'dean' => 'Dullit, Rex S., MSA', 'email' => 'calayanextension.sanchezmira@csu.edu.ph', 'description' => 'Remote learning and academic outreach'],
+            ['name' => 'Calayan Extension', 'code' => 'CALEXT', 'dean' => 'Dullit, Rex S., MSA', 'email' => 'calayanextension.sanchezmira@csu.edu.ph', 'description' => 'Remote learning and academic outreach'],
             ['name' => 'College of Agriculture', 'code' => 'CA', 'dean' => 'Ms. May M. Leaño', 'email' => 'maycmartinez03@csu.edu.ph', 'description' => 'Agricultural science and sustainable farming'],
             ['name' => 'College of Business, Entrepreneurship, and Accountancy', 'code' => 'CBEA', 'dean' => 'Mr. Rey D. Viloria, CPA', 'email' => 'cbea.sanchezmira@csu.edu.ph', 'description' => 'Business, entrepreneurship, and financial management'],
             ['name' => 'College of Criminal Justice Education', 'code' => 'CCJE', 'dean' => 'Dr. Jose Sheriff O. Panelo', 'email' => 'ccje.csusm@csu.edu.ph', 'description' => 'Law enforcement and criminal justice studies'],
