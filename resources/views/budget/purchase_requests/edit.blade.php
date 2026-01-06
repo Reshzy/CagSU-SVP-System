@@ -127,22 +127,22 @@
 
                         <div class="flex justify-end space-x-3">
                             <a href="{{ route('budget.purchase-requests.index') }}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md">Cancel</a>
-                            <button type="button" id="show-rejection-form-btn" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">Reject</button>
+                            <button type="button" id="show-deferral-form-btn" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">Defer</button>
                             <x-primary-button>Approve & Forward to CEO</x-primary-button>
                         </div>
                     </form>
 
-                    <!-- Rejection Form (Hidden by default) -->
-                    <form method="POST" action="{{ route('budget.purchase-requests.reject', $purchaseRequest) }}" id="rejection-form" class="hidden mt-6 border-t pt-6">
+                    <!-- Deferral Form (Hidden by default) -->
+                    <form method="POST" action="{{ route('budget.purchase-requests.reject', $purchaseRequest) }}" id="deferral-form" class="hidden mt-6 border-t pt-6">
                         @csrf
-                        <h3 class="text-lg font-semibold mb-4 text-red-600">Reject Purchase Request</h3>
+                        <h3 class="text-lg font-semibold mb-4 text-red-600">Defer Purchase Request</h3>
                         
                         <div class="space-y-4">
                             <div>
-                                <x-input-label for="rejection_reason" value="Rejection Reason *" />
-                                <textarea id="rejection_reason" name="rejection_reason" rows="4" class="mt-1 block w-full border-gray-300 rounded-md" required placeholder="Provide a detailed reason for rejection (minimum 10 characters)"></textarea>
+                                <x-input-label for="rejection_reason" value="Deferral Reason *" />
+                                <textarea id="rejection_reason" name="rejection_reason" rows="4" class="mt-1 block w-full border-gray-300 rounded-md" required placeholder="Provide a detailed reason for deferral (minimum 10 characters)"></textarea>
                                 <x-input-error :messages="$errors->get('rejection_reason')" class="mt-2" />
-                                <p class="mt-1 text-sm text-gray-500">Please provide a clear and detailed explanation for why this purchase request is being rejected.</p>
+                                <p class="mt-1 text-sm text-gray-500">Please provide a clear and detailed explanation for why this purchase request is being deferred.</p>
                             </div>
 
                             <div>
@@ -152,8 +152,8 @@
                         </div>
 
                         <div class="flex justify-end space-x-3 mt-4">
-                            <button type="button" id="cancel-rejection-btn" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors">Cancel Rejection</button>
-                            <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">Confirm Rejection</button>
+                            <button type="button" id="cancel-deferral-btn" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors">Cancel Deferral</button>
+                            <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">Confirm Deferral</button>
                         </div>
                     </form>
                 </div>
@@ -173,15 +173,15 @@
         </div>
     </div>
 
-    <!-- Rejection Reason Modal -->
+    <!-- Deferral Reason Modal -->
     <x-rejection-reason-modal id="rejection-modal" />
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const showRejectionBtn = document.getElementById('show-rejection-form-btn');
-            const cancelRejectionBtn = document.getElementById('cancel-rejection-btn');
-            const rejectionForm = document.getElementById('rejection-form');
-            const rejectionReasonField = document.getElementById('rejection_reason');
+            const showDeferralBtn = document.getElementById('show-deferral-form-btn');
+            const cancelDeferralBtn = document.getElementById('cancel-deferral-btn');
+            const deferralForm = document.getElementById('deferral-form');
+            const deferralReasonField = document.getElementById('rejection_reason');
             const modal = document.getElementById('rejection-modal');
             const modalCloseBtn = modal ? modal.querySelector('[data-modal-close]') : null;
             const copyPurposeBtn = document.getElementById('copy-purpose-btn');
@@ -217,34 +217,34 @@
                 });
             }
 
-            // Show rejection form
-            if (showRejectionBtn) {
-                showRejectionBtn.addEventListener('click', function() {
-                    rejectionForm.classList.remove('hidden');
-                    rejectionForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    rejectionReasonField.focus();
+            // Show deferral form
+            if (showDeferralBtn) {
+                showDeferralBtn.addEventListener('click', function() {
+                    deferralForm.classList.remove('hidden');
+                    deferralForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    deferralReasonField.focus();
                 });
             }
 
-            // Cancel rejection - hide form
-            if (cancelRejectionBtn) {
-                cancelRejectionBtn.addEventListener('click', function() {
-                    rejectionForm.classList.add('hidden');
-                    rejectionReasonField.value = '';
+            // Cancel deferral - hide form
+            if (cancelDeferralBtn) {
+                cancelDeferralBtn.addEventListener('click', function() {
+                    deferralForm.classList.add('hidden');
+                    deferralReasonField.value = '';
                     document.getElementById('rejection_remarks').value = '';
                 });
             }
 
-            // Validate rejection reason before submit
-            if (rejectionForm) {
-                rejectionForm.addEventListener('submit', function(e) {
-                    const reason = rejectionReasonField.value.trim();
+            // Validate deferral reason before submit
+            if (deferralForm) {
+                deferralForm.addEventListener('submit', function(e) {
+                    const reason = deferralReasonField.value.trim();
                     if (reason.length < 10) {
                         e.preventDefault();
                         if (modal) {
                             modal.classList.remove('hidden');
                         }
-                        rejectionReasonField.focus();
+                        deferralReasonField.focus();
                     }
                 });
             }

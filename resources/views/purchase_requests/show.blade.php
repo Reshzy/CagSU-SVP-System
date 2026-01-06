@@ -178,14 +178,14 @@
                                             @endif
                                             <div class="flex gap-4 mt-2">
                                                 <span class="text-sm text-gray-600">
-                                                    <span class="font-medium">Qty:</span> {{ $item->quantity }} {{ $item->unit }}
+                                                    <span class="font-medium">Qty:</span> {{ $item->quantity_requested ?? 0 }} {{ $item->unit_of_measure }}
                                                 </span>
                                                 @if($item->estimated_unit_cost)
                                                 <span class="text-sm text-gray-600">
                                                     <span class="font-medium">Unit Cost:</span> ₱{{ number_format($item->estimated_unit_cost, 2) }}
                                                 </span>
                                                 <span class="text-sm font-semibold text-gray-900">
-                                                    <span class="font-medium">Total:</span> ₱{{ number_format($item->total_cost, 2) }}
+                                                    <span class="font-medium">Total:</span> ₱{{ number_format($item->estimated_total_cost ?? 0, 2) }}
                                                 </span>
                                                 @endif
                                             </div>

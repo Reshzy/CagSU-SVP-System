@@ -124,7 +124,7 @@ class PurchaseRequestController extends Controller
             abort(403, 'Unauthorized to create replacement for this PR.');
         }
 
-        $data = $this->preparePrCreationData();
+        $data = $this->preparePrCreationDataForReplacement();
 
         // Load the original PR with items
         $originalPr->load(['items.ppmpItem', 'returnedBy']);
@@ -133,6 +133,112 @@ class PurchaseRequestController extends Controller
         $data['originalPr'] = $originalPr;
 
         return view('purchase_requests.create_replacement', $data);
+    }
+
+    /**
+     * Prepare data for replacement PR creation with grace period support
+     */
+    protected function preparePrCreationDataForReplacement(): array
+    {
+        $user = Auth::user();
+        $fiscalYear = date('Y');
+
+        if (! $user->department_id) {
+            abort(403, 'You must be assigned to a department to create purchase requests.');
+        }
+
+        // Get department's validated PPMP
+        $ppmp = Ppmp::forDepartment($user->department_id)
+            ->forFiscalYear($fiscalYear)
+            ->validated()
+            ->with(['items.appItem'])
+            ->first();
+
+        if (! $ppmp) {
+            abort(403, 'Your department must have a validated PPMP before creating purchase requests.');
+        }
+
+        // Get current quarter and grace period info
+        $quarterlyTracker = app(PpmpQuarterlyTracker::class);
+        $currentQuarter = $quarterlyTracker->getQuarterFromDate();
+        $gracePeriodInfo = $quarterlyTracker->getGracePeriodInfo();
+        $availableQuarters = $quarterlyTracker->getAvailableQuartersForReplacement();
+
+        // Quarter labels
+        $quarterLabels = [
+            1 => 'January to March',
+            2 => 'April to June',
+            3 => 'July to September',
+            4 => 'October to December',
+        ];
+
+        // Group PPMP items by APP item category
+        $ppmpItems = $ppmp->items
+            ->filter(function ($item) {
+                return $item->appItem !== null;
+            })
+            ->groupBy(function ($item) {
+                return $item->appItem->category;
+            });
+
+        // Categorize items with quarter status - include grace period quarters
+        $categorizedItems = $ppmpItems->map(function ($items) use ($currentQuarter, $availableQuarters) {
+            return $items->map(function ($item) use ($currentQuarter, $availableQuarters) {
+                $quarterStatus = $item->getQuarterStatus($currentQuarter);
+                $remainingQty = 0;
+                $currentQuarterQty = 0;
+                $gracePeriodItem = false;
+
+                // Check if item is available in any of the available quarters (current + grace period)
+                foreach ($availableQuarters as $quarter) {
+                    if ($item->hasQuantityForQuarter($quarter)) {
+                        $qtyInQuarter = $item->getRemainingQuantity($quarter);
+                        if ($qtyInQuarter > 0) {
+                            $remainingQty += $qtyInQuarter;
+                            $currentQuarterQty += $item->getQuarterlyQuantity($quarter);
+
+                            // Mark as grace period item if it's from previous quarter
+                            if ($quarter !== $currentQuarter) {
+                                $gracePeriodItem = true;
+                                // Override status to make it available
+                                $quarterStatus = 'grace_period';
+                            }
+                        }
+                    }
+                }
+
+                // If item is available in current quarter, use current status
+                if ($item->hasQuantityForQuarter($currentQuarter) && $item->getRemainingQuantity($currentQuarter) > 0) {
+                    $quarterStatus = 'current';
+                }
+
+                return [
+                    'item' => $item,
+                    'quarterStatus' => $quarterStatus,
+                    'remainingQty' => $remainingQty,
+                    'currentQuarterQty' => $currentQuarterQty,
+                    'gracePeriodItem' => $gracePeriodItem,
+                ];
+            });
+        });
+
+        $ppmpCategories = $ppmpItems->keys()->sort()->values();
+
+        // Get department budget information
+        $departmentBudget = DepartmentBudget::getOrCreateForDepartment($user->department_id, $fiscalYear);
+
+        return [
+            'ppmp' => $ppmp,
+            'ppmpCategories' => $ppmpCategories,
+            'ppmpItems' => $ppmpItems,
+            'categorizedItems' => $categorizedItems,
+            'departmentBudget' => $departmentBudget,
+            'fiscalYear' => $fiscalYear,
+            'currentQuarter' => $currentQuarter,
+            'quarterLabel' => $quarterLabels[$currentQuarter],
+            'gracePeriodInfo' => $gracePeriodInfo,
+            'availableQuarters' => $availableQuarters,
+        ];
     }
 
     public function storeReplacement(StoreReplacementPurchaseRequestRequest $request, PurchaseRequest $originalPr): RedirectResponse

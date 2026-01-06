@@ -1,6 +1,6 @@
 @props(['id' => 'rejection-modal'])
 
-<!-- Custom Modal for Rejection Reason -->
+<!-- Custom Modal for Deferral Reason -->
 <div id="{{ $id }}" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
     <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         <!-- Background overlay -->
@@ -20,11 +20,11 @@
                 </div>
                 <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
                     <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                        Rejection Reason Required
+                        Deferral Reason Required
                     </h3>
                     <div class="mt-2">
                         <p class="text-sm text-gray-500">
-                            Before rejecting this purchase request, you must provide a detailed rejection reason. This will help the requester understand why their request was not approved.
+                            Before deferring this purchase request, you must provide a detailed deferral reason. This will help the requester understand why their request was deferred.
                         </p>
                     </div>
                 </div>

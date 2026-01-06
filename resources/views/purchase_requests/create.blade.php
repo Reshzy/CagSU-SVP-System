@@ -473,9 +473,10 @@
                                                     <input 
                                                         type="number" 
                                                         min="1"
-                                                        :max="item.maxQuantity || 999"
+                                                        :max="item.maxQuantity !== null && item.maxQuantity !== undefined ? item.maxQuantity : 999"
                                                         :value="item.quantity"
                                                         @input="updateQuantity(item.id, $event.target.value)"
+                                                        @blur="updateQuantity(item.id, $event.target.value)"
                                                         class="w-20 text-xs rounded border-gray-300"
                                                     />
                                                     <span x-show="item.maxQuantity" class="text-xs text-gray-500 ml-1">
@@ -699,10 +700,16 @@
                     const item = this.selectedItems.find(i => i.id === itemId);
                     if (!item) return;
 
-                    const newQty = parseInt(value) || 1;
+                    let newQty = parseInt(value);
+                    
+                    // Ensure quantity is at least 1
+                    if (isNaN(newQty) || newQty < 1) {
+                        newQty = 1;
+                    }
                     
                     // Validate against remaining PPMP quantity
-                    if (item.maxQuantity && newQty > item.maxQuantity) {
+                    // Check if maxQuantity is defined (not null/undefined) and is a valid number
+                    if (item.maxQuantity !== null && item.maxQuantity !== undefined && typeof item.maxQuantity === 'number' && newQty > item.maxQuantity) {
                         alert(`Cannot exceed remaining quantity (${item.maxQuantity} available for current quarter)`);
                         // Reset to max quantity
                         item.quantity = item.maxQuantity;
@@ -754,6 +761,17 @@
                             alert('Please enter the justification for the purchase request.');
                         }
                         return;
+                    }
+
+                    // Validate all quantities against max limits
+                    for (const item of this.selectedItems) {
+                        if (item.maxQuantity !== null && item.maxQuantity !== undefined && typeof item.maxQuantity === 'number' && item.quantity > item.maxQuantity) {
+                            event.preventDefault();
+                            alert(`Quantity for "${item.name}" (${item.quantity}) exceeds the maximum allowed quantity (${item.maxQuantity} available for current quarter).`);
+                            // Reset to max quantity
+                            item.quantity = item.maxQuantity;
+                            return;
+                        }
                     }
 
                     // Add hidden inputs for form submission

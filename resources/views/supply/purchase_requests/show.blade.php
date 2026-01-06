@@ -123,12 +123,12 @@
                                             @endif
                                         </td>
                                         <td class="px-6 py-4">
-                                            <div class="text-sm text-gray-900">{{ Str::limit($item->detailed_specifications, 50) }}</div>
+                                            <div class="text-sm text-gray-900">{{ Str::limit($item->detailed_specifications ?? 'N/A', 50) }}</div>
                                         </td>
                                         <td class="px-6 py-4 text-sm text-gray-900">{{ $item->unit_of_measure }}</td>
-                                        <td class="px-6 py-4 text-sm text-gray-900 text-right">{{ number_format($item->quantity_requested) }}</td>
-                                        <td class="px-6 py-4 text-sm text-gray-900 text-right">₱{{ number_format($item->estimated_unit_cost, 2) }}</td>
-                                        <td class="px-6 py-4 text-sm font-medium text-gray-900 text-right">₱{{ number_format($item->estimated_total_cost, 2) }}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-900 text-right font-semibold">{{ number_format($item->quantity_requested ?? 0) }}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-900 text-right">₱{{ number_format($item->estimated_unit_cost ?? 0, 2) }}</td>
+                                        <td class="px-6 py-4 text-sm font-medium text-gray-900 text-right">₱{{ number_format($item->estimated_total_cost ?? 0, 2) }}</td>
                                     </tr>
                                     @endforeach
                                 </tbody>
@@ -189,7 +189,7 @@
 
                             @if($purchaseRequest->rejection_reason)
                             <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-                                <label class="text-sm font-medium text-red-800">Rejection Reason</label>
+                                <label class="text-sm font-medium text-red-800">Deferral Reason</label>
                                 <p class="text-sm text-red-900 mt-1">{{ $purchaseRequest->rejection_reason }}</p>
                             </div>
                             @endif
@@ -296,27 +296,27 @@
                             </div>
                             @endif
 
-                            <!-- Reject -->
+                            <!-- Defer -->
                             @if(in_array($purchaseRequest->status, ['submitted', 'supply_office_review']))
-                            <div x-data="{ showReject: false }">
-                                <button @click="showReject = !showReject" class="w-full px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium">
+                            <div x-data="{ showDefer: false }">
+                                <button @click="showDefer = !showDefer" class="w-full px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium">
                                     <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                     </svg>
-                                    Reject PR
+                                    Defer PR
                                 </button>
                                 
-                                <div x-show="showReject" x-cloak class="mt-2">
-                                    <form action="{{ route('supply.purchase-requests.status', $purchaseRequest) }}" method="POST" class="space-y-3" onsubmit="return confirm('Are you sure you want to reject this PR? This action cannot be undone.');">
+                                <div x-show="showDefer" x-cloak class="mt-2">
+                                    <form action="{{ route('supply.purchase-requests.status', $purchaseRequest) }}" method="POST" class="space-y-3" onsubmit="return confirm('Are you sure you want to defer this PR? This action cannot be undone.');">
                                         @csrf
                                         @method('PUT')
                                         <input type="hidden" name="action" value="reject">
-                                        <textarea name="rejection_reason" rows="3" placeholder="Rejection reason (required)..." class="w-full border-gray-300 rounded-lg focus:border-cagsu-maroon focus:ring-cagsu-maroon" required></textarea>
+                                        <textarea name="rejection_reason" rows="3" placeholder="Deferral reason (required)..." class="w-full border-gray-300 rounded-lg focus:border-cagsu-maroon focus:ring-cagsu-maroon" required></textarea>
                                         <div class="flex gap-2">
                                             <button type="submit" class="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium">
-                                                Confirm Rejection
+                                                Confirm Deferral
                                             </button>
-                                            <button type="button" @click="showReject = false" class="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
+                                            <button type="button" @click="showDefer = false" class="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
                                                 Cancel
                                             </button>
                                         </div>

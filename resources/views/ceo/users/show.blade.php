@@ -52,7 +52,7 @@
                         </form>
                         <form method="POST" action="{{ route('ceo.users.reject', $user) }}">
                             @csrf
-                            <button class="px-4 py-2 bg-red-600 text-white rounded">Reject</button>
+                            <button class="px-4 py-2 bg-red-600 text-white rounded">Defer</button>
                         </form>
                     </div>
                 </div>
