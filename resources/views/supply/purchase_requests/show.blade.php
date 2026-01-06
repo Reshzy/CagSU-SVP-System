@@ -123,12 +123,12 @@
                                             @endif
                                         </td>
                                         <td class="px-6 py-4">
-                                            <div class="text-sm text-gray-900">{{ Str::limit($item->detailed_specifications, 50) }}</div>
+                                            <div class="text-sm text-gray-900">{{ Str::limit($item->detailed_specifications ?? 'N/A', 50) }}</div>
                                         </td>
                                         <td class="px-6 py-4 text-sm text-gray-900">{{ $item->unit_of_measure }}</td>
-                                        <td class="px-6 py-4 text-sm text-gray-900 text-right">{{ number_format($item->quantity_requested) }}</td>
-                                        <td class="px-6 py-4 text-sm text-gray-900 text-right">₱{{ number_format($item->estimated_unit_cost, 2) }}</td>
-                                        <td class="px-6 py-4 text-sm font-medium text-gray-900 text-right">₱{{ number_format($item->estimated_total_cost, 2) }}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-900 text-right font-semibold">{{ number_format($item->quantity_requested ?? 0) }}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-900 text-right">₱{{ number_format($item->estimated_unit_cost ?? 0, 2) }}</td>
+                                        <td class="px-6 py-4 text-sm font-medium text-gray-900 text-right">₱{{ number_format($item->estimated_total_cost ?? 0, 2) }}</td>
                                     </tr>
                                     @endforeach
                                 </tbody>
