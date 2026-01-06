@@ -36,6 +36,34 @@
                 </div>
             </div>
 
+            <!-- Grace Period Banner (if active) -->
+            @if($gracePeriodInfo && $gracePeriodInfo['active'])
+            <div class="bg-green-50 dark:bg-green-900 border-l-4 border-green-500 p-4 mb-6 rounded-r-lg {{ $gracePeriodInfo['expiring_soon'] ? 'animate-pulse' : '' }}">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-6 w-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3 flex-1">
+                        <h3 class="text-lg font-medium text-green-800 dark:text-green-200">
+                            Grace Period Active
+                        </h3>
+                        <p class="text-sm text-green-700 dark:text-green-300 mt-1">
+                            You can select items from <strong>Q{{ $gracePeriodInfo['quarter'] }} ({{ $gracePeriodInfo['quarter_label'] }})</strong> 
+                            until <strong>{{ $gracePeriodInfo['end_date_formatted'] }}</strong>
+                            <span class="font-semibold">({{ $gracePeriodInfo['days_remaining'] }} {{ $gracePeriodInfo['days_remaining'] == 1 ? 'day' : 'days' }} remaining)</span>
+                        </p>
+                        @if($gracePeriodInfo['expiring_soon'])
+                        <p class="text-sm text-green-800 dark:text-green-200 mt-2 font-semibold">
+                            ⚠️ Grace period expires soon! Submit your replacement PR before {{ $gracePeriodInfo['end_date_formatted'] }}.
+                        </p>
+                        @endif
+                    </div>
+                </div>
+            </div>
+            @endif
+
             @if ($errors->any())
                 <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
                     <strong class="font-bold">Error!</strong>
@@ -142,7 +170,7 @@
                                     $quarterStatus = $itemData['quarterStatus'] ?? 'unavailable';
                                     $remainingQty = $itemData['remainingQty'] ?? 0;
                                     $currentQuarterQty = $itemData['currentQuarterQty'] ?? 0;
-                                    $isAvailable = $quarterStatus === 'current' && $remainingQty > 0;
+                                    $isAvailable = ($quarterStatus === 'current' || $quarterStatus === 'grace_period') && $remainingQty > 0;
                                 @endphp
                                 <div class="border border-gray-200 dark:border-gray-700 rounded p-3 transition-colors {{ $isAvailable ? 'hover:border-indigo-500' : 'bg-gray-50 dark:bg-gray-900 opacity-60' }}"
                                      x-show="itemVisible('{{ $item->appItem->item_name }}', '{{ $item->appItem->item_code }}', '{{ $category }}')">
@@ -159,6 +187,16 @@
                                                 @if($quarterStatus === 'current' && $remainingQty > 0)
                                                     <span class="px-2 py-0.5 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded text-xs font-medium">
                                                         Available - Q{{ $currentQuarter }}
+                                                    </span>
+                                                    <span class="px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded text-xs">
+                                                        {{ $remainingQty }} remaining
+                                                    </span>
+                                                @elseif($quarterStatus === 'grace_period' && $remainingQty > 0)
+                                                    <span class="px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 rounded text-xs font-medium flex items-center gap-1">
+                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                        </svg>
+                                                        Grace Period
                                                     </span>
                                                     <span class="px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded text-xs">
                                                         {{ $remainingQty }} remaining
@@ -269,7 +307,7 @@
                                             $quarterStatus = $itemData['quarterStatus'] ?? 'unavailable';
                                             $remainingQty = $itemData['remainingQty'] ?? 0;
                                             $currentQuarterQty = $itemData['currentQuarterQty'] ?? 0;
-                                            $isAvailable = $quarterStatus === 'current' && $remainingQty > 0;
+                                            $isAvailable = ($quarterStatus === 'current' || $quarterStatus === 'grace_period') && $remainingQty > 0;
                                         @endphp
                                         <div class="border border-gray-200 dark:border-gray-700 rounded p-3 transition-colors {{ $isAvailable ? 'hover:border-indigo-500' : 'bg-gray-50 dark:bg-gray-900 opacity-60' }}"
                                              x-show="itemVisible('{{ $item->appItem->item_name }}', '{{ $item->appItem->item_code }}', '{{ $category }}')">
@@ -284,6 +322,16 @@
                                                         @if($quarterStatus === 'current' && $remainingQty > 0)
                                                             <span class="px-2 py-0.5 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded text-xs font-medium">
                                                                 Available - Q{{ $currentQuarter }}
+                                                            </span>
+                                                            <span class="px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded text-xs">
+                                                                {{ $remainingQty }} remaining
+                                                            </span>
+                                                        @elseif($quarterStatus === 'grace_period' && $remainingQty > 0)
+                                                            <span class="px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 rounded text-xs font-medium flex items-center gap-1">
+                                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                                </svg>
+                                                                Grace Period
                                                             </span>
                                                             <span class="px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded text-xs">
                                                                 {{ $remainingQty }} remaining
