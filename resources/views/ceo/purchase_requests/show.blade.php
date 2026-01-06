@@ -5,7 +5,7 @@
         <h2 class="font-semibold text-2xl text-gray-800 leading-tight">{{ __('PR Details: ') . $purchaseRequest->pr_number }}</h2>
     </x-slot>
 
-    <!-- Rejection Reason Modal Component -->
+    <!-- Deferral Reason Modal Component -->
     <x-rejection-reason-modal />
 
     <div class="py-8">
@@ -72,12 +72,12 @@
                             <textarea id="comments" name="comments" rows="3" class="mt-1 block w-full border-gray-300 rounded-md"></textarea>
                         </div>
                         <div>
-                            <x-input-label for="rejection_reason" value="Rejection Reason (if rejecting)" />
+                            <x-input-label for="rejection_reason" value="Deferral Reason (if deferring)" />
                             <textarea id="rejection_reason" name="rejection_reason" rows="2" class="mt-1 block w-full border-gray-300 rounded-md"></textarea>
                         </div>
                         <div class="flex justify-end space-x-3">
                             <a href="{{ route('ceo.purchase-requests.index') }}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md">Back</a>
-                            <button id="reject-button" name="decision" value="reject" disabled class="px-4 py-2 bg-red-600 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed">Reject</button>
+                            <button id="defer-button" name="decision" value="reject" disabled class="px-4 py-2 bg-red-600 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed">Defer</button>
                             <button name="decision" value="approve" class="px-4 py-2 bg-green-600 text-white rounded-md">Approve</button>
                         </div>
                     </form>
@@ -100,8 +100,8 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const rejectionReasonTextarea = document.getElementById('rejection_reason');
-            const rejectButton = document.getElementById('reject-button');
+            const deferralReasonTextarea = document.getElementById('rejection_reason');
+            const deferButton = document.getElementById('defer-button');
             const modal = document.getElementById('rejection-modal');
             const closeModalBtn = document.querySelector('[data-modal-close="rejection-modal"]');
 
@@ -116,10 +116,10 @@
                 modal.classList.add('hidden');
                 document.body.style.overflow = ''; // Restore scrolling
                 
-                // Focus on the rejection reason textarea after modal closes
+                // Focus on the deferral reason textarea after modal closes
                 setTimeout(() => {
-                    rejectionReasonTextarea.focus();
-                    rejectionReasonTextarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    deferralReasonTextarea.focus();
+                    deferralReasonTextarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }, 100);
             }
 
@@ -144,7 +144,7 @@
                 }
             });
 
-            // Check if user came from reject action (URL parameter)
+            // Check if user came from defer action (URL parameter)
             const urlParams = new URLSearchParams(window.location.search);
             const action = urlParams.get('action');
             
@@ -157,30 +157,30 @@
                 window.history.replaceState({}, document.title, newUrl);
             }
 
-            // Function to check if rejection reason has non-whitespace content
-            function validateRejectionReason() {
-                const trimmedValue = rejectionReasonTextarea.value.trim();
+            // Function to check if deferral reason has non-whitespace content
+            function validateDeferralReason() {
+                const trimmedValue = deferralReasonTextarea.value.trim();
                 
                 if (trimmedValue.length > 0) {
-                    rejectButton.disabled = false;
+                    deferButton.disabled = false;
                 } else {
-                    rejectButton.disabled = true;
+                    deferButton.disabled = true;
                 }
             }
 
-            // Listen for input events on the rejection reason textarea
-            rejectionReasonTextarea.addEventListener('input', validateRejectionReason);
-            rejectionReasonTextarea.addEventListener('keyup', validateRejectionReason);
-            rejectionReasonTextarea.addEventListener('change', validateRejectionReason);
+            // Listen for input events on the deferral reason textarea
+            deferralReasonTextarea.addEventListener('input', validateDeferralReason);
+            deferralReasonTextarea.addEventListener('keyup', validateDeferralReason);
+            deferralReasonTextarea.addEventListener('change', validateDeferralReason);
 
-            // Add validation on form submit to prevent rejection without reason
-            const form = rejectionReasonTextarea.closest('form');
+            // Add validation on form submit to prevent deferral without reason
+            const form = deferralReasonTextarea.closest('form');
             form.addEventListener('submit', function(e) {
                 const submittedButton = document.activeElement;
                 
-                // If reject button was clicked, ensure there's a rejection reason
+                // If defer button was clicked, ensure there's a deferral reason
                 if (submittedButton && submittedButton.value === 'reject') {
-                    const trimmedReason = rejectionReasonTextarea.value.trim();
+                    const trimmedReason = deferralReasonTextarea.value.trim();
                     
                     if (trimmedReason.length === 0) {
                         e.preventDefault();
