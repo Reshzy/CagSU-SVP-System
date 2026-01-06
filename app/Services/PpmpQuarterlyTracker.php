@@ -196,4 +196,112 @@ class PpmpQuarterlyTracker
                 && $item->getRemainingQuantity($currentQuarter) > 0;
         });
     }
+
+    /**
+     * Check if current date is within grace period for a specific quarter
+     */
+    public function isWithinGracePeriod(int $targetQuarter, ?int $year = null): bool
+    {
+        // Check if grace period is enabled
+        if (! config('ppmp.enable_grace_period', true)) {
+            return false;
+        }
+
+        $year = $year ?? now()->year;
+        $currentDate = now();
+        $currentQuarter = $this->getQuarterFromDate($currentDate);
+
+        // Grace period only applies when we're in the quarter AFTER the target quarter
+        if ($currentQuarter !== $targetQuarter + 1 && ! ($targetQuarter === 4 && $currentQuarter === 1)) {
+            return false;
+        }
+
+        // For Q4 -> Q1 transition, check year
+        if ($targetQuarter === 4 && $currentQuarter === 1) {
+            if ($currentDate->year !== $year + 1) {
+                return false;
+            }
+        }
+
+        $gracePeriodEndDate = $this->getGracePeriodEndDate($targetQuarter, $year);
+
+        return $currentDate->lte($gracePeriodEndDate);
+    }
+
+    /**
+     * Get the end date of the grace period for a specific quarter
+     */
+    public function getGracePeriodEndDate(int $quarter, int $year): Carbon
+    {
+        $gracePeriodDays = config('ppmp.quarter_grace_period_days', 14);
+        $dateRange = $this->getQuarterDateRange($quarter, $year);
+
+        // Grace period starts the day after quarter ends
+        return $dateRange['end']->copy()->addDays($gracePeriodDays);
+    }
+
+    /**
+     * Get available quarters for replacement PRs (current + previous if in grace period)
+     */
+    public function getAvailableQuartersForReplacement(?int $year = null): array
+    {
+        $year = $year ?? now()->year;
+        $currentQuarter = $this->getQuarterFromDate();
+        $availableQuarters = [$currentQuarter];
+
+        // Check if previous quarter is available via grace period
+        $previousQuarter = $currentQuarter - 1;
+        $previousYear = $year;
+
+        // Handle Q1 -> check Q4 of previous year
+        if ($previousQuarter === 0) {
+            $previousQuarter = 4;
+            $previousYear = $year - 1;
+        }
+
+        if ($this->isWithinGracePeriod($previousQuarter, $previousYear)) {
+            array_unshift($availableQuarters, $previousQuarter);
+        }
+
+        return $availableQuarters;
+    }
+
+    /**
+     * Get grace period information for display
+     */
+    public function getGracePeriodInfo(): ?array
+    {
+        if (! config('ppmp.enable_grace_period', true)) {
+            return null;
+        }
+
+        $currentQuarter = $this->getQuarterFromDate();
+        $currentYear = now()->year;
+        $previousQuarter = $currentQuarter - 1;
+        $previousYear = $currentYear;
+
+        // Handle Q1 -> check Q4 of previous year
+        if ($previousQuarter === 0) {
+            $previousQuarter = 4;
+            $previousYear = $currentYear - 1;
+        }
+
+        if ($this->isWithinGracePeriod($previousQuarter, $previousYear)) {
+            $endDate = $this->getGracePeriodEndDate($previousQuarter, $previousYear);
+            $daysRemaining = now()->diffInDays($endDate, false);
+
+            return [
+                'active' => true,
+                'quarter' => $previousQuarter,
+                'year' => $previousYear,
+                'quarter_label' => $this->getQuarterLabel($previousQuarter),
+                'end_date' => $endDate,
+                'end_date_formatted' => $endDate->format('F j, Y'),
+                'days_remaining' => (int) ceil($daysRemaining),
+                'expiring_soon' => $daysRemaining <= 3,
+            ];
+        }
+
+        return null;
+    }
 }
