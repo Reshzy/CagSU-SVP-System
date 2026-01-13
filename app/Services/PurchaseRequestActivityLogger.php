@@ -56,7 +56,7 @@ class PurchaseRequestActivityLogger
         return $this->log($purchaseRequest, [
             'action' => 'rejected',
             'new_value' => ['rejection_reason' => $reason],
-            'description' => 'Purchase request rejected',
+            'description' => 'Purchase request deferred',
             'user_id' => $userId ?? Auth::id(),
         ]);
     }
@@ -199,7 +199,7 @@ class PurchaseRequestActivityLogger
             'delivered' => 'Delivered',
             'completed' => 'Completed',
             'cancelled' => 'Cancelled',
-            'rejected' => 'Rejected',
+            'rejected' => 'Deferred',
             'returned_by_supply' => 'Returned by Supply Office',
         ];
 

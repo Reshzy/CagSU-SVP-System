@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class RfqSignatory extends Model
 {
     protected $fillable = [
-        'purchase_request_id',
+        'rfq_generation_id',
         'position',
         'user_id',
         'name',
@@ -17,11 +17,11 @@ class RfqSignatory extends Model
     ];
 
     /**
-     * Get the purchase request associated with this signatory
+     * Get the RFQ generation associated with this signatory
      */
-    public function purchaseRequest(): BelongsTo
+    public function rfqGeneration(): BelongsTo
     {
-        return $this->belongsTo(PurchaseRequest::class);
+        return $this->belongsTo(RfqGeneration::class);
     }
 
     /**
@@ -39,15 +39,15 @@ class RfqSignatory extends Model
     {
         // Use manual name if provided, otherwise use user's name
         $name = $this->name ?? ($this->user ? $this->user->name : 'N/A');
-        
+
         if ($this->prefix) {
-            $name = $this->prefix . ' ' . $name;
+            $name = $this->prefix.' '.$name;
         }
-        
+
         if ($this->suffix) {
-            $name .= ', ' . $this->suffix;
+            $name .= ', '.$this->suffix;
         }
-        
+
         return $name;
     }
 
@@ -64,11 +64,10 @@ class RfqSignatory extends Model
      */
     public function getPositionNameAttribute(): string
     {
-        return match($this->position) {
+        return match ($this->position) {
             'bac_chairperson' => 'BAC Chairperson',
             'canvassing_officer' => 'Canvassing Officer',
             default => $this->position,
         };
     }
 }
-

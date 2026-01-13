@@ -27,6 +27,11 @@ class PurchaseOrder extends Model
         return $this->belongsTo(PurchaseRequest::class);
     }
 
+    public function prItemGroup()
+    {
+        return $this->belongsTo(PrItemGroup::class, 'pr_item_group_id');
+    }
+
     public function supplier()
     {
         return $this->belongsTo(Supplier::class);

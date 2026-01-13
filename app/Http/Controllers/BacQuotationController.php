@@ -123,14 +123,33 @@ class BacQuotationController extends Controller
         $quotationDate = \Carbon\Carbon::parse($validated['quotation_date']);
         $validityDate = $quotationDate->copy()->addDays(10);
 
-        // Check for duplicate supplier quotation
-        $existingQuotation = Quotation::where('purchase_request_id', $purchaseRequest->id)
-            ->where('supplier_id', $validated['supplier_id'])
-            ->first();
+        // Determine item group if items are grouped (for duplicate check)
+        $tempGroupId = null;
+        if ($purchaseRequest->itemGroups()->exists()) {
+            $firstItemId = $validated['items'][0]['pr_item_id'] ?? null;
+            if ($firstItemId) {
+                $firstItem = $purchaseRequest->items->firstWhere('id', $firstItemId);
+                $tempGroupId = $firstItem->pr_item_group_id ?? null;
+            }
+        }
+
+        // Check for duplicate supplier quotation (per group if grouped)
+        $existingQuery = Quotation::where('purchase_request_id', $purchaseRequest->id)
+            ->where('supplier_id', $validated['supplier_id']);
+
+        if ($tempGroupId) {
+            $existingQuery->where('pr_item_group_id', $tempGroupId);
+        }
+
+        $existingQuotation = $existingQuery->first();
 
         if ($existingQuotation) {
+            $errorMessage = $tempGroupId
+                ? 'A quotation from this supplier already exists for this item group.'
+                : 'A quotation from this supplier already exists for this PR.';
+
             return back()->withErrors([
-                'supplier_id' => 'A quotation from this supplier already exists for this PR.',
+                'supplier_id' => $errorMessage,
             ])->withInput();
         }
 
@@ -198,10 +217,22 @@ class BacQuotationController extends Controller
                 ];
             }
 
+            // Determine item group if items are grouped
+            $prItemGroupId = null;
+            if ($purchaseRequest->itemGroups()->exists()) {
+                // Get the group from the first item in the quotation
+                $firstItemId = $validated['items'][0]['pr_item_id'] ?? null;
+                if ($firstItemId) {
+                    $firstItem = $purchaseRequest->items->firstWhere('id', $firstItemId);
+                    $prItemGroupId = $firstItem->pr_item_group_id ?? null;
+                }
+            }
+
             // Create the quotation
             $quotation = Quotation::create([
                 'quotation_number' => $quotationNumber,
                 'purchase_request_id' => $purchaseRequest->id,
+                'pr_item_group_id' => $prItemGroupId,
                 'supplier_id' => $validated['supplier_id'],
                 'supplier_location' => $validated['supplier_location'] ?? null,
                 'quotation_date' => $validated['quotation_date'],
@@ -765,6 +796,105 @@ class BacQuotationController extends Controller
     }
 
     /**
+     * Generate RFQ for a specific item group
+     */
+    public function generateRfqForGroup(\App\Models\PrItemGroup $itemGroup): RedirectResponse
+    {
+        $purchaseRequest = $itemGroup->purchaseRequest;
+        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        abort_if(empty($purchaseRequest->resolution_number), 403, 'Resolution must be generated before creating RFQ.');
+
+        try {
+            // Validate BAC signatories are configured
+            $signatoryLoader = new \App\Services\SignatoryLoaderService;
+            $missingPositions = $signatoryLoader->getMissingPositions(['bac_chairperson', 'canvassing_officer']);
+
+            if (! empty($missingPositions)) {
+                return back()->with('error', 'Please configure the following BAC signatories first: '.implode(', ', $missingPositions).'. <a href="'.route('bac.signatories.index').'" class="underline">Configure Signatories</a>');
+            }
+
+            $rfqService = new BacRfqService;
+            $rfqService->generateRfqForGroup($itemGroup);
+
+            return back()->with('status', 'RFQ has been generated successfully for '.$itemGroup->group_name.'.');
+        } catch (\Exception $e) {
+            Log::error('Failed to generate RFQ for group '.$itemGroup->id.': '.$e->getMessage());
+
+            return back()->with('error', 'Failed to generate RFQ. Please try again: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Download RFQ document for a specific group
+     */
+    public function downloadRfqForGroup(\App\Models\PrItemGroup $itemGroup): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $purchaseRequest = $itemGroup->purchaseRequest;
+        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+
+        $rfqGeneration = $itemGroup->rfqGeneration;
+
+        if (! $rfqGeneration) {
+            abort(404, 'RFQ document not found for this group.');
+        }
+
+        if (! Storage::exists($rfqGeneration->file_path)) {
+            abort(404, 'RFQ file not found in storage.');
+        }
+
+        $filename = 'RFQ_'.$rfqGeneration->rfq_number.'_'.$itemGroup->group_code.'.docx';
+
+        return Storage::download($rfqGeneration->file_path, $filename);
+    }
+
+    /**
+     * Regenerate RFQ for a specific group
+     */
+    public function regenerateRfqForGroup(Request $request, \App\Models\PrItemGroup $itemGroup): RedirectResponse
+    {
+        $purchaseRequest = $itemGroup->purchaseRequest;
+        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        abort_if(empty($purchaseRequest->resolution_number), 403, 'Resolution must be generated before creating RFQ.');
+
+        // Validate signatory data if provided
+        $validated = $request->validate([
+            'signatories' => ['nullable', 'array'],
+            'signatories.bac_chairperson' => ['nullable', 'array'],
+            'signatories.bac_chairperson.input_mode' => ['required_with:signatories.bac_chairperson', 'in:select,manual'],
+            'signatories.bac_chairperson.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.bac_chairperson.name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_chairperson.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_chairperson.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.bac_chairperson.suffix' => ['nullable', 'string', 'max:50'],
+            'signatories.canvassing_officer' => ['nullable', 'array'],
+            'signatories.canvassing_officer.input_mode' => ['required_with:signatories.canvassing_officer', 'in:select,manual'],
+            'signatories.canvassing_officer.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.canvassing_officer.name' => ['nullable', 'string', 'max:255'],
+            'signatories.canvassing_officer.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.canvassing_officer.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.canvassing_officer.suffix' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        try {
+            $signatoryData = null;
+
+            // If signatories are provided, prepare data
+            if (! empty($validated['signatories'])) {
+                $signatoryData = $this->prepareSignatoryData($validated['signatories']);
+            }
+
+            $rfqService = new BacRfqService;
+            $rfqService->generateRfqForGroup($itemGroup, $signatoryData);
+
+            return back()->with('status', 'RFQ has been regenerated successfully for '.$itemGroup->group_name.'.');
+        } catch (\Exception $e) {
+            Log::error('Failed to regenerate RFQ for group '.$itemGroup->id.': '.$e->getMessage());
+
+            return back()->with('error', 'Failed to regenerate RFQ. Please try again: '.$e->getMessage());
+        }
+    }
+
+    /**
      * View AOQ data (preview before generation)
      */
     public function viewAoq(PurchaseRequest $purchaseRequest): View
@@ -1114,6 +1244,72 @@ class BacQuotationController extends Controller
         }
 
         $fileName = "AOQ_{$aoqGeneration->aoq_reference_number}.docx";
+
+        return Storage::download($aoqGeneration->file_path, $fileName);
+    }
+
+    /**
+     * Generate AOQ for a specific item group
+     */
+    public function generateAoqForGroup(Request $request, \App\Models\PrItemGroup $itemGroup): RedirectResponse
+    {
+        $purchaseRequest = $itemGroup->purchaseRequest;
+        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+
+        $validated = $request->validate([
+            'signatories' => ['required', 'array'],
+            'signatories.bac_head.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.bac_head.name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_head.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_head.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.bac_head.suffix' => ['nullable', 'string', 'max:50'],
+            'signatories.ceo.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.ceo.name' => ['nullable', 'string', 'max:255'],
+            'signatories.ceo.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.ceo.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.ceo.suffix' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        try {
+            $signatoryData = $this->prepareSignatoryData($validated['signatories']);
+
+            $aoqService = new AoqService;
+            $aoqGeneration = $aoqService->generateAoqDocumentForGroup($itemGroup, auth()->user(), $signatoryData);
+
+            // Save signatories to database
+            $this->saveAoqSignatories($aoqGeneration, $validated['signatories']);
+
+            Log::info('AOQ generated for group', [
+                'pr_number' => $purchaseRequest->pr_number,
+                'group_code' => $itemGroup->group_code,
+                'aoq_reference' => $aoqGeneration->aoq_reference_number,
+                'generated_by' => auth()->user()->name,
+            ]);
+
+            return back()->with('status', "Abstract of Quotations generated successfully for {$itemGroup->group_name}. Reference: {$aoqGeneration->aoq_reference_number}");
+        } catch (\Exception $e) {
+            Log::error('Failed to generate AOQ for group: '.$e->getMessage());
+
+            return back()->with('error', 'Failed to generate AOQ: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Download AOQ for a specific item group
+     */
+    public function downloadAoqForGroup(\App\Models\PrItemGroup $itemGroup, int $aoqGenerationId): StreamedResponse
+    {
+        $aoqGeneration = $itemGroup->aoqGeneration;
+
+        if (! $aoqGeneration || $aoqGeneration->id != $aoqGenerationId) {
+            abort(404, 'AOQ not found for this group.');
+        }
+
+        if (! Storage::exists($aoqGeneration->file_path)) {
+            abort(404, 'AOQ file not found in storage.');
+        }
+
+        $fileName = "AOQ_{$aoqGeneration->aoq_reference_number}_{$itemGroup->group_code}.docx";
 
         return Storage::download($aoqGeneration->file_path, $fileName);
     }

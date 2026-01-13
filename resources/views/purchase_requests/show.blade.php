@@ -85,10 +85,11 @@
                                             'cancelled' => 'bg-gray-100 text-gray-800',
                                         ];
                                         $statusColor = $statusColors[$purchaseRequest->status] ?? 'bg-gray-100 text-gray-800';
+                                        $statusDisplay = $purchaseRequest->status === 'rejected' ? 'Deferred' : str_replace('_', ' ', Str::title($purchaseRequest->status));
                                     @endphp
                                     <p>
                                         <span class="inline-flex px-3 py-1 text-xs font-semibold rounded-full {{ $statusColor }}">
-                                            {{ str_replace('_', ' ', Str::title($purchaseRequest->status)) }}
+                                            {{ $statusDisplay }}
                                         </span>
                                     </p>
                                 </div>

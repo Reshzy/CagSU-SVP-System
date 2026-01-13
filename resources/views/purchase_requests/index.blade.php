@@ -143,9 +143,10 @@
                                                 'cancelled' => 'bg-gray-100 text-gray-800',
                                             ];
                                             $statusColor = $statusColors[$req->status] ?? 'bg-gray-100 text-gray-800';
+                                            $statusDisplay = $req->status === 'rejected' ? 'Deferred' : str_replace('_', ' ', Str::title($req->status));
                                         @endphp
                                         <span class="px-2 py-1 text-xs font-semibold rounded-full {{ $statusColor }}">
-                                            {{ str_replace('_', ' ', Str::title($req->status)) }}
+                                            {{ $statusDisplay }}
                                         </span>
                                     </td>
                                     <td class="px-4 py-3">

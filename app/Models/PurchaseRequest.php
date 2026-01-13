@@ -61,6 +61,11 @@ class PurchaseRequest extends Model
         return $this->hasMany(PurchaseRequestItem::class);
     }
 
+    public function itemGroups()
+    {
+        return $this->hasMany(PrItemGroup::class, 'purchase_request_id');
+    }
+
     public function documents()
     {
         return $this->morphMany(Document::class, 'documentable');

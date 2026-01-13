@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\Document;
+use App\Models\PrItemGroup;
 use App\Models\PurchaseRequest;
+use App\Models\RfqGeneration;
 use DateTime;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -44,6 +46,154 @@ class BacRfqService
         }
 
         return $this->attachToDocuments($filename);
+    }
+
+    /**
+     * Generate RFQ document for a specific item group
+     *
+     * @param  PrItemGroup  $itemGroup  The item group to generate RFQ for
+     * @param  array|null  $signatoryData  Array of signatory data (position, name, prefix, suffix)
+     */
+    public function generateRfqForGroup(PrItemGroup $itemGroup, ?array $signatoryData = null): ?RfqGeneration
+    {
+        $itemGroup->load(['purchaseRequest.resolutionSignatories', 'items']);
+        $this->purchaseRequest = $itemGroup->purchaseRequest;
+
+        // Load data specific to this group
+        $this->loadDataForGroup($itemGroup, $signatoryData);
+        $this->initializeDocument();
+        $this->buildDocument();
+
+        // Save to storage
+        $filename = $this->saveToStorageForGroup($itemGroup);
+
+        if (! $filename) {
+            return null;
+        }
+
+        // Create RFQ generation record
+        return $this->createRfqGenerationRecord($itemGroup, $filename, $signatoryData);
+    }
+
+    /**
+     * Load data for a specific item group
+     */
+    private function loadDataForGroup(PrItemGroup $itemGroup, ?array $signatoryData = null): void
+    {
+        // Get resolution date for deadline calculation
+        $resolutionDoc = $this->purchaseRequest->documents()
+            ->where('document_type', 'bac_resolution')
+            ->latest()
+            ->first();
+
+        $resolutionDate = $resolutionDoc ? $resolutionDoc->created_at->format('Y-m-d') : now()->format('Y-m-d');
+
+        // Generate RFQ number for this group
+        $rfqNumber = RfqGeneration::generateNextRfqNumber();
+
+        // Load signatories data
+        $signatories = $this->loadSignatoriesForGroup($itemGroup, $signatoryData);
+
+        $this->data = [
+            'rfq_no' => $rfqNumber,
+            'group_name' => $itemGroup->group_name,
+            'group_code' => $itemGroup->group_code,
+            'resolution_no' => $this->purchaseRequest->resolution_number ?? 'N/A',
+            'resolution_date' => $resolutionDate,
+            'procurement_type' => $this->purchaseRequest->procurement_method ?? 'small_value_procurement',
+            'bac_chairperson' => $signatories['bac_chairperson']['name'] ?? 'N/A',
+            'purpose' => $this->purchaseRequest->purpose ?? 'N/A',
+            'canvasser' => $signatories['canvassing_officer']['name'] ?? 'N/A',
+            'deadline_date' => $this->calculateDeadlineDate($resolutionDate),
+            'items' => $itemGroup->items->toArray(),
+            'signatories' => $signatories,
+        ];
+    }
+
+    /**
+     * Load signatories for group (similar to existing loadSignatories)
+     */
+    private function loadSignatoriesForGroup(PrItemGroup $itemGroup, ?array $signatories = null): array
+    {
+        $defaultSignatories = [
+            'bac_chairperson' => ['name' => 'Christopher R. Garingan', 'prefix' => null, 'suffix' => null],
+            'canvassing_officer' => ['name' => 'Chanda T. Aquino', 'prefix' => null, 'suffix' => null],
+        ];
+
+        // If signatories parameter is provided, use it
+        if ($signatories) {
+            return array_merge($defaultSignatories, $signatories);
+        }
+
+        // Check if RFQ generation already exists with signatories
+        $rfqGeneration = $itemGroup->rfqGeneration;
+        if ($rfqGeneration && $rfqGeneration->rfqSignatories && $rfqGeneration->rfqSignatories->isNotEmpty()) {
+            $result = [];
+            foreach ($rfqGeneration->rfqSignatories as $sig) {
+                $result[$sig->position] = [
+                    'name' => $sig->full_name,
+                    'prefix' => $sig->prefix,
+                    'suffix' => $sig->suffix,
+                ];
+            }
+
+            return array_merge($defaultSignatories, $result);
+        }
+
+        // Fall back to default signatories
+        return $defaultSignatories;
+    }
+
+    /**
+     * Save RFQ document to storage for a specific group
+     */
+    private function saveToStorageForGroup(PrItemGroup $itemGroup): ?string
+    {
+        try {
+            $filename = 'RFQ_'.$this->data['rfq_no'].'_'.$itemGroup->group_code.'_'.now()->format('Ymd_His').'.docx';
+            $writer = IOFactory::createWriter($this->phpWord, 'Word2007');
+            $tempPath = storage_path('app/temp_'.$filename);
+            $writer->save($tempPath);
+
+            Storage::disk('local')->put('rfq/'.$filename, file_get_contents($tempPath));
+            unlink($tempPath);
+
+            return $filename;
+        } catch (\Exception $e) {
+            Log::error('Failed to save RFQ document for group: '.$e->getMessage());
+
+            return null;
+        }
+    }
+
+    /**
+     * Create RFQ generation record and save signatories
+     */
+    private function createRfqGenerationRecord(PrItemGroup $itemGroup, string $filename, ?array $signatoryData = null): RfqGeneration
+    {
+        $rfqGeneration = RfqGeneration::create([
+            'pr_item_group_id' => $itemGroup->id,
+            'rfq_number' => $this->data['rfq_no'],
+            'generated_by' => Auth::id() ?? 1,
+            'generated_at' => now(),
+            'file_path' => 'rfq/'.$filename,
+        ]);
+
+        // Save signatories if provided
+        if ($signatoryData) {
+            foreach ($signatoryData as $position => $data) {
+                \App\Models\RfqSignatory::create([
+                    'rfq_generation_id' => $rfqGeneration->id,
+                    'position' => $position,
+                    'user_id' => $data['user_id'] ?? null,
+                    'name' => $data['name'] ?? null,
+                    'prefix' => $data['prefix'] ?? null,
+                    'suffix' => $data['suffix'] ?? null,
+                ]);
+            }
+        }
+
+        return $rfqGeneration;
     }
 
     /**

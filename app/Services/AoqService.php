@@ -337,6 +337,147 @@ class AoqService
     }
 
     /**
+     * Generate AOQ document for a specific item group
+     */
+    public function generateAoqDocumentForGroup(\App\Models\PrItemGroup $itemGroup, User $generatedBy, ?array $signatoryData = null): AoqGeneration
+    {
+        $purchaseRequest = $itemGroup->purchaseRequest;
+
+        // Recalculate winners and ties for this group only
+        $aoqData = $this->calculateWinnersAndTiesForGroup($itemGroup);
+
+        // Check if can generate for this group
+        $validation = $this->canGenerateAoqForGroup($itemGroup);
+        if (! $validation['can_generate']) {
+            throw new \Exception('Cannot generate AOQ: '.implode('; ', $validation['errors']));
+        }
+
+        // Generate reference number
+        $referenceNumber = AoqGeneration::generateNextReferenceNumber();
+
+        // Prepare data snapshot for group
+        $dataSnapshot = $this->prepareDataSnapshotForGroup($itemGroup, $aoqData);
+
+        // Generate Word document for group
+        $filePath = $this->createWordDocumentForGroup($itemGroup, $aoqData, $referenceNumber, $signatoryData);
+
+        // Calculate hash
+        $documentHash = hash('sha256', json_encode($dataSnapshot));
+
+        // Create AOQ generation record
+        $aoqGeneration = AoqGeneration::create([
+            'aoq_reference_number' => $referenceNumber,
+            'purchase_request_id' => $purchaseRequest->id,
+            'pr_item_group_id' => $itemGroup->id,
+            'generated_by' => $generatedBy->id,
+            'document_hash' => $documentHash,
+            'exported_data_snapshot' => $dataSnapshot,
+            'file_path' => $filePath,
+            'file_format' => 'docx',
+            'total_items' => count($aoqData),
+            'total_suppliers' => $itemGroup->quotations()->count(),
+        ]);
+
+        return $aoqGeneration;
+    }
+
+    /**
+     * Calculate winners and ties for a specific item group
+     */
+    protected function calculateWinnersAndTiesForGroup(\App\Models\PrItemGroup $itemGroup): array
+    {
+        // Get quotations for this group only
+        $quotations = $itemGroup->quotations()
+            ->with(['supplier', 'quotationItems.purchaseRequestItem'])
+            ->get();
+
+        // Filter items to only those in this group
+        $groupItems = $itemGroup->items;
+
+        // Use similar logic to calculateWinnersAndTies but filtered to group items
+        $aoqData = [];
+        foreach ($groupItems as $prItem) {
+            $itemQuotes = [];
+            foreach ($quotations as $quotation) {
+                $quotationItem = $quotation->quotationItems->firstWhere('purchase_request_item_id', $prItem->id);
+                if ($quotationItem && $quotationItem->unit_price !== null) {
+                    $itemQuotes[] = [
+                        'quotation_id' => $quotation->id,
+                        'supplier_name' => $quotation->supplier->business_name,
+                        'unit_price' => $quotationItem->unit_price,
+                        'total_price' => $quotationItem->total_price,
+                        'is_within_abc' => $quotationItem->is_within_abc,
+                    ];
+                }
+            }
+
+            // Sort by unit price to find lowest
+            usort($itemQuotes, fn ($a, $b) => $a['unit_price'] <=> $b['unit_price']);
+
+            $aoqData[$prItem->id] = [
+                'item' => $prItem,
+                'quotes' => $itemQuotes,
+                'lowest_price' => $itemQuotes[0]['unit_price'] ?? null,
+                'winner_id' => $itemQuotes[0]['quotation_id'] ?? null,
+            ];
+        }
+
+        return $aoqData;
+    }
+
+    /**
+     * Check if AOQ can be generated for a specific group
+     */
+    protected function canGenerateAoqForGroup(\App\Models\PrItemGroup $itemGroup): array
+    {
+        $errors = [];
+
+        // Check if there are quotations for this group
+        $quotationsCount = $itemGroup->quotations()->count();
+        if ($quotationsCount === 0) {
+            $errors[] = 'No quotations have been submitted for this group yet.';
+        }
+
+        return [
+            'can_generate' => empty($errors),
+            'errors' => $errors,
+        ];
+    }
+
+    /**
+     * Prepare data snapshot for a specific group
+     */
+    protected function prepareDataSnapshotForGroup(\App\Models\PrItemGroup $itemGroup, array $aoqData): array
+    {
+        $purchaseRequest = $itemGroup->purchaseRequest;
+
+        return [
+            'pr_number' => $purchaseRequest->pr_number,
+            'group_name' => $itemGroup->group_name,
+            'group_code' => $itemGroup->group_code,
+            'aoq_data' => $aoqData,
+            'generated_at' => now()->toDateTimeString(),
+        ];
+    }
+
+    /**
+     * Create Word document for a specific group (simplified version)
+     */
+    protected function createWordDocumentForGroup(\App\Models\PrItemGroup $itemGroup, array $aoqData, string $referenceNumber, ?array $signatoryData = null): string
+    {
+        // Reuse existing createWordDocument logic but filter to group data
+        // For now, use the parent method and add group identifier
+        $purchaseRequest = $itemGroup->purchaseRequest;
+        $filePath = $this->createWordDocument($purchaseRequest, $aoqData, $referenceNumber, $signatoryData);
+
+        // Rename to include group code
+        $newPath = str_replace('.docx', '_'.$itemGroup->group_code.'.docx', $filePath);
+        \Illuminate\Support\Facades\Storage::move($filePath, $newPath);
+
+        return $newPath;
+    }
+
+    /**
      * Prepare data snapshot for audit
      */
     protected function prepareDataSnapshot(PurchaseRequest $purchaseRequest, array $aoqData): array
