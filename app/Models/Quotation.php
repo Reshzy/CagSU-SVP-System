@@ -30,6 +30,11 @@ class Quotation extends Model
         return $this->belongsTo(PurchaseRequest::class);
     }
 
+    public function prItemGroup()
+    {
+        return $this->belongsTo(PrItemGroup::class, 'pr_item_group_id');
+    }
+
     public function supplier()
     {
         return $this->belongsTo(Supplier::class);
@@ -45,8 +50,6 @@ class Quotation extends Model
 
     /**
      * Check if this quotation has any items exceeding ABC
-     * 
-     * @return bool
      */
     public function hasItemsExceedingAbc(): bool
     {
@@ -55,8 +58,6 @@ class Quotation extends Model
 
     /**
      * Get the calculated grand total from quotation items
-     * 
-     * @return float
      */
     public function getCalculatedTotal(): float
     {
@@ -65,8 +66,6 @@ class Quotation extends Model
 
     /**
      * Check if quotation is still within price validity period
-     * 
-     * @return bool
      */
     public function isValidityExpired(): bool
     {
@@ -75,8 +74,6 @@ class Quotation extends Model
 
     /**
      * Check if quotation was submitted within the 4-day deadline
-     * 
-     * @return bool
      */
     public function isWithinSubmissionDeadline(): bool
     {
@@ -85,7 +82,7 @@ class Quotation extends Model
             ->latest()
             ->first();
 
-        if (!$rfq) {
+        if (! $rfq) {
             return true; // No RFQ, can't validate
         }
 
@@ -98,13 +95,9 @@ class Quotation extends Model
     /**
      * Check if this quotation is eligible for award
      * Based on: not exceeding ABC and within submission deadline
-     * 
-     * @return bool
      */
     public function isEligibleForAward(): bool
     {
-        return !$this->exceeds_abc && $this->isWithinSubmissionDeadline();
+        return ! $this->exceeds_abc && $this->isWithinSubmissionDeadline();
     }
 }
-
-

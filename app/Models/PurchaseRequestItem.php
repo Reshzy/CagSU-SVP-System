@@ -28,6 +28,14 @@ class PurchaseRequestItem extends Model
     }
 
     /**
+     * Get the item group this item belongs to
+     */
+    public function prItemGroup()
+    {
+        return $this->belongsTo(PrItemGroup::class, 'pr_item_group_id');
+    }
+
+    /**
      * Get the PPMP item associated with this PR item
      */
     public function ppmpItem()

@@ -26,6 +26,14 @@ class AoqGeneration extends Model
     }
 
     /**
+     * Get the item group for this AOQ generation
+     */
+    public function prItemGroup()
+    {
+        return $this->belongsTo(PrItemGroup::class, 'pr_item_group_id');
+    }
+
+    /**
      * Get the user who generated this AOQ
      */
     public function generatedBy()

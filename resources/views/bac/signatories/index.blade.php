@@ -21,10 +21,79 @@
                 </div>
             @endif
 
+            <!-- Configuration Status Card -->
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
+                <div class="p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Required Signatory Positions</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        @foreach($signatoryStatus as $position => $status)
+                            <div class="border rounded-lg p-4 {{ $status['is_configured'] ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50' }}">
+                                <div class="flex items-center justify-between mb-2">
+                                    <h4 class="text-sm font-semibold {{ $status['is_configured'] ? 'text-green-900' : 'text-red-900' }}">
+                                        {{ $status['display_name'] }}
+                                    </h4>
+                                    @if($status['is_configured'])
+                                        <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                    @else
+                                        <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    @endif
+                                </div>
+                                <div class="text-xs {{ $status['is_configured'] ? 'text-green-700' : 'text-red-700' }}">
+                                    @if($status['is_configured'])
+                                        <span class="font-medium">Configured:</span> {{ $status['count'] }}/{{ $status['required_count'] }}
+                                        @if(!empty($status['signatories']))
+                                            <ul class="mt-1 ml-2 list-disc list-inside">
+                                                @foreach($status['signatories'] as $sig)
+                                                    <li class="truncate">{{ $sig }}</li>
+                                                @endforeach
+                                            </ul>
+                                        @endif
+                                    @else
+                                        <span class="font-medium">Missing:</span> {{ $status['count'] }}/{{ $status['required_count'] }} configured
+                                    @endif
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                    @php
+                        $allConfigured = collect($signatoryStatus)->every(fn($status) => $status['is_configured']);
+                    @endphp
+                    @if(!$allConfigured)
+                        <div class="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                            <div class="flex items-start space-x-3">
+                                <svg class="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                </svg>
+                                <div class="flex-1">
+                                    <h4 class="text-sm font-semibold text-yellow-900 mb-1">Configuration Incomplete</h4>
+                                    <p class="text-sm text-yellow-800">Please configure all required signatory positions to enable automatic document generation.</p>
+                                </div>
+                            </div>
+                        </div>
+                    @else
+                        <div class="mt-4 bg-green-50 border border-green-200 rounded-lg p-4">
+                            <div class="flex items-start space-x-3">
+                                <svg class="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <div class="flex-1">
+                                    <h4 class="text-sm font-semibold text-green-900 mb-1">All Positions Configured</h4>
+                                    <p class="text-sm text-green-800">All required signatory positions are configured. Documents will automatically use these signatories.</p>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+                </div>
+            </div>
+
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
                     <div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <p class="text-gray-600 mb-0">Manage BAC signatories who can appear on resolution documents. These signatories will be available for selection when generating resolutions.</p>
+                        <p class="text-gray-600 mb-0">Manage BAC signatories who will automatically appear on BAC documents (Resolution, RFQ, AOQ).</p>
                         <a href="{{ route('bac.signatories.create') }}" class="bg-cagsu-blue hover:bg-blue-800 text-white font-semibold py-2 px-4 rounded-lg shadow whitespace-nowrap">
                             Add New Signatory
                         </a>

@@ -192,6 +192,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/bac/procurement-method/{purchaseRequest}/edit', [BacProcurementMethodController::class, 'edit'])->name('bac.procurement-method.edit');
         Route::put('/bac/procurement-method/{purchaseRequest}', [BacProcurementMethodController::class, 'update'])->name('bac.procurement-method.update');
 
+        // BAC Item Grouping
+        Route::get('/bac/item-groups/{purchaseRequest}/create', [\App\Http\Controllers\BacItemGroupController::class, 'create'])->name('bac.item-groups.create');
+        Route::post('/bac/item-groups/{purchaseRequest}', [\App\Http\Controllers\BacItemGroupController::class, 'store'])->name('bac.item-groups.store');
+        Route::get('/bac/item-groups/{purchaseRequest}/edit', [\App\Http\Controllers\BacItemGroupController::class, 'edit'])->name('bac.item-groups.edit');
+        Route::put('/bac/item-groups/{purchaseRequest}', [\App\Http\Controllers\BacItemGroupController::class, 'update'])->name('bac.item-groups.update');
+        Route::delete('/bac/item-groups/{purchaseRequest}', [\App\Http\Controllers\BacItemGroupController::class, 'destroy'])->name('bac.item-groups.destroy');
+
         Route::get('/bac/quotations', [BacQuotationController::class, 'index'])->name('bac.quotations.index');
         Route::get('/bac/quotations/{purchaseRequest}/manage', [BacQuotationController::class, 'manage'])->name('bac.quotations.manage');
         Route::post('/bac/quotations/{purchaseRequest}', [BacQuotationController::class, 'store'])->name('bac.quotations.store');
@@ -207,12 +214,21 @@ Route::middleware('auth')->group(function () {
         Route::get('/bac/quotations/{purchaseRequest}/rfq/download', [BacQuotationController::class, 'downloadRfq'])->name('bac.quotations.rfq.download');
         Route::post('/bac/quotations/{purchaseRequest}/rfq/regenerate', [BacQuotationController::class, 'regenerateRfq'])->name('bac.quotations.rfq.regenerate');
 
+        // Group-based RFQ routes
+        Route::post('/bac/item-groups/{itemGroup}/rfq/generate', [BacQuotationController::class, 'generateRfqForGroup'])->name('bac.item-groups.rfq.generate');
+        Route::get('/bac/item-groups/{itemGroup}/rfq/download', [BacQuotationController::class, 'downloadRfqForGroup'])->name('bac.item-groups.rfq.download');
+        Route::post('/bac/item-groups/{itemGroup}/rfq/regenerate', [BacQuotationController::class, 'regenerateRfqForGroup'])->name('bac.item-groups.rfq.regenerate');
+
         // AOQ (Abstract of Quotations)
         Route::get('/bac/quotations/{purchaseRequest}/aoq', [BacQuotationController::class, 'viewAoq'])->name('bac.quotations.aoq');
         Route::post('/bac/quotations/{purchaseRequest}/aoq/generate', [BacQuotationController::class, 'generateAoq'])->name('bac.quotations.aoq.generate');
         Route::get('/bac/quotations/{purchaseRequest}/aoq/{aoqGeneration}/download', [BacQuotationController::class, 'downloadAoq'])->name('bac.quotations.aoq.download');
         Route::post('/bac/quotations/{purchaseRequest}/aoq/resolve-tie', [BacQuotationController::class, 'resolveTie'])->name('bac.quotations.aoq.resolve-tie');
         Route::post('/bac/quotations/{purchaseRequest}/aoq/bac-override', [BacQuotationController::class, 'applyBacOverride'])->name('bac.quotations.aoq.bac-override');
+
+        // Group-based AOQ routes
+        Route::post('/bac/item-groups/{itemGroup}/aoq/generate', [BacQuotationController::class, 'generateAoqForGroup'])->name('bac.item-groups.aoq.generate');
+        Route::get('/bac/item-groups/{itemGroup}/aoq/{aoqGeneration}/download', [BacQuotationController::class, 'downloadAoqForGroup'])->name('bac.item-groups.aoq.download');
 
         // Meetings
         Route::get('/bac/meetings', [BacMeetingController::class, 'index'])->name('bac.meetings.index');

@@ -23,9 +23,10 @@
                         'returned_by_supply' => 'bg-yellow-100 text-yellow-800',
                     ];
                     $statusColor = $statusColors[$purchaseRequest->status] ?? 'bg-gray-100 text-gray-800';
+                    $statusDisplay = $purchaseRequest->status === 'rejected' ? 'Deferred' : str_replace('_', ' ', Str::title($purchaseRequest->status));
                 @endphp
                 <span class="px-3 py-1 text-sm font-semibold rounded-full {{ $statusColor }}">
-                    {{ str_replace('_', ' ', Str::title($purchaseRequest->status)) }}
+                    {{ $statusDisplay }}
                 </span>
             </div>
         </div>

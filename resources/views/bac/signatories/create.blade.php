@@ -2,7 +2,7 @@
 
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex justify-between items-center">
+        <div class="flex justify-between items-center gap-4">
             <h2 class="font-semibold text-2xl text-gray-800 leading-tight">{{ __('Add BAC Signatory') }}</h2>
             <a href="{{ route('bac.signatories.index') }}" class="text-cagsu-blue hover:underline">
                 ← Back to List

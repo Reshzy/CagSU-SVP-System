@@ -8,9 +8,9 @@ use App\Models\Quotation;
 use App\Models\ResolutionSignatory;
 use App\Models\RfqSignatory;
 use App\Models\Supplier;
+use App\Services\AoqService;
 use App\Services\BacResolutionService;
 use App\Services\BacRfqService;
-use App\Services\AoqService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -23,7 +23,7 @@ class BacQuotationController extends Controller
     public function index(Request $request): View
     {
         $requests = PurchaseRequest::withCount('items')
-            ->with(['documents' => function($query) {
+            ->with(['documents' => function ($query) {
                 $query->where('document_type', 'bac_resolution')->latest();
             }])
             ->where('status', 'bac_evaluation')
@@ -36,51 +36,51 @@ class BacQuotationController extends Controller
     public function manage(PurchaseRequest $purchaseRequest): View|RedirectResponse
     {
         abort_unless($purchaseRequest->status === 'bac_evaluation', 403);
-        
+
         // Redirect to procurement method setting if not set yet
         if (empty($purchaseRequest->procurement_method)) {
             return redirect()->route('bac.procurement-method.edit', $purchaseRequest)
                 ->with('error', 'Please set the procurement method first before managing quotations.');
         }
-        
+
         $purchaseRequest->load(['items', 'documents', 'resolutionSignatories', 'rfqSignatories']);
-        
+
         // Get the BAC resolution document if it exists
         $resolution = $purchaseRequest->documents()
             ->where('document_type', 'bac_resolution')
             ->latest()
             ->first();
-        
+
         // Get the RFQ document if it exists
         $rfq = $purchaseRequest->documents()
             ->where('document_type', 'bac_rfq')
             ->latest()
             ->first();
-        
+
         $suppliers = Supplier::where('status', 'active')->orderBy('business_name')->get();
         $quotations = Quotation::where('purchase_request_id', $purchaseRequest->id)
             ->with(['supplier', 'quotationItems.purchaseRequestItem'])
             ->get();
-        
+
         // Get BAC signatories for regeneration form
         $bacSignatories = BacSignatory::with('user')->active()->get()->groupBy('position');
-        
+
         return view('bac.quotations.manage', compact('purchaseRequest', 'suppliers', 'quotations', 'resolution', 'rfq', 'bacSignatories'));
     }
 
     public function store(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
     {
         abort_if(empty($purchaseRequest->procurement_method), 403, 'Procurement method must be set first.');
-        
+
         // Load PR items for validation
         $purchaseRequest->load('items');
-        
+
         // Get RFQ document to check submission deadline
         $rfq = $purchaseRequest->documents()
             ->where('document_type', 'bac_rfq')
             ->latest()
             ->first();
-        
+
         // Validate the request
         $validated = $request->validate([
             'supplier_id' => ['required', 'exists:suppliers,id'],
@@ -101,9 +101,9 @@ class BacQuotationController extends Controller
             }
         }
 
-        if (!$hasAtLeastOnePrice) {
+        if (! $hasAtLeastOnePrice) {
             return back()->withErrors([
-                'items' => 'Supplier must provide pricing for at least one item.'
+                'items' => 'Supplier must provide pricing for at least one item.',
             ])->withInput();
         }
 
@@ -111,10 +111,10 @@ class BacQuotationController extends Controller
         if ($rfq) {
             $rfqDate = $rfq->created_at;
             $deadline = $rfqDate->copy()->addDays(4);
-            
+
             if ($validated['quotation_date'] > $deadline->toDateString()) {
                 return back()->withErrors([
-                    'quotation_date' => 'Quotation date must be within 4 days of RFQ creation date (' . $rfqDate->format('M d, Y') . '). Deadline was ' . $deadline->format('M d, Y') . '.'
+                    'quotation_date' => 'Quotation date must be within 4 days of RFQ creation date ('.$rfqDate->format('M d, Y').'). Deadline was '.$deadline->format('M d, Y').'.',
                 ])->withInput();
             }
         }
@@ -123,14 +123,33 @@ class BacQuotationController extends Controller
         $quotationDate = \Carbon\Carbon::parse($validated['quotation_date']);
         $validityDate = $quotationDate->copy()->addDays(10);
 
-        // Check for duplicate supplier quotation
-        $existingQuotation = Quotation::where('purchase_request_id', $purchaseRequest->id)
-            ->where('supplier_id', $validated['supplier_id'])
-            ->first();
-        
+        // Determine item group if items are grouped (for duplicate check)
+        $tempGroupId = null;
+        if ($purchaseRequest->itemGroups()->exists()) {
+            $firstItemId = $validated['items'][0]['pr_item_id'] ?? null;
+            if ($firstItemId) {
+                $firstItem = $purchaseRequest->items->firstWhere('id', $firstItemId);
+                $tempGroupId = $firstItem->pr_item_group_id ?? null;
+            }
+        }
+
+        // Check for duplicate supplier quotation (per group if grouped)
+        $existingQuery = Quotation::where('purchase_request_id', $purchaseRequest->id)
+            ->where('supplier_id', $validated['supplier_id']);
+
+        if ($tempGroupId) {
+            $existingQuery->where('pr_item_group_id', $tempGroupId);
+        }
+
+        $existingQuotation = $existingQuery->first();
+
         if ($existingQuotation) {
+            $errorMessage = $tempGroupId
+                ? 'A quotation from this supplier already exists for this item group.'
+                : 'A quotation from this supplier already exists for this PR.';
+
             return back()->withErrors([
-                'supplier_id' => 'A quotation from this supplier already exists for this PR.'
+                'supplier_id' => $errorMessage,
             ])->withInput();
         }
 
@@ -141,7 +160,7 @@ class BacQuotationController extends Controller
             $quotationFilePath = null;
             if ($request->hasFile('quotation_file')) {
                 $file = $request->file('quotation_file');
-                $filename = 'quotation_' . time() . '_' . $validated['supplier_id'] . '.' . $file->getClientOriginalExtension();
+                $filename = 'quotation_'.time().'_'.$validated['supplier_id'].'.'.$file->getClientOriginalExtension();
                 $quotationFilePath = $file->storeAs('quotations', $filename, 'public');
             }
 
@@ -155,14 +174,14 @@ class BacQuotationController extends Controller
 
             foreach ($validated['items'] as $itemData) {
                 $prItem = $purchaseRequest->items->firstWhere('id', $itemData['pr_item_id']);
-                
-                if (!$prItem) {
+
+                if (! $prItem) {
                     continue;
                 }
 
                 // Check if supplier quoted this item (unit_price is provided and not empty)
-                $unitPrice = isset($itemData['unit_price']) && $itemData['unit_price'] !== '' && $itemData['unit_price'] !== null 
-                    ? (float) $itemData['unit_price'] 
+                $unitPrice = isset($itemData['unit_price']) && $itemData['unit_price'] !== '' && $itemData['unit_price'] !== null
+                    ? (float) $itemData['unit_price']
                     : null;
 
                 // Skip items that weren't quoted by the supplier
@@ -173,17 +192,18 @@ class BacQuotationController extends Controller
                         'total_price' => 0,
                         'is_within_abc' => true, // Not quoted items don't affect ABC compliance
                     ];
+
                     continue;
                 }
 
                 $quantity = $prItem->quantity_requested;
                 $totalPrice = $unitPrice * $quantity;
                 $abc = (float) $prItem->estimated_unit_cost;
-                
+
                 // Check if unit price exceeds ABC (only for quoted items)
                 $isWithinAbc = $unitPrice <= $abc;
-                
-                if (!$isWithinAbc) {
+
+                if (! $isWithinAbc) {
                     $exceedsAbc = true;
                 }
 
@@ -197,10 +217,22 @@ class BacQuotationController extends Controller
                 ];
             }
 
+            // Determine item group if items are grouped
+            $prItemGroupId = null;
+            if ($purchaseRequest->itemGroups()->exists()) {
+                // Get the group from the first item in the quotation
+                $firstItemId = $validated['items'][0]['pr_item_id'] ?? null;
+                if ($firstItemId) {
+                    $firstItem = $purchaseRequest->items->firstWhere('id', $firstItemId);
+                    $prItemGroupId = $firstItem->pr_item_group_id ?? null;
+                }
+            }
+
             // Create the quotation
             $quotation = Quotation::create([
                 'quotation_number' => $quotationNumber,
                 'purchase_request_id' => $purchaseRequest->id,
+                'pr_item_group_id' => $prItemGroupId,
                 'supplier_id' => $validated['supplier_id'],
                 'supplier_location' => $validated['supplier_location'] ?? null,
                 'quotation_date' => $validated['quotation_date'],
@@ -236,7 +268,8 @@ class BacQuotationController extends Controller
 
         } catch (\Exception $e) {
             \DB::rollBack();
-            Log::error('Failed to store quotation: ' . $e->getMessage());
+            Log::error('Failed to store quotation: '.$e->getMessage());
+
             return back()->with('error', 'Failed to save quotation. Please try again.')->withInput();
         }
     }
@@ -259,7 +292,7 @@ class BacQuotationController extends Controller
 
         // Filter only eligible quotations (not exceeding ABC and within deadline)
         $eligibleQuotations = $quotations->filter(function ($quotation) {
-            return !$quotation->exceeds_abc && $quotation->isWithinSubmissionDeadline();
+            return ! $quotation->exceeds_abc && $quotation->isWithinSubmissionDeadline();
         });
 
         if ($eligibleQuotations->isEmpty()) {
@@ -332,14 +365,15 @@ class BacQuotationController extends Controller
     protected static function generateQuotationNumber(): string
     {
         $year = now()->year;
-        $prefix = 'QUO-' . $year . '-';
-        $last = Quotation::where('quotation_number', 'like', $prefix . '%')->orderByDesc('quotation_number')->value('quotation_number');
+        $prefix = 'QUO-'.$year.'-';
+        $last = Quotation::where('quotation_number', 'like', $prefix.'%')->orderByDesc('quotation_number')->value('quotation_number');
         $next = 1;
         if ($last) {
             $parts = explode('-', $last);
             $next = intval(end($parts)) + 1;
         }
-        return $prefix . str_pad((string)$next, 4, '0', STR_PAD_LEFT);
+
+        return $prefix.str_pad((string) $next, 4, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -355,11 +389,11 @@ class BacQuotationController extends Controller
             ->latest()
             ->first();
 
-        if (!$resolution) {
+        if (! $resolution) {
             abort(404, 'Resolution document not found.');
         }
 
-        if (!Storage::exists($resolution->file_path)) {
+        if (! Storage::exists($resolution->file_path)) {
             abort(404, 'Resolution file not found in storage.');
         }
 
@@ -430,38 +464,39 @@ class BacQuotationController extends Controller
 
         try {
             $signatoryData = null;
-            
+
             // If signatories are provided, save them and prepare data
-            if (!empty($validated['signatories'])) {
+            if (! empty($validated['signatories'])) {
                 Log::info('Regenerating resolution with signatories', [
                     'pr_number' => $purchaseRequest->pr_number,
-                    'signatory_count' => count($validated['signatories'])
+                    'signatory_count' => count($validated['signatories']),
                 ]);
-                
+
                 $this->saveSignatories($purchaseRequest, $validated['signatories']);
                 $signatoryData = $this->prepareSignatoryData($validated['signatories']);
-                
+
                 // IMPORTANT: Refresh the relationship so the service loads fresh signatory data
                 $purchaseRequest->refresh();
                 $purchaseRequest->load('resolutionSignatories');
-                
+
                 Log::info('Signatories saved and loaded', [
                     'pr_number' => $purchaseRequest->pr_number,
-                    'loaded_count' => $purchaseRequest->resolutionSignatories->count()
+                    'loaded_count' => $purchaseRequest->resolutionSignatories->count(),
                 ]);
             } else {
                 Log::info('No signatories provided, will use existing or defaults', [
-                    'pr_number' => $purchaseRequest->pr_number
+                    'pr_number' => $purchaseRequest->pr_number,
                 ]);
             }
 
-            $resolutionService = new BacResolutionService();
+            $resolutionService = new BacResolutionService;
             $resolutionService->generateResolution($purchaseRequest, $signatoryData);
 
             return back()->with('status', 'Resolution has been regenerated successfully.');
         } catch (\Exception $e) {
-            Log::error('Failed to regenerate BAC resolution for PR ' . $purchaseRequest->pr_number . ': ' . $e->getMessage());
-            return back()->with('error', 'Failed to regenerate resolution. Please try again: ' . $e->getMessage());
+            Log::error('Failed to regenerate BAC resolution for PR '.$purchaseRequest->pr_number.': '.$e->getMessage());
+
+            return back()->with('error', 'Failed to regenerate resolution. Please try again: '.$e->getMessage());
         }
     }
 
@@ -475,21 +510,21 @@ class BacQuotationController extends Controller
 
         Log::info('Saving signatories', [
             'pr_number' => $purchaseRequest->pr_number,
-            'positions' => array_keys($signatories)
+            'positions' => array_keys($signatories),
         ]);
 
         // Save new signatories
         $savedCount = 0;
         foreach ($signatories as $position => $data) {
-            Log::debug("Processing signatory", [
+            Log::debug('Processing signatory', [
                 'position' => $position,
                 'input_mode' => $data['input_mode'] ?? 'not set',
-                'has_user_id' => !empty($data['user_id']),
-                'has_selected_name' => !empty($data['selected_name']),
-                'has_name' => !empty($data['name'])
+                'has_user_id' => ! empty($data['user_id']),
+                'has_selected_name' => ! empty($data['selected_name']),
+                'has_name' => ! empty($data['name']),
             ]);
-            
-            if ($data['input_mode'] === 'select' && !empty($data['user_id'])) {
+
+            if ($data['input_mode'] === 'select' && ! empty($data['user_id'])) {
                 // User selected from registered user accounts
                 ResolutionSignatory::create([
                     'purchase_request_id' => $purchaseRequest->id,
@@ -501,7 +536,7 @@ class BacQuotationController extends Controller
                 ]);
                 $savedCount++;
                 Log::debug("Saved user-based signatory for position: {$position}");
-            } elseif ($data['input_mode'] === 'select' && !empty($data['selected_name'])) {
+            } elseif ($data['input_mode'] === 'select' && ! empty($data['selected_name'])) {
                 // Pre-configured signatory with manual name (no user account)
                 ResolutionSignatory::create([
                     'purchase_request_id' => $purchaseRequest->id,
@@ -513,7 +548,7 @@ class BacQuotationController extends Controller
                 ]);
                 $savedCount++;
                 Log::debug("Saved pre-configured manual signatory for position: {$position}");
-            } elseif ($data['input_mode'] === 'manual' && !empty($data['name'])) {
+            } elseif ($data['input_mode'] === 'manual' && ! empty($data['name'])) {
                 // Manually entered name
                 ResolutionSignatory::create([
                     'purchase_request_id' => $purchaseRequest->id,
@@ -529,7 +564,7 @@ class BacQuotationController extends Controller
                 Log::warning("Skipped signatory for position: {$position}", $data);
             }
         }
-        
+
         Log::info("Total signatories saved: {$savedCount}");
     }
 
@@ -539,9 +574,9 @@ class BacQuotationController extends Controller
     private function prepareSignatoryData(array $signatories): array
     {
         $result = [];
-        
+
         foreach ($signatories as $position => $data) {
-            if ($data['input_mode'] === 'select' && !empty($data['user_id'])) {
+            if ($data['input_mode'] === 'select' && ! empty($data['user_id'])) {
                 // Registered user from dropdown
                 $user = \App\Models\User::find($data['user_id']);
                 $result[$position] = [
@@ -549,14 +584,14 @@ class BacQuotationController extends Controller
                     'prefix' => $data['prefix'] ?? null,
                     'suffix' => $data['suffix'] ?? null,
                 ];
-            } elseif ($data['input_mode'] === 'select' && !empty($data['selected_name'])) {
+            } elseif ($data['input_mode'] === 'select' && ! empty($data['selected_name'])) {
                 // Pre-configured signatory with manual name
                 $result[$position] = [
                     'name' => $data['selected_name'],
                     'prefix' => $data['prefix'] ?? null,
                     'suffix' => $data['suffix'] ?? null,
                 ];
-            } elseif ($data['input_mode'] === 'manual' && !empty($data['name'])) {
+            } elseif ($data['input_mode'] === 'manual' && ! empty($data['name'])) {
                 // Manually entered name
                 $result[$position] = [
                     'name' => $data['name'],
@@ -565,7 +600,7 @@ class BacQuotationController extends Controller
                 ];
             }
         }
-        
+
         return $result;
     }
 
@@ -578,19 +613,28 @@ class BacQuotationController extends Controller
         abort_if(empty($purchaseRequest->resolution_number), 403, 'Resolution must be generated before creating RFQ.');
 
         try {
+            // Validate BAC signatories are configured
+            $signatoryLoader = new \App\Services\SignatoryLoaderService;
+            $missingPositions = $signatoryLoader->getMissingPositions(['bac_chairperson', 'canvassing_officer']);
+
+            if (! empty($missingPositions)) {
+                return back()->with('error', 'Please configure the following BAC signatories first: '.implode(', ', $missingPositions).'. <a href="'.route('bac.signatories.index').'" class="underline">Configure Signatories</a>');
+            }
+
             // Generate RFQ number if not already set
             if (empty($purchaseRequest->rfq_number)) {
                 $purchaseRequest->rfq_number = PurchaseRequest::generateNextRfqNumber();
                 $purchaseRequest->save();
             }
 
-            $rfqService = new BacRfqService();
+            $rfqService = new BacRfqService;
             $rfqService->generateRfq($purchaseRequest);
 
             return back()->with('status', 'RFQ has been generated successfully.');
         } catch (\Exception $e) {
-            Log::error('Failed to generate RFQ for PR ' . $purchaseRequest->pr_number . ': ' . $e->getMessage());
-            return back()->with('error', 'Failed to generate RFQ. Please try again: ' . $e->getMessage());
+            Log::error('Failed to generate RFQ for PR '.$purchaseRequest->pr_number.': '.$e->getMessage());
+
+            return back()->with('error', 'Failed to generate RFQ. Please try again: '.$e->getMessage());
         }
     }
 
@@ -607,11 +651,11 @@ class BacQuotationController extends Controller
             ->latest()
             ->first();
 
-        if (!$rfq) {
+        if (! $rfq) {
             abort(404, 'RFQ document not found.');
         }
 
-        if (!Storage::exists($rfq->file_path)) {
+        if (! Storage::exists($rfq->file_path)) {
             abort(404, 'RFQ file not found in storage.');
         }
 
@@ -647,38 +691,39 @@ class BacQuotationController extends Controller
 
         try {
             $signatoryData = null;
-            
+
             // If signatories are provided, save them and prepare data
-            if (!empty($validated['signatories'])) {
+            if (! empty($validated['signatories'])) {
                 Log::info('Regenerating RFQ with signatories', [
                     'pr_number' => $purchaseRequest->pr_number,
-                    'signatory_count' => count($validated['signatories'])
+                    'signatory_count' => count($validated['signatories']),
                 ]);
-                
+
                 $this->saveRfqSignatories($purchaseRequest, $validated['signatories']);
                 $signatoryData = $this->prepareSignatoryData($validated['signatories']);
-                
+
                 // IMPORTANT: Refresh the relationship so the service loads fresh signatory data
                 $purchaseRequest->refresh();
                 $purchaseRequest->load('rfqSignatories');
-                
+
                 Log::info('RFQ Signatories saved and loaded', [
                     'pr_number' => $purchaseRequest->pr_number,
-                    'loaded_count' => $purchaseRequest->rfqSignatories->count()
+                    'loaded_count' => $purchaseRequest->rfqSignatories->count(),
                 ]);
             } else {
                 Log::info('No signatories provided, will use existing or defaults', [
-                    'pr_number' => $purchaseRequest->pr_number
+                    'pr_number' => $purchaseRequest->pr_number,
                 ]);
             }
 
-            $rfqService = new BacRfqService();
+            $rfqService = new BacRfqService;
             $rfqService->generateRfq($purchaseRequest, $signatoryData);
 
             return back()->with('status', 'RFQ has been regenerated successfully.');
         } catch (\Exception $e) {
-            Log::error('Failed to regenerate RFQ for PR ' . $purchaseRequest->pr_number . ': ' . $e->getMessage());
-            return back()->with('error', 'Failed to regenerate RFQ. Please try again: ' . $e->getMessage());
+            Log::error('Failed to regenerate RFQ for PR '.$purchaseRequest->pr_number.': '.$e->getMessage());
+
+            return back()->with('error', 'Failed to regenerate RFQ. Please try again: '.$e->getMessage());
         }
     }
 
@@ -692,21 +737,21 @@ class BacQuotationController extends Controller
 
         Log::info('Saving RFQ signatories', [
             'pr_number' => $purchaseRequest->pr_number,
-            'positions' => array_keys($signatories)
+            'positions' => array_keys($signatories),
         ]);
 
         // Save new signatories
         $savedCount = 0;
         foreach ($signatories as $position => $data) {
-            Log::debug("Processing RFQ signatory", [
+            Log::debug('Processing RFQ signatory', [
                 'position' => $position,
                 'input_mode' => $data['input_mode'] ?? 'not set',
-                'has_user_id' => !empty($data['user_id']),
-                'has_selected_name' => !empty($data['selected_name']),
-                'has_name' => !empty($data['name'])
+                'has_user_id' => ! empty($data['user_id']),
+                'has_selected_name' => ! empty($data['selected_name']),
+                'has_name' => ! empty($data['name']),
             ]);
-            
-            if ($data['input_mode'] === 'select' && !empty($data['user_id'])) {
+
+            if ($data['input_mode'] === 'select' && ! empty($data['user_id'])) {
                 // User selected from registered user accounts
                 RfqSignatory::create([
                     'purchase_request_id' => $purchaseRequest->id,
@@ -718,7 +763,7 @@ class BacQuotationController extends Controller
                 ]);
                 $savedCount++;
                 Log::debug("Saved user-based RFQ signatory for position: {$position}");
-            } elseif ($data['input_mode'] === 'select' && !empty($data['selected_name'])) {
+            } elseif ($data['input_mode'] === 'select' && ! empty($data['selected_name'])) {
                 // Pre-configured signatory with manual name (no user account)
                 RfqSignatory::create([
                     'purchase_request_id' => $purchaseRequest->id,
@@ -730,7 +775,7 @@ class BacQuotationController extends Controller
                 ]);
                 $savedCount++;
                 Log::debug("Saved pre-configured manual RFQ signatory for position: {$position}");
-            } elseif ($data['input_mode'] === 'manual' && !empty($data['name'])) {
+            } elseif ($data['input_mode'] === 'manual' && ! empty($data['name'])) {
                 // Manually entered name
                 RfqSignatory::create([
                     'purchase_request_id' => $purchaseRequest->id,
@@ -746,8 +791,107 @@ class BacQuotationController extends Controller
                 Log::warning("Skipped RFQ signatory for position: {$position}", $data);
             }
         }
-        
+
         Log::info("Total RFQ signatories saved: {$savedCount}");
+    }
+
+    /**
+     * Generate RFQ for a specific item group
+     */
+    public function generateRfqForGroup(\App\Models\PrItemGroup $itemGroup): RedirectResponse
+    {
+        $purchaseRequest = $itemGroup->purchaseRequest;
+        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        abort_if(empty($purchaseRequest->resolution_number), 403, 'Resolution must be generated before creating RFQ.');
+
+        try {
+            // Validate BAC signatories are configured
+            $signatoryLoader = new \App\Services\SignatoryLoaderService;
+            $missingPositions = $signatoryLoader->getMissingPositions(['bac_chairperson', 'canvassing_officer']);
+
+            if (! empty($missingPositions)) {
+                return back()->with('error', 'Please configure the following BAC signatories first: '.implode(', ', $missingPositions).'. <a href="'.route('bac.signatories.index').'" class="underline">Configure Signatories</a>');
+            }
+
+            $rfqService = new BacRfqService;
+            $rfqService->generateRfqForGroup($itemGroup);
+
+            return back()->with('status', 'RFQ has been generated successfully for '.$itemGroup->group_name.'.');
+        } catch (\Exception $e) {
+            Log::error('Failed to generate RFQ for group '.$itemGroup->id.': '.$e->getMessage());
+
+            return back()->with('error', 'Failed to generate RFQ. Please try again: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Download RFQ document for a specific group
+     */
+    public function downloadRfqForGroup(\App\Models\PrItemGroup $itemGroup): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $purchaseRequest = $itemGroup->purchaseRequest;
+        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+
+        $rfqGeneration = $itemGroup->rfqGeneration;
+
+        if (! $rfqGeneration) {
+            abort(404, 'RFQ document not found for this group.');
+        }
+
+        if (! Storage::exists($rfqGeneration->file_path)) {
+            abort(404, 'RFQ file not found in storage.');
+        }
+
+        $filename = 'RFQ_'.$rfqGeneration->rfq_number.'_'.$itemGroup->group_code.'.docx';
+
+        return Storage::download($rfqGeneration->file_path, $filename);
+    }
+
+    /**
+     * Regenerate RFQ for a specific group
+     */
+    public function regenerateRfqForGroup(Request $request, \App\Models\PrItemGroup $itemGroup): RedirectResponse
+    {
+        $purchaseRequest = $itemGroup->purchaseRequest;
+        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        abort_if(empty($purchaseRequest->resolution_number), 403, 'Resolution must be generated before creating RFQ.');
+
+        // Validate signatory data if provided
+        $validated = $request->validate([
+            'signatories' => ['nullable', 'array'],
+            'signatories.bac_chairperson' => ['nullable', 'array'],
+            'signatories.bac_chairperson.input_mode' => ['required_with:signatories.bac_chairperson', 'in:select,manual'],
+            'signatories.bac_chairperson.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.bac_chairperson.name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_chairperson.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_chairperson.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.bac_chairperson.suffix' => ['nullable', 'string', 'max:50'],
+            'signatories.canvassing_officer' => ['nullable', 'array'],
+            'signatories.canvassing_officer.input_mode' => ['required_with:signatories.canvassing_officer', 'in:select,manual'],
+            'signatories.canvassing_officer.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.canvassing_officer.name' => ['nullable', 'string', 'max:255'],
+            'signatories.canvassing_officer.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.canvassing_officer.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.canvassing_officer.suffix' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        try {
+            $signatoryData = null;
+
+            // If signatories are provided, prepare data
+            if (! empty($validated['signatories'])) {
+                $signatoryData = $this->prepareSignatoryData($validated['signatories']);
+            }
+
+            $rfqService = new BacRfqService;
+            $rfqService->generateRfqForGroup($itemGroup, $signatoryData);
+
+            return back()->with('status', 'RFQ has been regenerated successfully for '.$itemGroup->group_name.'.');
+        } catch (\Exception $e) {
+            Log::error('Failed to regenerate RFQ for group '.$itemGroup->id.': '.$e->getMessage());
+
+            return back()->with('error', 'Failed to regenerate RFQ. Please try again: '.$e->getMessage());
+        }
     }
 
     /**
@@ -756,32 +900,32 @@ class BacQuotationController extends Controller
     public function viewAoq(PurchaseRequest $purchaseRequest): View
     {
         abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
-        
-        $aoqService = new AoqService();
-        
+
+        $aoqService = new AoqService;
+
         // Calculate winners and ties
         $aoqData = $aoqService->calculateWinnersAndTies($purchaseRequest);
-        
+
         // Check if can generate
         $validation = $aoqService->canGenerateAoq($purchaseRequest);
-        
+
         // Get all quotations
         $quotations = $purchaseRequest->quotations()
             ->with(['supplier', 'quotationItems.purchaseRequestItem'])
             ->get();
-        
+
         // Get existing AOQ generations
         $aoqGenerations = $purchaseRequest->aoqGenerations()
             ->with('generatedBy')
             ->latest()
             ->get();
-        
+
         // Prepare signatory data sources
         $activeBacSignatories = BacSignatory::with('user')->active()->get();
         $signatoryDefaults = $this->buildAoqSignatoryDefaults($activeBacSignatories);
         $bacSignatoryOptions = $this->groupAoqSignatoryOptions($activeBacSignatories);
         $eligibleSignatoryUsers = $this->getEligibleSignatoryUsers();
-        
+
         return view('bac.quotations.aoq', compact(
             'purchaseRequest',
             'aoqData',
@@ -800,7 +944,7 @@ class BacQuotationController extends Controller
     protected function buildAoqSignatoryDefaults($bacSignatories): array
     {
         $memberSignatories = $bacSignatories->where('position', 'bac_member')->values();
-        
+
         $positionsMap = [
             'bac_chairman' => ['position' => 'bac_chairman'],
             'bac_vice_chairman' => ['position' => 'bac_vice_chairman'],
@@ -810,7 +954,7 @@ class BacQuotationController extends Controller
             'head_bac_secretariat' => ['position' => 'head_bac_secretariat'],
             'ceo' => ['position' => 'ceo'],
         ];
-        
+
         $defaults = [];
         foreach ($positionsMap as $key => $config) {
             if ($config['position'] === 'bac_member') {
@@ -818,19 +962,19 @@ class BacQuotationController extends Controller
             } else {
                 $record = $bacSignatories->firstWhere('position', $config['position']);
             }
-            
+
             $defaults[$key] = $this->formatSignatoryDefault($record);
         }
-        
+
         return $defaults;
     }
-    
+
     /**
      * Format a BAC signatory into AOQ modal default data
      */
     protected function formatSignatoryDefault(?BacSignatory $signatory): array
     {
-        if (!$signatory) {
+        if (! $signatory) {
             return [
                 'input_mode' => 'select',
                 'user_id' => null,
@@ -841,7 +985,7 @@ class BacQuotationController extends Controller
                 'bac_signatory_id' => null,
             ];
         }
-        
+
         return [
             'input_mode' => 'select',
             'user_id' => $signatory->user_id,
@@ -873,7 +1017,7 @@ class BacQuotationController extends Controller
     protected function getEligibleSignatoryUsers()
     {
         $roles = ['BAC Chair', 'BAC Members', 'BAC Secretariat', 'Executive Officer', 'System Admin'];
-        
+
         return \App\Models\User::with('roles')
             ->whereHas('roles', function ($query) use ($roles) {
                 $query->whereIn('name', $roles);
@@ -888,15 +1032,15 @@ class BacQuotationController extends Controller
     public function resolveTie(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
     {
         abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
-        
+
         $validated = $request->validate([
             'purchase_request_item_id' => ['required', 'exists:purchase_request_items,id'],
             'winning_quotation_item_id' => ['required', 'exists:quotation_items,id'],
             'justification' => ['required', 'string', 'min:10', 'max:1000'],
         ]);
-        
+
         try {
-            $aoqService = new AoqService();
+            $aoqService = new AoqService;
             $decision = $aoqService->resolveTie(
                 $purchaseRequest,
                 $validated['purchase_request_item_id'],
@@ -904,17 +1048,18 @@ class BacQuotationController extends Controller
                 $validated['justification'],
                 auth()->user()
             );
-            
+
             Log::info('Tie resolved', [
                 'pr_number' => $purchaseRequest->pr_number,
                 'item_id' => $validated['purchase_request_item_id'],
                 'winner_id' => $validated['winning_quotation_item_id'],
                 'resolved_by' => auth()->user()->name,
             ]);
-            
+
             return back()->with('status', 'Tie resolved successfully.');
         } catch (\Exception $e) {
-            Log::error('Failed to resolve tie: ' . $e->getMessage());
+            Log::error('Failed to resolve tie: '.$e->getMessage());
+
             return back()->with('error', 'Failed to resolve tie. Please try again.');
         }
     }
@@ -925,15 +1070,15 @@ class BacQuotationController extends Controller
     public function applyBacOverride(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
     {
         abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
-        
+
         $validated = $request->validate([
             'purchase_request_item_id' => ['required', 'exists:purchase_request_items,id'],
             'winning_quotation_item_id' => ['required', 'exists:quotation_items,id'],
             'justification' => ['required', 'string', 'min:20', 'max:1000'],
         ]);
-        
+
         try {
-            $aoqService = new AoqService();
+            $aoqService = new AoqService;
             $decision = $aoqService->applyBacOverride(
                 $purchaseRequest,
                 $validated['purchase_request_item_id'],
@@ -941,17 +1086,18 @@ class BacQuotationController extends Controller
                 $validated['justification'],
                 auth()->user()
             );
-            
+
             Log::info('BAC override applied', [
                 'pr_number' => $purchaseRequest->pr_number,
                 'item_id' => $validated['purchase_request_item_id'],
                 'winner_id' => $validated['winning_quotation_item_id'],
                 'overridden_by' => auth()->user()->name,
             ]);
-            
+
             return back()->with('status', 'BAC override applied successfully.');
         } catch (\Exception $e) {
-            Log::error('Failed to apply BAC override: ' . $e->getMessage());
+            Log::error('Failed to apply BAC override: '.$e->getMessage());
+
             return back()->with('error', 'Failed to apply override. Please try again.');
         }
     }
@@ -962,10 +1108,19 @@ class BacQuotationController extends Controller
     public function generateAoq(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
     {
         abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
-        
+
+        // Check if BAC signatories are configured (allow override during generation)
+        $signatoryLoader = new \App\Services\SignatoryLoaderService;
+        $missingPositions = $signatoryLoader->getMissingPositions(['bac_chairman', 'bac_vice_chairman', 'bac_member_1', 'bac_member_2', 'bac_member_3']);
+
+        // If signatories are missing and not provided in request, show error
+        if (! empty($missingPositions) && ! $request->has('signatories')) {
+            return back()->with('error', 'Please configure the following BAC signatories first: '.implode(', ', $missingPositions).'. <a href="'.route('bac.signatories.index').'" class="underline">Configure Signatories</a>');
+        }
+
         // Validate signatory data
         $validated = $request->validate([
-            'signatories' => ['required', 'array'],
+            'signatories' => ['nullable', 'array'],
             'signatories.bac_chairman' => ['required', 'array'],
             'signatories.bac_chairman.input_mode' => ['required', 'in:select,manual'],
             'signatories.bac_chairman.user_id' => ['nullable', 'exists:users,id'],
@@ -1016,26 +1171,27 @@ class BacQuotationController extends Controller
             'signatories.ceo.prefix' => ['nullable', 'string', 'max:50'],
             'signatories.ceo.suffix' => ['nullable', 'string', 'max:50'],
         ]);
-        
+
         try {
             $signatoryData = $this->prepareSignatoryData($validated['signatories']);
-            
-            $aoqService = new AoqService();
+
+            $aoqService = new AoqService;
             $aoqGeneration = $aoqService->generateAoqDocument($purchaseRequest, auth()->user(), $signatoryData);
-            
+
             // Save signatories to database
             $this->saveAoqSignatories($aoqGeneration, $validated['signatories']);
-            
+
             Log::info('AOQ generated', [
                 'pr_number' => $purchaseRequest->pr_number,
                 'aoq_reference' => $aoqGeneration->aoq_reference_number,
                 'generated_by' => auth()->user()->name,
             ]);
-            
+
             return back()->with('status', "Abstract of Quotations generated successfully. Reference: {$aoqGeneration->aoq_reference_number}");
         } catch (\Exception $e) {
-            Log::error('Failed to generate AOQ: ' . $e->getMessage());
-            return back()->with('error', 'Failed to generate AOQ: ' . $e->getMessage());
+            Log::error('Failed to generate AOQ: '.$e->getMessage());
+
+            return back()->with('error', 'Failed to generate AOQ: '.$e->getMessage());
         }
     }
 
@@ -1045,7 +1201,7 @@ class BacQuotationController extends Controller
     private function saveAoqSignatories(\App\Models\AoqGeneration $aoqGeneration, array $signatories): void
     {
         foreach ($signatories as $position => $data) {
-            if ($data['input_mode'] === 'select' && !empty($data['user_id'])) {
+            if ($data['input_mode'] === 'select' && ! empty($data['user_id'])) {
                 \App\Models\AoqSignatory::create([
                     'aoq_generation_id' => $aoqGeneration->id,
                     'position' => $position,
@@ -1054,7 +1210,7 @@ class BacQuotationController extends Controller
                     'prefix' => $data['prefix'] ?? null,
                     'suffix' => $data['suffix'] ?? null,
                 ]);
-            } elseif ($data['input_mode'] === 'select' && !empty($data['selected_name'])) {
+            } elseif ($data['input_mode'] === 'select' && ! empty($data['selected_name'])) {
                 \App\Models\AoqSignatory::create([
                     'aoq_generation_id' => $aoqGeneration->id,
                     'position' => $position,
@@ -1063,7 +1219,7 @@ class BacQuotationController extends Controller
                     'prefix' => $data['prefix'] ?? null,
                     'suffix' => $data['suffix'] ?? null,
                 ]);
-            } elseif ($data['input_mode'] === 'manual' && !empty($data['name'])) {
+            } elseif ($data['input_mode'] === 'manual' && ! empty($data['name'])) {
                 \App\Models\AoqSignatory::create([
                     'aoq_generation_id' => $aoqGeneration->id,
                     'position' => $position,
@@ -1082,15 +1238,79 @@ class BacQuotationController extends Controller
     public function downloadAoq(PurchaseRequest $purchaseRequest, int $aoqGenerationId): StreamedResponse
     {
         $aoqGeneration = $purchaseRequest->aoqGenerations()->findOrFail($aoqGenerationId);
-        
-        if (!Storage::exists($aoqGeneration->file_path)) {
+
+        if (! Storage::exists($aoqGeneration->file_path)) {
             abort(404, 'AOQ file not found in storage.');
         }
-        
+
         $fileName = "AOQ_{$aoqGeneration->aoq_reference_number}.docx";
-        
+
+        return Storage::download($aoqGeneration->file_path, $fileName);
+    }
+
+    /**
+     * Generate AOQ for a specific item group
+     */
+    public function generateAoqForGroup(Request $request, \App\Models\PrItemGroup $itemGroup): RedirectResponse
+    {
+        $purchaseRequest = $itemGroup->purchaseRequest;
+        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+
+        $validated = $request->validate([
+            'signatories' => ['required', 'array'],
+            'signatories.bac_head.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.bac_head.name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_head.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_head.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.bac_head.suffix' => ['nullable', 'string', 'max:50'],
+            'signatories.ceo.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.ceo.name' => ['nullable', 'string', 'max:255'],
+            'signatories.ceo.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.ceo.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.ceo.suffix' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        try {
+            $signatoryData = $this->prepareSignatoryData($validated['signatories']);
+
+            $aoqService = new AoqService;
+            $aoqGeneration = $aoqService->generateAoqDocumentForGroup($itemGroup, auth()->user(), $signatoryData);
+
+            // Save signatories to database
+            $this->saveAoqSignatories($aoqGeneration, $validated['signatories']);
+
+            Log::info('AOQ generated for group', [
+                'pr_number' => $purchaseRequest->pr_number,
+                'group_code' => $itemGroup->group_code,
+                'aoq_reference' => $aoqGeneration->aoq_reference_number,
+                'generated_by' => auth()->user()->name,
+            ]);
+
+            return back()->with('status', "Abstract of Quotations generated successfully for {$itemGroup->group_name}. Reference: {$aoqGeneration->aoq_reference_number}");
+        } catch (\Exception $e) {
+            Log::error('Failed to generate AOQ for group: '.$e->getMessage());
+
+            return back()->with('error', 'Failed to generate AOQ: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Download AOQ for a specific item group
+     */
+    public function downloadAoqForGroup(\App\Models\PrItemGroup $itemGroup, int $aoqGenerationId): StreamedResponse
+    {
+        $aoqGeneration = $itemGroup->aoqGeneration;
+
+        if (! $aoqGeneration || $aoqGeneration->id != $aoqGenerationId) {
+            abort(404, 'AOQ not found for this group.');
+        }
+
+        if (! Storage::exists($aoqGeneration->file_path)) {
+            abort(404, 'AOQ file not found in storage.');
+        }
+
+        $fileName = "AOQ_{$aoqGeneration->aoq_reference_number}_{$itemGroup->group_code}.docx";
+
         return Storage::download($aoqGeneration->file_path, $fileName);
     }
 }
-
-

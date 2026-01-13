@@ -43,7 +43,7 @@
 
                             @if($activity->action === 'rejected' && isset($activity->new_value['rejection_reason']))
                             <div class="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
-                                <p class="text-xs font-semibold text-red-900 mb-1">Reason:</p>
+                                <p class="text-xs font-semibold text-red-900 mb-1">Deferral Reason:</p>
                                 <p class="text-sm text-red-900">{{ $activity->new_value['rejection_reason'] }}</p>
                             </div>
                             @endif

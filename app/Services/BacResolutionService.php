@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Document;
 use App\Models\PurchaseRequest;
-use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -18,14 +17,17 @@ use PhpOffice\PhpWord\SimpleType\JcTable;
 class BacResolutionService
 {
     private PhpWord $phpWord;
+
     private $section;
+
     private PurchaseRequest $purchaseRequest;
+
     private array $data;
 
     /**
      * Generate BAC Resolution document for a Purchase Request
-     * 
-     * @param array|null $signatories Array of signatory data (position, name, prefix, suffix)
+     *
+     * @param  array|null  $signatories  Array of signatory data (position, name, prefix, suffix)
      */
     public function generateResolution(PurchaseRequest $purchaseRequest, ?array $signatories = null): ?Document
     {
@@ -36,8 +38,8 @@ class BacResolutionService
 
         // Save to storage and create document record
         $filename = $this->saveToStorage();
-        
-        if (!$filename) {
+
+        if (! $filename) {
             return null;
         }
 
@@ -92,12 +94,12 @@ class BacResolutionService
             'ceo' => ['name' => $this->data['approved_by'] ?? 'Dr. Rodel Francisco T. Alegado', 'prefix' => null, 'suffix' => 'Ph.D.'],
         ];
 
-        // If signatories parameter is provided, use it
+        // If signatories parameter is provided, use it (for regeneration overrides)
         if ($signatories) {
             return array_merge($defaultSignatories, $signatories);
         }
 
-        // Otherwise, try to load from resolution_signatories table
+        // Try to load from resolution_signatories table (per-document overrides)
         if ($this->purchaseRequest->resolutionSignatories && $this->purchaseRequest->resolutionSignatories->isNotEmpty()) {
             $result = [];
             foreach ($this->purchaseRequest->resolutionSignatories as $sig) {
@@ -107,25 +109,41 @@ class BacResolutionService
                     'prefix' => $sig->prefix,
                     'suffix' => $sig->suffix,
                     'user_id' => $sig->user_id,
-                    'name' => $sig->name
+                    'name' => $sig->name,
                 ]);
-                
+
                 $result[$sig->position] = [
                     'name' => $sig->display_name,
                     'prefix' => $sig->prefix,
                     'suffix' => $sig->suffix,
                 ];
             }
-            
+
             \Log::info('Loaded signatories from DB', [
                 'count' => count($result),
-                'positions' => array_keys($result)
+                'positions' => array_keys($result),
             ]);
-            
+
             return array_merge($defaultSignatories, $result);
         }
 
-        // Fall back to defaults
+        // Try to load from BAC Signatories setup (auto-apply from configuration)
+        $signatoryLoader = new SignatoryLoaderService;
+        $requiredPositions = ['bac_chairman', 'bac_vice_chairman', 'bac_member_1', 'bac_member_2', 'bac_member_3', 'head_bac_secretariat', 'ceo'];
+        $bacSignatories = $signatoryLoader->loadActiveSignatories($requiredPositions, false);
+
+        if (! empty($bacSignatories)) {
+            \Log::info('Loaded signatories from BAC Signatories setup', [
+                'count' => count($bacSignatories),
+                'positions' => array_keys($bacSignatories),
+            ]);
+
+            return array_merge($defaultSignatories, $bacSignatories);
+        }
+
+        // Fall back to hardcoded defaults
+        \Log::info('Using hardcoded default signatories');
+
         return $defaultSignatories;
     }
 
@@ -151,7 +169,7 @@ class BacResolutionService
      */
     private function initializeDocument(): void
     {
-        $this->phpWord = new PhpWord();
+        $this->phpWord = new PhpWord;
         $this->phpWord->setDefaultFontName('Century Gothic');
         $this->phpWord->setDefaultFontSize(10);
 
@@ -172,7 +190,7 @@ class BacResolutionService
         $this->phpWord->addFontStyle('UnderlineBoldSmall', ['bold' => true, 'underline' => 'single']);
         $this->phpWord->addFontStyle('SignatureCenterBold', ['bold' => true]);
     }
-        
+
     /**
      * Set document properties
      */
@@ -181,7 +199,7 @@ class BacResolutionService
         $properties = $this->phpWord->getDocInfo();
         $properties->setCreator('Cagayan State University - BAC System');
         $properties->setTitle('BAC Resolution Document');
-        $properties->setSubject('Resolution No. ' . $this->data['resolution_no']);
+        $properties->setSubject('Resolution No. '.$this->data['resolution_no']);
     }
 
     /**
@@ -286,7 +304,7 @@ class BacResolutionService
         // Title
         $run = $this->section->addTextRun('CenterHeader');
         $run->addText(
-            'A RESOLUTION RECOMMENDING SMALL VALUE PROCUREMENT UNDER SECTION NO.53.9, ' .
+            'A RESOLUTION RECOMMENDING SMALL VALUE PROCUREMENT UNDER SECTION NO.53.9, '.
             'OF THE 2016 REVISED IMPLEMENTING RULES AND REGULATIONS OF R.A. 9184,',
             'CenterBold'
         );
@@ -308,7 +326,7 @@ class BacResolutionService
         // Clause 1: Procurement Act
         $this->addTextRun(function ($run) {
             $run->addText(
-                'WHEREAS, it is the function of the Bids and Awards Committee to assist and to ensure ' .
+                'WHEREAS, it is the function of the Bids and Awards Committee to assist and to ensure '.
                 'that the university abides by the standards set forth by Republic Act No. 9184, otherwise known as '
             );
             $run->addText('"The Government Procurement Reform Act"', ['italic' => true]);
@@ -326,25 +344,25 @@ class BacResolutionService
             $run->addText($this->data['requested_by'], 'CenterBold');
             $run->addText(' has an Approved Budget for the Contract (ABC) in the amount of ');
             $run->addText($this->convertBudgetToWords(), 'CenterBold');
-            $run->addText(', ' . $this->data['purpose'] . '.', 'CenterBold');
+            $run->addText(', '.$this->data['purpose'].'.', 'CenterBold');
         });
 
         // Clause 3: BAC Recognition
         $this->addJustifiedText(
-            'WHEREAS, the Bids and Awards Committee recognizes the intent of the Procurement law ' .
+            'WHEREAS, the Bids and Awards Committee recognizes the intent of the Procurement law '.
             'that all procurement activities of the government must redound to its benefit;'
         );
 
         // Clause 4: Alternative Methods
         $this->addJustifiedText(
-            'WHEREAS, under certain circumstances the law provides exemption to Public Bidding, ' .
-            'as it also provides for Alternative Methods of procurement, particularly identified in ' .
+            'WHEREAS, under certain circumstances the law provides exemption to Public Bidding, '.
+            'as it also provides for Alternative Methods of procurement, particularly identified in '.
             'Section 53.9 of the IRR, TO WIT:'
         );
         $this->addTextRun(function ($run) {
-            $run->addText($this->data['mode_of_procurement'] . '.', ['bold' => true]);
+            $run->addText($this->data['mode_of_procurement'].'.', ['bold' => true]);
             $run->addText(
-                ' Where the procurement does not fall under Shopping in Section 52 of this IRR and ' .
+                ' Where the procurement does not fall under Shopping in Section 52 of this IRR and '.
                 'the amount involved does not exceed the thresholds prescribed in Annex "H" of this IRR.',
                 ['italic' => true]
             );
@@ -357,7 +375,7 @@ class BacResolutionService
             ['alignment' => Jc::BOTH, 'spaceAfter' => 0]
         );
         $this->section->addText(
-            'Procurement of Ordinary or Regular office supplies and equipment not available in the ' .
+            'Procurement of Ordinary or Regular office supplies and equipment not available in the '.
             'thresholds prescribed in Annex "H" of this IRR.',
             ['italic' => true],
             ['alignment' => Jc::BOTH, 'indent' => 1, 'spaceBefore' => 0]
@@ -371,29 +389,29 @@ class BacResolutionService
         );
         $this->addTextRun(function ($run) {
             $run->addText(
-                '"Ordinary or regular office supplies" shall be understood to include those supplies, ' .
-                'commodities, or materials which, depending on the procuring transaction of its official ' .
+                '"Ordinary or regular office supplies" shall be understood to include those supplies, '.
+                'commodities, or materials which, depending on the procuring transaction of its official '.
                 'businesses, and consumed in the day-to-day operations of said procuring entity. ',
                 ['italic' => true]
             );
             $run->addText(
-                'However, office supplies shall not include services such as repair and maintenance of ' .
-                'equipment and furniture, as well as trucking, hauling, janitorial, security, and related ' .
+                'However, office supplies shall not include services such as repair and maintenance of '.
+                'equipment and furniture, as well as trucking, hauling, janitorial, security, and related '.
                 'or analogous services.'
             );
         }, ['indent' => 1, 'spaceBefore' => 0]);
 
         // Clause 7: Threshold Amount
         $this->addJustifiedText(
-            'WHEREAS, the thresholds prescribed in Annex "H"V-D-8-a-i (For NGAs, GOCCs, GFIs, SUCs, ' .
-            'and Autonomous Regional Government, One Million Pesos) of the IRR of R.A. 9184 is One ' .
+            'WHEREAS, the thresholds prescribed in Annex "H"V-D-8-a-i (For NGAs, GOCCs, GFIs, SUCs, '.
+            'and Autonomous Regional Government, One Million Pesos) of the IRR of R.A. 9184 is One '.
             'Million Pesos (PhP1,000,000.00);'
         );
 
         // Clause 8: Compliance
         $this->addJustifiedText(
-            'WHEREAS, the present procurement does not fall under Shopping in Section 52 of the ' .
-            'Revised IRR of the R.A. 9184 and the amount involved does not exceed the thresholds ' .
+            'WHEREAS, the present procurement does not fall under Shopping in Section 52 of the '.
+            'Revised IRR of the R.A. 9184 and the amount involved does not exceed the thresholds '.
             'prescribed in Annex "H" of the said IRR.'
         );
     }
@@ -405,7 +423,7 @@ class BacResolutionService
     {
         $this->addTextRun(function ($run) {
             $run->addText(
-                'NOW, THEREFORE, we, the Members of the Bids and Awards Committee, hereby RESOLVE as it ' .
+                'NOW, THEREFORE, we, the Members of the Bids and Awards Committee, hereby RESOLVE as it '.
                 'is hereby RESOLVED, to recommend '
             );
             $run->addText($this->data['mode_of_procurement'], ['bold' => true, 'allCaps' => true]);
@@ -415,7 +433,7 @@ class BacResolutionService
                 ['bold' => true]
             );
             $run->addText(
-                $this->data['purchase_request_no'] . '.', 
+                $this->data['purchase_request_no'].'.',
                 ['bold' => true, 'underline' => 'single']
             );
         });
@@ -427,8 +445,8 @@ class BacResolutionService
     private function addResolvedFurtherClause(): void
     {
         $this->addJustifiedText(
-            'RESOLVED FURTHER that a copy of this Resolution be forwarded to the BAC Secretariat with ' .
-            'a specific instruction to float request for quotation as required by the procurement law, ' .
+            'RESOLVED FURTHER that a copy of this Resolution be forwarded to the BAC Secretariat with '.
+            'a specific instruction to float request for quotation as required by the procurement law, '.
             'especially Section 54.2 of the Revised IRR (at least three (3) quotations)'
         );
     }
@@ -460,7 +478,7 @@ class BacResolutionService
             $run->addText($date['day'], 'UnderlineBoldSmall');
             $run->addText($date['suffix'], ['bold' => true, 'underline' => 'single', 'superScript' => true]);
             $run->addText(' day of ');
-            $run->addText($date['month'] . ', ' . $date['year'], 'UnderlineBoldSmall');
+            $run->addText($date['month'].', '.$date['year'], 'UnderlineBoldSmall');
             $run->addText(' at Cagayan State University – Sanchez Mira Campus, Sanchez Mira, Cagayan.');
         });
     }
@@ -477,11 +495,11 @@ class BacResolutionService
             [['name' => $this->formatSignatoryName($sigs['bac_chairman']), 'title' => 'BAC Chairman', 'span' => 2]],
             [
                 ['name' => $this->formatSignatoryName($sigs['bac_vice_chairman']), 'title' => 'BAC Vice Chairman'],
-                ['name' => $this->formatSignatoryName($sigs['bac_member_1']), 'title' => 'BAC Member']
+                ['name' => $this->formatSignatoryName($sigs['bac_member_1']), 'title' => 'BAC Member'],
             ],
             [
                 ['name' => $this->formatSignatoryName($sigs['bac_member_2']), 'title' => 'BAC Member'],
-                ['name' => $this->formatSignatoryName($sigs['bac_member_3']), 'title' => 'BAC Member']
+                ['name' => $this->formatSignatoryName($sigs['bac_member_3']), 'title' => 'BAC Member'],
             ],
         ];
 
@@ -497,8 +515,8 @@ class BacResolutionService
     {
         $this->section->addTextBreak(3);
         $this->addJustifiedText(
-            'I HEREBY CERTIFY that the foregoing is a true and correct copy of the Resolution regularly ' .
-            'presented to and adopted by the Bids and Awards Committee and that the signatures set above ' .
+            'I HEREBY CERTIFY that the foregoing is a true and correct copy of the Resolution regularly '.
+            'presented to and adopted by the Bids and Awards Committee and that the signatures set above '.
             'the prospective names of the Committee members are their true and genuine signatures.'
         );
     }
@@ -510,9 +528,9 @@ class BacResolutionService
     {
         $table = $this->createSignatureTable();
         $sigs = $this->data['signatories'];
-        
+
         $this->addSignatureRow($table, [
-            ['name' => $this->formatSignatoryName($sigs['head_bac_secretariat']), 'title' => 'Head, BAC Secretariat', 'span' => 2]
+            ['name' => $this->formatSignatoryName($sigs['head_bac_secretariat']), 'title' => 'Head, BAC Secretariat', 'span' => 2],
         ]);
     }
 
@@ -523,7 +541,7 @@ class BacResolutionService
     {
         $this->section->addTextBreak(2);
         $this->section->addText('APPROVED:');
-        
+
         $sigs = $this->data['signatories'];
         $ceoName = $this->formatSignatoryName($sigs['ceo']);
 
@@ -551,28 +569,28 @@ class BacResolutionService
         $name = $signatory['name'] ?? 'N/A';
         $prefix = $signatory['prefix'] ?? '';
         $suffix = $signatory['suffix'] ?? '';
-        
+
         \Log::debug('Formatting signatory name', [
             'name' => $name,
             'prefix' => $prefix,
             'suffix' => $suffix,
-            'has_prefix' => !empty($prefix)
+            'has_prefix' => ! empty($prefix),
         ]);
-        
+
         // Build the uppercase part (prefix + name)
         $uppercasePart = $name;
-        if (!empty($prefix)) {
-            $uppercasePart = $prefix . ' ' . $name;
+        if (! empty($prefix)) {
+            $uppercasePart = $prefix.' '.$name;
         }
-        
+
         // Convert to uppercase
         $uppercasePart = strtoupper($uppercasePart);
-        
+
         // Add suffix in original case
-        if (!empty($suffix)) {
-            $uppercasePart .= ', ' . $suffix;
+        if (! empty($suffix)) {
+            $uppercasePart .= ', '.$suffix;
         }
-        
+
         return $uppercasePart;
     }
 
@@ -603,16 +621,16 @@ class BacResolutionService
         $amount = number_format($budget, 2, '.', '');
         [$whole, $fraction] = explode('.', $amount);
 
-        $numberToWords = new NumberToWords();
+        $numberToWords = new NumberToWords;
         $transformer = $numberToWords->getNumberTransformer('en');
 
-        $words = ucfirst($transformer->toWords((int) $whole)) . ' pesos';
+        $words = ucfirst($transformer->toWords((int) $whole)).' pesos';
 
         if ((int) $fraction > 0) {
-            $words .= ' and ' . $transformer->toWords((int) $fraction) . ' centavos';
+            $words .= ' and '.$transformer->toWords((int) $fraction).' centavos';
         }
 
-        return $words . ' (PHP ' . number_format($budget, 2) . ')';
+        return $words.' (PHP '.number_format($budget, 2).')';
     }
 
     /**
@@ -636,7 +654,7 @@ class BacResolutionService
      */
     private function getOrdinalSuffix(int $day): string
     {
-        if (!in_array(($day % 100), [11, 12, 13])) {
+        if (! in_array(($day % 100), [11, 12, 13])) {
             switch ($day % 10) {
                 case 1:
                     return 'st';
@@ -646,6 +664,7 @@ class BacResolutionService
                     return 'rd';
             }
         }
+
         return 'th';
     }
 
@@ -694,11 +713,11 @@ class BacResolutionService
     private function saveToStorage(): ?string
     {
         try {
-            $filename = $this->data['resolution_no'] . '.docx';
-            $tempPath = storage_path('app/temp/' . $filename);
+            $filename = $this->data['resolution_no'].'.docx';
+            $tempPath = storage_path('app/temp/'.$filename);
 
             // Ensure temp directory exists
-            if (!is_dir(storage_path('app/temp'))) {
+            if (! is_dir(storage_path('app/temp'))) {
                 mkdir(storage_path('app/temp'), 0777, true);
             }
 
@@ -706,12 +725,12 @@ class BacResolutionService
             $writer = IOFactory::createWriter($this->phpWord, 'Word2007');
             $writer->save($tempPath);
 
-            if (!file_exists($tempPath)) {
+            if (! file_exists($tempPath)) {
                 return null;
             }
 
             // Move to resolutions directory
-            $finalPath = 'resolutions/' . $filename;
+            $finalPath = 'resolutions/'.$filename;
             Storage::put($finalPath, file_get_contents($tempPath));
 
             // Clean up temp file
@@ -719,7 +738,8 @@ class BacResolutionService
 
             return $filename;
         } catch (\Exception $e) {
-            Log::error('Failed to generate resolution: ' . $e->getMessage());
+            Log::error('Failed to generate resolution: '.$e->getMessage());
+
             return null;
         }
     }
@@ -738,12 +758,12 @@ class BacResolutionService
         if ($existingDoc) {
             // Update existing document
             $existingDoc->update([
-                'document_number' => 'RES-' . now()->format('Y-m-d-His'),
-                'title' => 'BAC Resolution - ' . $this->data['resolution_no'],
+                'document_number' => 'RES-'.now()->format('Y-m-d-His'),
+                'title' => 'BAC Resolution - '.$this->data['resolution_no'],
                 'file_name' => $filename,
-                'file_path' => 'resolutions/' . $filename,
+                'file_path' => 'resolutions/'.$filename,
                 'file_extension' => 'docx',
-                'file_size' => Storage::size('resolutions/' . $filename),
+                'file_size' => Storage::size('resolutions/'.$filename),
                 'mime_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                 'version' => $existingDoc->version + 1,
                 'status' => 'approved',
@@ -754,16 +774,16 @@ class BacResolutionService
 
         // Create new document record
         return Document::create([
-            'document_number' => 'RES-' . now()->format('Y-m-d-His'),
+            'document_number' => 'RES-'.now()->format('Y-m-d-His'),
             'documentable_type' => PurchaseRequest::class,
             'documentable_id' => $this->purchaseRequest->id,
             'document_type' => 'bac_resolution',
-            'title' => 'BAC Resolution - ' . $this->data['resolution_no'],
-            'description' => 'BAC Resolution for Purchase Request ' . $this->data['purchase_request_no'],
+            'title' => 'BAC Resolution - '.$this->data['resolution_no'],
+            'description' => 'BAC Resolution for Purchase Request '.$this->data['purchase_request_no'],
             'file_name' => $filename,
-            'file_path' => 'resolutions/' . $filename,
+            'file_path' => 'resolutions/'.$filename,
             'file_extension' => 'docx',
-            'file_size' => Storage::size('resolutions/' . $filename),
+            'file_size' => Storage::size('resolutions/'.$filename),
             'mime_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             'version' => 1,
             'is_current_version' => true,
@@ -774,4 +794,3 @@ class BacResolutionService
         ]);
     }
 }
-

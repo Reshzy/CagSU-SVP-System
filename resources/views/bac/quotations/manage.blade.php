@@ -17,6 +17,47 @@
                         <div class="mb-4 p-3 rounded-md bg-red-50 text-red-700">{{ session('error') }}</div>
                     @endif
 
+                    {{-- Item Grouping Section --}}
+                    @if($purchaseRequest->itemGroups->count() > 0)
+                        <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-lg text-gray-800 mb-2">Item Groups</h3>
+                                    <p class="text-sm text-gray-600 mb-3">This PR has been split into {{ $purchaseRequest->itemGroups->count() }} groups. Each group will have separate RFQ, AOQ, and PO.</p>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                        @foreach($purchaseRequest->itemGroups as $group)
+                                            <div class="bg-white rounded border border-purple-200 p-3">
+                                                <div class="font-medium text-gray-800">{{ $group->group_name }} ({{ $group->group_code }})</div>
+                                                <div class="text-sm text-gray-600">{{ $group->items->count() }} items - ₱{{ number_format($group->calculateTotalCost(), 2) }}</div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                                <div class="flex flex-col space-y-2 ml-4">
+                                    <a href="{{ route('bac.item-groups.edit', $purchaseRequest) }}" 
+                                       class="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700">
+                                        Edit Groups
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    @else
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-lg text-gray-800 mb-2">Item Grouping</h3>
+                                    <p class="text-gray-600">You can split items into logical groups (e.g., food vs appliances). Each group will have its own RFQ, quotations, AOQ, and PO.</p>
+                                </div>
+                                <div class="ml-4">
+                                    <a href="{{ route('bac.item-groups.create', $purchaseRequest) }}" 
+                                       class="inline-flex items-center px-4 py-2 bg-yellow-600 text-white text-sm font-medium rounded-md hover:bg-yellow-700">
+                                        Split into Groups
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
                     {{-- BAC Resolution Section - UNCHANGED --}}
                     <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                         <div class="flex items-start justify-between">
