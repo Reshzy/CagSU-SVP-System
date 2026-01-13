@@ -56,6 +56,7 @@ class SignatoryLoaderService
                 if ($groupedSignatories->has($searchPosition)) {
                     // Take the first (most recently updated) signatory for this position
                     $signatory = $groupedSignatories->get($searchPosition)->first();
+
                     $result[$position] = $this->formatSignatoryData($signatory);
                 } elseif ($throwOnMissing) {
                     $positionName = $this->getPositionDisplayName($position);

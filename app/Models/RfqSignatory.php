@@ -9,6 +9,7 @@ class RfqSignatory extends Model
 {
     protected $fillable = [
         'rfq_generation_id',
+        'purchase_request_id',
         'position',
         'user_id',
         'name',
@@ -22,6 +23,14 @@ class RfqSignatory extends Model
     public function rfqGeneration(): BelongsTo
     {
         return $this->belongsTo(RfqGeneration::class);
+    }
+
+    /**
+     * Get the purchase request associated with this signatory (for PR-level overrides)
+     */
+    public function purchaseRequest(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseRequest::class);
     }
 
     /**

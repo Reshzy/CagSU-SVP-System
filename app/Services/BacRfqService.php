@@ -117,7 +117,7 @@ class BacRfqService
     {
         $defaultSignatories = [
             'bac_chairperson' => ['name' => 'Christopher R. Garingan', 'prefix' => null, 'suffix' => null],
-            'canvassing_officer' => ['name' => 'Chanda T. Aquino', 'prefix' => null, 'suffix' => null],
+            'canvassing_officer' => ['name' => 'Chito D. Temporal', 'prefix' => null, 'suffix' => null],
         ];
 
         // If signatories parameter is provided, use it
@@ -138,6 +138,15 @@ class BacRfqService
             }
 
             return array_merge($defaultSignatories, $result);
+        }
+
+        // Try to load from BAC Signatories setup (auto-apply from configuration)
+        $signatoryLoader = new SignatoryLoaderService;
+        $requiredPositions = ['bac_chairperson', 'canvassing_officer'];
+        $bacSignatories = $signatoryLoader->loadActiveSignatories($requiredPositions, false);
+
+        if (! empty($bacSignatories)) {
+            return array_merge($defaultSignatories, $bacSignatories);
         }
 
         // Fall back to default signatories
@@ -234,8 +243,8 @@ class BacRfqService
     private function loadSignatories(?array $signatories = null): array
     {
         $defaultSignatories = [
-            'bac_chairperson' => ['name' => 'Christopher R. Garingan', 'prefix' => null, 'suffix' => null],
-            'canvassing_officer' => ['name' => 'Chanda T. Aquino', 'prefix' => null, 'suffix' => null],
+            'bac_chairperson' => ['name' => '', 'prefix' => null, 'suffix' => null],
+            'canvassing_officer' => ['name' => '', 'prefix' => null, 'suffix' => null],
         ];
 
         // If signatories parameter is provided, use it (for regeneration overrides)

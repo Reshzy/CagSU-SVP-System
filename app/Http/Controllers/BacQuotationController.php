@@ -43,7 +43,14 @@ class BacQuotationController extends Controller
                 ->with('error', 'Please set the procurement method first before managing quotations.');
         }
 
-        $purchaseRequest->load(['items', 'documents', 'resolutionSignatories', 'rfqSignatories']);
+        $purchaseRequest->load([
+            'items',
+            'documents',
+            'resolutionSignatories',
+            'rfqSignatories',
+            'itemGroups.rfqGeneration',
+            'itemGroups.items',
+        ]);
 
         // Get the BAC resolution document if it exists
         $resolution = $purchaseRequest->documents()
@@ -59,13 +66,16 @@ class BacQuotationController extends Controller
 
         $suppliers = Supplier::where('status', 'active')->orderBy('business_name')->get();
         $quotations = Quotation::where('purchase_request_id', $purchaseRequest->id)
-            ->with(['supplier', 'quotationItems.purchaseRequestItem'])
+            ->with(['supplier', 'quotationItems.purchaseRequestItem', 'prItemGroup'])
             ->get();
+
+        // Group quotations by pr_item_group_id for tabbed interface
+        $quotationsByGroup = $quotations->groupBy('pr_item_group_id');
 
         // Get BAC signatories for regeneration form
         $bacSignatories = BacSignatory::with('user')->active()->get()->groupBy('position');
 
-        return view('bac.quotations.manage', compact('purchaseRequest', 'suppliers', 'quotations', 'resolution', 'rfq', 'bacSignatories'));
+        return view('bac.quotations.manage', compact('purchaseRequest', 'suppliers', 'quotations', 'quotationsByGroup', 'resolution', 'rfq', 'bacSignatories'));
     }
 
     public function store(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
