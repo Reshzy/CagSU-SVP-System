@@ -196,7 +196,7 @@
                         <li class="py-3 text-sm flex items-center justify-between">
                             <div>
                                 <div class="font-medium">{{ $act->purchaseRequest?->pr_number }}</div>
-                                <div class="text-gray-500">{{ \Illuminate\Support\Str::title(str_replace('_',' ', $act->status)) }} • {{ optional($act->responded_at)->diffForHumans() }}</div>
+                                <div class="text-gray-500">{{ $act->status === 'rejected' ? 'Deferred' : \Illuminate\Support\Str::title(str_replace('_',' ', $act->status)) }} • {{ optional($act->responded_at)->diffForHumans() }}</div>
                             </div>
                             <div class="text-gray-600">by {{ $act->approvedBy?->name ?? '—' }}</div>
                         </li>

@@ -130,7 +130,7 @@
                         <li class="py-3 flex items-center justify-between">
                             <div>
                                 <div class="text-sm font-medium text-gray-900">{{ $pr->pr_number ?? ('PR #' . $pr->id) }}</div>
-                                <div class="text-xs text-gray-500">{{ optional($pr->created_at)->format('Y-m-d H:i') }} • {{ ucfirst(str_replace('_',' ', $pr->status)) }}</div>
+                                <div class="text-xs text-gray-500">{{ optional($pr->created_at)->format('Y-m-d H:i') }} • {{ $pr->status === 'rejected' ? 'Deferred' : ucfirst(str_replace('_',' ', $pr->status)) }}</div>
                             </div>
                             <a href="{{ route('purchase-requests.index') }}" class="text-cagsu-maroon hover:text-cagsu-orange text-sm">View</a>
                         </li>
