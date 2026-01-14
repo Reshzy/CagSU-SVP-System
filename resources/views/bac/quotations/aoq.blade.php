@@ -22,6 +22,48 @@
                 </div>
             @endif
 
+            {{-- Failed Items Alert --}}
+            @php
+                $failedItems = $purchaseRequest->items->where('procurement_status', 'failed');
+                $failedItemsNeedingRePr = $failedItems->whereNull('replacement_pr_id');
+            @endphp
+            @if($failedItems->isNotEmpty())
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div class="flex items-start">
+                        <svg class="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                        </svg>
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-red-800">Failed Procurement Items</h4>
+                            <p class="text-sm text-red-700 mt-1">
+                                {{ $failedItems->count() }} item(s) have failed procurement due to supplier withdrawals.
+                            </p>
+                            <ul class="list-disc list-inside text-sm text-red-700 mt-2 space-y-1">
+                                @foreach($failedItems as $failedItem)
+                                    <li>
+                                        {{ $failedItem->item_name }}
+                                        @if($failedItem->replacement_pr_id)
+                                            <span class="text-green-700">(Re-PR Created: {{ $failedItem->replacementPr->pr_number }})</span>
+                                        @endif
+                                    </li>
+                                @endforeach
+                            </ul>
+                            @if($failedItemsNeedingRePr->isNotEmpty())
+                                <form action="{{ route('bac.quotations.create-replacement-pr', $purchaseRequest) }}" method="POST" class="mt-3">
+                                    @csrf
+                                    <button type="submit" class="inline-flex items-center px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700">
+                                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                        </svg>
+                                        Create Replacement PR for {{ $failedItemsNeedingRePr->count() }} Item(s)
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             {{-- AOQ Status Card --}}
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
@@ -145,7 +187,10 @@
                                                         $bgColor = '';
                                                         $badgeColor = 'bg-gray-500';
                                                         
-                                                        if ($qi->isDisqualified()) {
+                                                        if ($qi->is_withdrawn) {
+                                                            $bgColor = 'bg-orange-50';
+                                                            $badgeColor = 'bg-orange-600';
+                                                        } elseif ($qi->isDisqualified()) {
                                                             $bgColor = 'bg-red-100';
                                                             $badgeColor = 'bg-red-600';
                                                         } elseif ($qi->is_winner) {
@@ -160,17 +205,34 @@
                                                         }
                                                     @endphp
                                                     <div class="{{$bgColor}} p-2 rounded">
-                                                        <div class="text-sm font-semibold">₱ {{ number_format($qi->total_price, 2) }}</div>
-                                                        <div class="text-xs text-gray-600">₱ {{ number_format($qi->unit_price, 2) }} each</div>
+                                                        <div class="text-sm font-semibold {{ $qi->is_withdrawn ? 'line-through text-gray-500' : '' }}">
+                                                            ₱ {{ number_format($qi->total_price, 2) }}
+                                                        </div>
+                                                        <div class="text-xs text-gray-600 {{ $qi->is_withdrawn ? 'line-through' : '' }}">
+                                                            ₱ {{ number_format($qi->unit_price, 2) }} each
+                                                        </div>
                                                         <div class="text-xs mt-1">
                                                             <span class="px-2 py-1 rounded text-white text-xs {{$badgeColor}}">
                                                                 {{ $qi->getAoqStatusLabel() }}
                                                             </span>
                                                         </div>
-                                                        @if($qi->isDisqualified())
+                                                        @if($qi->is_withdrawn)
+                                                            <div class="text-xs text-orange-700 mt-1 font-semibold">
+                                                                Withdrawn: {{ Str::limit($qi->withdrawal_reason, 30) }}
+                                                            </div>
+                                                        @elseif($qi->isDisqualified())
                                                             <div class="text-xs text-red-700 mt-1 font-semibold">{{ $qi->disqualification_reason }}</div>
                                                         @elseif($qi->rank)
                                                             <div class="text-xs text-gray-500 mt-1">Rank: {{ $qi->rank }}</div>
+                                                        @endif
+                                                        
+                                                        {{-- Withdraw button for winners --}}
+                                                        @if($qi->is_winner && !$qi->is_withdrawn)
+                                                            <button type="button"
+                                                                onclick="openWithdrawalModal({{ $qi->id }}, '{{ $quotation->supplier->business_name }}', '{{ addslashes($item->item_name) }}', {{ $qi->unit_price }}, {{ $qi->total_price }})"
+                                                                class="mt-2 px-2 py-1 bg-orange-500 text-white text-xs rounded hover:bg-orange-600 transition-colors">
+                                                                Withdraw
+                                                            </button>
                                                         @endif
                                                     </div>
                                                 @else
@@ -180,9 +242,20 @@
                                         @endforeach
                                         
                                         <td class="px-4 py-4">
-                                            @if($hasTie)
+                                            @if($item->procurement_status === 'failed')
+                                                <div class="text-sm">
+                                                    <span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-semibold">
+                                                        Failed Procurement
+                                                    </span>
+                                                    @if($item->replacement_pr_id)
+                                                        <div class="text-xs text-gray-600 mt-1">
+                                                            Re-PR: <a href="{{ route('bac.quotations.manage', $item->replacementPr) }}" class="text-blue-600 hover:underline">{{ $item->replacementPr->pr_number }}</a>
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            @elseif($hasTie)
                                                 <button 
-                                                    onclick="openTieResolutionModal({{ $item->id }}, '{{ $item->item_name }}', {{ json_encode($itemData['quotes']) }})"
+                                                    onclick="openTieResolutionModal({{ $item->id }}, '{{ addslashes($item->item_name) }}', {{ json_encode($itemData['quotes']) }})"
                                                     class="px-3 py-1 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700">
                                                     Resolve Tie
                                                 </button>
@@ -194,10 +267,22 @@
                                                 <div class="text-sm">
                                                     <span class="font-semibold text-green-600">{{ $winnerSupplier }}</span>
                                                     <button 
-                                                        onclick="openBacOverrideModal({{ $item->id }}, '{{ $item->item_name }}', {{ json_encode($itemData['quotes']) }})"
+                                                        onclick="openBacOverrideModal({{ $item->id }}, '{{ addslashes($item->item_name) }}', {{ json_encode($itemData['quotes']) }})"
                                                         class="ml-2 px-2 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700">
                                                         Override
                                                     </button>
+                                                </div>
+                                            @elseif(!isset($itemData['has_eligible_bidders']) || !$itemData['has_eligible_bidders'])
+                                                <div class="text-sm">
+                                                    <span class="text-red-600 font-semibold">No eligible bidders</span>
+                                                    <form action="{{ route('bac.pr-items.mark-failed', $item) }}" method="POST" class="mt-1 inline-block"
+                                                          onsubmit="return confirm('Are you sure you want to mark this item as failed procurement? This action cannot be undone.')">
+                                                        @csrf
+                                                        <input type="hidden" name="failure_reason" value="All suppliers withdrew or were disqualified">
+                                                        <button type="submit" class="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700">
+                                                            Mark as Failed
+                                                        </button>
+                                                    </form>
                                                 </div>
                                             @else
                                                 <span class="text-gray-400 text-sm">No winner</span>
@@ -261,6 +346,69 @@
         </div>
     </div>
 
+    {{-- Supplier Withdrawal Modal --}}
+    <div id="withdrawalModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Process Supplier Withdrawal</h3>
+                <div class="bg-orange-50 border border-orange-200 text-orange-800 px-4 py-3 rounded-lg mb-4">
+                    <p class="text-sm font-semibold">Warning: This will withdraw the winning bid from this supplier.</p>
+                    <p class="text-xs mt-1">The next eligible bidder will automatically become the winner. If no eligible bidders remain, the item will be marked as failed procurement.</p>
+                </div>
+                
+                {{-- Withdrawal Preview --}}
+                <div id="withdrawal_preview" class="mb-4 p-4 bg-gray-50 rounded-lg">
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span class="text-gray-500">Supplier:</span>
+                            <span id="withdrawal_supplier" class="font-semibold text-gray-900 ml-2"></span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Item:</span>
+                            <span id="withdrawal_item" class="font-semibold text-gray-900 ml-2"></span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Unit Price:</span>
+                            <span id="withdrawal_unit_price" class="font-semibold text-gray-900 ml-2"></span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Total Price:</span>
+                            <span id="withdrawal_total_price" class="font-semibold text-gray-900 ml-2"></span>
+                        </div>
+                    </div>
+                    <div id="withdrawal_next_bidder_info" class="mt-4 pt-4 border-t border-gray-200 hidden">
+                        <p class="text-sm text-gray-600">Next eligible bidder will be: <span id="next_bidder_name" class="font-semibold text-green-600"></span></p>
+                    </div>
+                    <div id="withdrawal_failure_warning" class="mt-4 pt-4 border-t border-gray-200 hidden">
+                        <p class="text-sm text-red-600 font-semibold">⚠️ No eligible bidders remaining. This item will be marked as failed procurement.</p>
+                    </div>
+                </div>
+                
+                <form id="withdrawalForm" method="POST" action="">
+                    @csrf
+                    <input type="hidden" name="quotation_item_id" id="withdrawal_quotation_item_id">
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Withdrawal Reason: <span class="text-red-500">*</span></label>
+                        <textarea name="withdrawal_reason" required minlength="10" maxlength="1000" rows="4" 
+                            class="w-full border-gray-300 rounded-md shadow-sm" 
+                            placeholder="Explain why this supplier is withdrawing their bid..."></textarea>
+                        <p class="text-xs text-gray-500 mt-1">Minimum 10 characters required</p>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" onclick="closeWithdrawalModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700">
+                            Process Withdrawal
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     {{-- BAC Override Modal --}}
     <div id="bacOverrideModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
         <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
@@ -308,6 +456,50 @@
     </div>
 
     <script>
+        function openWithdrawalModal(quotationItemId, supplierName, itemName, unitPrice, totalPrice) {
+            document.getElementById('withdrawal_quotation_item_id').value = quotationItemId;
+            document.getElementById('withdrawal_supplier').textContent = supplierName;
+            document.getElementById('withdrawal_item').textContent = itemName;
+            document.getElementById('withdrawal_unit_price').textContent = '₱ ' + parseFloat(unitPrice).toLocaleString('en-US', {minimumFractionDigits: 2});
+            document.getElementById('withdrawal_total_price').textContent = '₱ ' + parseFloat(totalPrice).toLocaleString('en-US', {minimumFractionDigits: 2});
+            
+            // Set form action
+            document.getElementById('withdrawalForm').action = `/bac/quotation-items/${quotationItemId}/withdraw`;
+            
+            // Fetch withdrawal preview
+            fetch(`/bac/quotation-items/${quotationItemId}/withdrawal-preview`)
+                .then(response => response.json())
+                .then(data => {
+                    const nextBidderInfo = document.getElementById('withdrawal_next_bidder_info');
+                    const failureWarning = document.getElementById('withdrawal_failure_warning');
+                    
+                    if (data.would_cause_failure) {
+                        nextBidderInfo.classList.add('hidden');
+                        failureWarning.classList.remove('hidden');
+                    } else if (data.next_bidder) {
+                        document.getElementById('next_bidder_name').textContent = 
+                            `${data.next_bidder.supplier_name} (₱${parseFloat(data.next_bidder.total_price).toLocaleString('en-US', {minimumFractionDigits: 2})})`;
+                        nextBidderInfo.classList.remove('hidden');
+                        failureWarning.classList.add('hidden');
+                    } else {
+                        nextBidderInfo.classList.add('hidden');
+                        failureWarning.classList.add('hidden');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching withdrawal preview:', error);
+                });
+            
+            document.getElementById('withdrawalModal').classList.remove('hidden');
+        }
+        
+        function closeWithdrawalModal() {
+            document.getElementById('withdrawalModal').classList.add('hidden');
+            document.getElementById('withdrawalForm').reset();
+            document.getElementById('withdrawal_next_bidder_info').classList.add('hidden');
+            document.getElementById('withdrawal_failure_warning').classList.add('hidden');
+        }
+        
         function openTieResolutionModal(itemId, itemName, quotes) {
             document.getElementById('tie_item_id').value = itemId;
             document.getElementById('tie_item_name').textContent = itemName;
@@ -368,6 +560,7 @@
             const tieModal = document.getElementById('tieResolutionModal');
             const overrideModal = document.getElementById('bacOverrideModal');
             const generateAoqModal = document.getElementById('generateAoqModal');
+            const withdrawalModal = document.getElementById('withdrawalModal');
             if (event.target === tieModal) {
                 closeTieResolutionModal();
             }
@@ -376,6 +569,9 @@
             }
             if (event.target === generateAoqModal) {
                 closeGenerateAoqModal();
+            }
+            if (event.target === withdrawalModal) {
+                closeWithdrawalModal();
             }
         }
         

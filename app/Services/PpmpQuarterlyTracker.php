@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\Ppmp;
 use App\Models\PpmpItem;
 use App\Models\PurchaseRequest;
+use App\Models\PurchaseRequestItem;
 use Carbon\Carbon;
 
 class PpmpQuarterlyTracker
@@ -303,5 +305,112 @@ class PpmpQuarterlyTracker
         }
 
         return null;
+    }
+
+    /**
+     * Return quantity from a failed PR item back to PPMP
+     * This makes the quantity available again for new PRs
+     */
+    public function returnQuantityFromFailedPr(PurchaseRequestItem $prItem): array
+    {
+        // The PPMP quantity tracking is based on active PRs
+        // When a PR item fails, we need to ensure it's excluded from "used" calculations
+        // This happens automatically when the PR is marked with a status that excludes it
+        // from the getRemainingQuantity calculation
+
+        $ppmpItem = $prItem->ppmpItem;
+        if (! $ppmpItem) {
+            return [
+                'success' => false,
+                'message' => 'PR item is not linked to a PPMP item.',
+            ];
+        }
+
+        $quarter = $prItem->ppmp_quarter ?? $this->getQuarterFromDate($prItem->purchaseRequest->created_at);
+
+        // Get quantities before and after (for logging/audit purposes)
+        $quantityReturned = $prItem->quantity_requested;
+
+        // The actual "return" happens because the PR item's status is now 'failed'
+        // and the getRemainingQuantity method excludes failed/cancelled/rejected PRs
+        // So we just need to verify the quantity is now available
+
+        $remainingAfter = $this->getRemainingQuantity($ppmpItem, $quarter);
+
+        return [
+            'success' => true,
+            'ppmp_item_id' => $ppmpItem->id,
+            'item_name' => $ppmpItem->appItem->item_name ?? $prItem->item_name,
+            'quantity_returned' => $quantityReturned,
+            'quarter' => $quarter,
+            'remaining_after_return' => $remainingAfter,
+            'message' => "Returned {$quantityReturned} units to PPMP for Q{$quarter}.",
+        ];
+    }
+
+    /**
+     * Bulk return quantities for multiple failed PR items
+     */
+    public function returnQuantitiesFromFailedItems(array $prItems): array
+    {
+        $results = [];
+        $totalReturned = 0;
+
+        foreach ($prItems as $prItem) {
+            if ($prItem instanceof PurchaseRequestItem) {
+                $result = $this->returnQuantityFromFailedPr($prItem);
+                $results[] = $result;
+                if ($result['success']) {
+                    $totalReturned += $result['quantity_returned'];
+                }
+            }
+        }
+
+        return [
+            'success' => true,
+            'items_processed' => count($results),
+            'total_quantity_returned' => $totalReturned,
+            'details' => $results,
+        ];
+    }
+
+    /**
+     * Check if a PPMP item has available quantity after accounting for failed PRs
+     */
+    public function hasAvailableQuantityAfterFailures(PpmpItem $ppmpItem, ?int $quarter = null): bool
+    {
+        return $this->getRemainingQuantity($ppmpItem, $quarter) > 0;
+    }
+
+    /**
+     * Get summary of quantities returned due to failed procurement
+     */
+    public function getReturnedQuantitiesSummary(PpmpItem $ppmpItem): array
+    {
+        // Get all failed PR items that were linked to this PPMP item
+        $failedItems = $ppmpItem->purchaseRequestItems()
+            ->whereHas('purchaseRequest', function ($query) {
+                $query->whereIn('status', ['cancelled', 'rejected']);
+            })
+            ->orWhere('procurement_status', 'failed')
+            ->get();
+
+        $totalReturned = $failedItems->sum('quantity_requested');
+        $byQuarter = [];
+
+        foreach ($failedItems as $item) {
+            $quarter = $item->ppmp_quarter ?? 0;
+            if (! isset($byQuarter[$quarter])) {
+                $byQuarter[$quarter] = 0;
+            }
+            $byQuarter[$quarter] += $item->quantity_requested;
+        }
+
+        return [
+            'ppmp_item_id' => $ppmpItem->id,
+            'total_returned' => $totalReturned,
+            'by_quarter' => $byQuarter,
+            'failed_items_count' => $failedItems->count(),
+        ];
     }
 }

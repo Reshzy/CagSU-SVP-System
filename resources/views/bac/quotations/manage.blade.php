@@ -17,6 +17,42 @@
                         <div class="mb-4 p-3 rounded-md bg-red-50 text-red-700">{{ session('error') }}</div>
                     @endif
 
+                    {{-- Withdrawal/Failed Items Alert --}}
+                    @php
+                        $failedItems = $purchaseRequest->items->where('procurement_status', 'failed');
+                        $failedItemsNeedingRePr = $failedItems->whereNull('replacement_pr_id');
+                        $withdrawnQuotationItems = \App\Models\QuotationItem::whereHas('quotation', function($q) use ($purchaseRequest) {
+                            $q->where('purchase_request_id', $purchaseRequest->id);
+                        })->where('is_withdrawn', true)->count();
+                    @endphp
+                    @if($failedItems->isNotEmpty() || $withdrawnQuotationItems > 0)
+                        <div class="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+                            <div class="flex items-start">
+                                <svg class="w-5 h-5 text-orange-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                </svg>
+                                <div class="flex-1">
+                                    <h4 class="font-semibold text-orange-800">Procurement Status Alert</h4>
+                                    <ul class="text-sm text-orange-700 mt-2 space-y-1">
+                                        @if($withdrawnQuotationItems > 0)
+                                            <li>{{ $withdrawnQuotationItems }} supplier bid(s) have been withdrawn</li>
+                                        @endif
+                                        @if($failedItems->isNotEmpty())
+                                            <li>{{ $failedItems->count() }} item(s) have failed procurement</li>
+                                        @endif
+                                    </ul>
+                                    @if($failedItemsNeedingRePr->isNotEmpty())
+                                        <div class="mt-3">
+                                            <a href="{{ route('bac.quotations.aoq', $purchaseRequest) }}" class="inline-flex items-center px-3 py-1.5 bg-orange-600 text-white text-sm rounded hover:bg-orange-700">
+                                                View AOQ & Create Replacement PR
+                                            </a>
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
                     {{-- Item Grouping Info Banner --}}
                     @if($purchaseRequest->itemGroups->count() > 0)
                         <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6">
@@ -226,20 +262,37 @@
                                                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Description</th>
                                                         <th class="px-4 py-2 text-right text-xs font-semibold text-gray-700 uppercase">ABC (Unit)</th>
                                                         <th class="px-4 py-2 text-right text-xs font-semibold text-gray-700 uppercase">ABC (Total)</th>
+                                                        <th class="px-4 py-2 text-center text-xs font-semibold text-gray-700 uppercase">Status</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody class="bg-white divide-y divide-gray-200">
                                                     @foreach($group->items as $item)
-                                                    <tr>
+                                                    <tr class="{{ $item->procurement_status === 'failed' ? 'bg-red-50' : '' }}">
                                                         <td class="px-4 py-2 text-sm">{{ $item->quantity_requested }}</td>
                                                         <td class="px-4 py-2 text-sm">{{ $item->unit_of_measure }}</td>
                                                         <td class="px-4 py-2 text-sm">{{ $item->item_name }}</td>
                                                         <td class="px-4 py-2 text-sm text-right font-mono">₱{{ number_format((float)$item->estimated_unit_cost, 2) }}</td>
                                                         <td class="px-4 py-2 text-sm text-right font-mono font-semibold">₱{{ number_format((float)$item->estimated_total_cost, 2) }}</td>
+                                                        <td class="px-4 py-2 text-sm text-center">
+                                                            @if($item->procurement_status === 'awarded')
+                                                                <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full font-medium">Awarded</span>
+                                                            @elseif($item->procurement_status === 'failed')
+                                                                <span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full font-medium">Failed</span>
+                                                                @if($item->replacement_pr_id)
+                                                                    <div class="text-xs text-gray-500 mt-1">
+                                                                        Re-PR: <a href="{{ route('bac.quotations.manage', $item->replacementPr) }}" class="text-blue-600 hover:underline">{{ $item->replacementPr->pr_number }}</a>
+                                                                    </div>
+                                                                @endif
+                                                            @elseif($item->procurement_status === 're_pr_created')
+                                                                <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium">Re-PR Created</span>
+                                                            @else
+                                                                <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">Pending</span>
+                                                            @endif
+                                                        </td>
                                                     </tr>
                                                     @endforeach
                                                     <tr class="bg-gray-50 font-semibold">
-                                                        <td colspan="4" class="px-4 py-2 text-sm text-right">Group Total ABC:</td>
+                                                        <td colspan="5" class="px-4 py-2 text-sm text-right">Group Total ABC:</td>
                                                         <td class="px-4 py-2 text-sm text-right font-mono text-lg">₱{{ number_format($group->calculateTotalCost(), 2) }}</td>
                                                     </tr>
                                                 </tbody>

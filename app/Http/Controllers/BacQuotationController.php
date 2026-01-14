@@ -3,14 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Models\BacSignatory;
+use App\Models\PrItemGroup;
 use App\Models\PurchaseRequest;
+use App\Models\PurchaseRequestItem;
 use App\Models\Quotation;
+use App\Models\QuotationItem;
 use App\Models\ResolutionSignatory;
 use App\Models\RfqSignatory;
 use App\Models\Supplier;
 use App\Services\AoqService;
 use App\Services\BacResolutionService;
 use App\Services\BacRfqService;
+use App\Services\SupplierWithdrawalService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -1307,7 +1311,7 @@ class BacQuotationController extends Controller
     /**
      * Download AOQ for a specific item group
      */
-    public function downloadAoqForGroup(\App\Models\PrItemGroup $itemGroup, int $aoqGenerationId): StreamedResponse
+    public function downloadAoqForGroup(PrItemGroup $itemGroup, int $aoqGenerationId): StreamedResponse
     {
         $aoqGeneration = $itemGroup->aoqGeneration;
 
@@ -1322,5 +1326,265 @@ class BacQuotationController extends Controller
         $fileName = "AOQ_{$aoqGeneration->aoq_reference_number}_{$itemGroup->group_code}.docx";
 
         return Storage::download($aoqGeneration->file_path, $fileName);
+    }
+
+    /**
+     * Process supplier withdrawal for a quotation item
+     */
+    public function processWithdrawal(Request $request, QuotationItem $quotationItem): RedirectResponse
+    {
+        $quotation = $quotationItem->quotation;
+        $purchaseRequest = $quotation->purchaseRequest;
+
+        abort_unless(
+            in_array($purchaseRequest->status, ['bac_evaluation', 'bac_approved']),
+            403,
+            'Withdrawals are only allowed during BAC evaluation or after approval.'
+        );
+
+        $validated = $request->validate([
+            'withdrawal_reason' => ['required', 'string', 'min:10', 'max:1000'],
+        ]);
+
+        $withdrawalService = new SupplierWithdrawalService(new AoqService);
+        $result = $withdrawalService->withdraw($quotationItem, $validated['withdrawal_reason'], auth()->user());
+
+        if (! $result['success']) {
+            return back()->with('error', $result['message']);
+        }
+
+        Log::info('Supplier withdrawal processed', [
+            'pr_number' => $purchaseRequest->pr_number,
+            'supplier' => $quotation->supplier->business_name,
+            'item' => $quotationItem->purchaseRequestItem->item_name,
+            'has_successor' => $result['has_successor'],
+            'processed_by' => auth()->user()->name,
+        ]);
+
+        return back()->with('status', $result['message']);
+    }
+
+    /**
+     * Mark a PR item as failed procurement
+     */
+    public function markItemFailed(Request $request, PurchaseRequestItem $prItem): RedirectResponse
+    {
+        $purchaseRequest = $prItem->purchaseRequest;
+
+        abort_unless(
+            in_array($purchaseRequest->status, ['bac_evaluation', 'bac_approved']),
+            403,
+            'Cannot mark items as failed outside of BAC evaluation or approval stage.'
+        );
+
+        $validated = $request->validate([
+            'failure_reason' => ['required', 'string', 'min:10', 'max:1000'],
+        ]);
+
+        // Check if there are any eligible bidders remaining
+        $hasEligibleBidders = $prItem->quotationItems()
+            ->eligible()
+            ->exists();
+
+        if ($hasEligibleBidders) {
+            return back()->with('error', 'Cannot mark item as failed - there are still eligible bidders.');
+        }
+
+        $prItem->markAsFailed($validated['failure_reason']);
+
+        Log::info('PR item marked as failed procurement', [
+            'pr_number' => $purchaseRequest->pr_number,
+            'item' => $prItem->item_name,
+            'reason' => $validated['failure_reason'],
+            'marked_by' => auth()->user()->name,
+        ]);
+
+        return back()->with('status', "Item '{$prItem->item_name}' has been marked as failed procurement.");
+    }
+
+    /**
+     * Create replacement PR for failed items
+     */
+    public function createReplacementPr(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
+    {
+        abort_unless(
+            in_array($purchaseRequest->status, ['bac_evaluation', 'bac_approved']),
+            403,
+            'Cannot create replacement PR at this stage.'
+        );
+
+        $aoqService = new AoqService;
+        $failedItems = $aoqService->getFailedItemsNeedingRePr($purchaseRequest);
+
+        if ($failedItems->isEmpty()) {
+            return back()->with('error', 'No failed items found that need a replacement PR.');
+        }
+
+        try {
+            $replacementPr = $aoqService->handleFailedProcurement($failedItems, $purchaseRequest, auth()->user());
+
+            if (! $replacementPr) {
+                return back()->with('error', 'Failed to create replacement PR.');
+            }
+
+            Log::info('Replacement PR created for failed items', [
+                'original_pr' => $purchaseRequest->pr_number,
+                'replacement_pr' => $replacementPr->pr_number,
+                'items_count' => $failedItems->count(),
+                'created_by' => auth()->user()->name,
+            ]);
+
+            return back()->with('status', "Replacement PR created successfully: {$replacementPr->pr_number}. It contains {$failedItems->count()} item(s) from failed procurement.");
+        } catch (\Exception $e) {
+            Log::error('Failed to create replacement PR: '.$e->getMessage());
+
+            return back()->with('error', 'Failed to create replacement PR: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Generate consolidated AOQ for all groups
+     */
+    public function generateConsolidatedAoq(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
+    {
+        abort_unless(
+            in_array($purchaseRequest->status, ['bac_evaluation', 'bac_approved']),
+            403,
+            'Cannot generate consolidated AOQ at this stage.'
+        );
+
+        // Check if PR has item groups
+        if ($purchaseRequest->itemGroups()->count() === 0) {
+            return back()->with('error', 'This PR does not have item groups. Use the regular AOQ generation instead.');
+        }
+
+        // Validate signatories
+        $validated = $request->validate([
+            'signatories' => ['required', 'array'],
+            'signatories.bac_chairman' => ['required', 'array'],
+            'signatories.bac_chairman.input_mode' => ['required', 'in:select,manual'],
+            'signatories.bac_chairman.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.bac_chairman.name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_chairman.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_chairman.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.bac_chairman.suffix' => ['nullable', 'string', 'max:50'],
+            'signatories.bac_vice_chairman' => ['required', 'array'],
+            'signatories.bac_vice_chairman.input_mode' => ['required', 'in:select,manual'],
+            'signatories.bac_vice_chairman.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.bac_vice_chairman.name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_vice_chairman.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_vice_chairman.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.bac_vice_chairman.suffix' => ['nullable', 'string', 'max:50'],
+            'signatories.bac_member_1' => ['required', 'array'],
+            'signatories.bac_member_1.input_mode' => ['required', 'in:select,manual'],
+            'signatories.bac_member_1.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.bac_member_1.name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_member_1.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_member_1.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.bac_member_1.suffix' => ['nullable', 'string', 'max:50'],
+            'signatories.bac_member_2' => ['required', 'array'],
+            'signatories.bac_member_2.input_mode' => ['required', 'in:select,manual'],
+            'signatories.bac_member_2.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.bac_member_2.name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_member_2.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_member_2.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.bac_member_2.suffix' => ['nullable', 'string', 'max:50'],
+            'signatories.bac_member_3' => ['required', 'array'],
+            'signatories.bac_member_3.input_mode' => ['required', 'in:select,manual'],
+            'signatories.bac_member_3.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.bac_member_3.name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_member_3.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.bac_member_3.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.bac_member_3.suffix' => ['nullable', 'string', 'max:50'],
+            'signatories.head_bac_secretariat' => ['required', 'array'],
+            'signatories.head_bac_secretariat.input_mode' => ['required', 'in:select,manual'],
+            'signatories.head_bac_secretariat.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.head_bac_secretariat.name' => ['nullable', 'string', 'max:255'],
+            'signatories.head_bac_secretariat.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.head_bac_secretariat.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.head_bac_secretariat.suffix' => ['nullable', 'string', 'max:50'],
+            'signatories.ceo' => ['required', 'array'],
+            'signatories.ceo.input_mode' => ['required', 'in:select,manual'],
+            'signatories.ceo.user_id' => ['nullable', 'exists:users,id'],
+            'signatories.ceo.name' => ['nullable', 'string', 'max:255'],
+            'signatories.ceo.selected_name' => ['nullable', 'string', 'max:255'],
+            'signatories.ceo.prefix' => ['nullable', 'string', 'max:50'],
+            'signatories.ceo.suffix' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        try {
+            $signatoryData = $this->prepareSignatoryData($validated['signatories']);
+
+            $aoqService = new AoqService;
+            $aoqGeneration = $aoqService->generateConsolidatedAoq($purchaseRequest, auth()->user(), $signatoryData);
+
+            // Save signatories to database
+            $this->saveAoqSignatories($aoqGeneration, $validated['signatories']);
+
+            Log::info('Consolidated AOQ generated', [
+                'pr_number' => $purchaseRequest->pr_number,
+                'aoq_reference' => $aoqGeneration->aoq_reference_number,
+                'groups_count' => $purchaseRequest->itemGroups()->count(),
+                'generated_by' => auth()->user()->name,
+            ]);
+
+            return back()->with('status', "Consolidated Abstract of Quotations generated successfully. Reference: {$aoqGeneration->aoq_reference_number}");
+        } catch (\Exception $e) {
+            Log::error('Failed to generate consolidated AOQ: '.$e->getMessage());
+
+            return back()->with('error', 'Failed to generate consolidated AOQ: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Get withdrawal preview (AJAX endpoint)
+     */
+    public function withdrawalPreview(QuotationItem $quotationItem)
+    {
+        $withdrawalService = new SupplierWithdrawalService(new AoqService);
+
+        $canWithdraw = $withdrawalService->canWithdraw($quotationItem);
+        $nextBidder = $withdrawalService->getNextBidderPreview($quotationItem);
+        $wouldCauseFailure = $withdrawalService->wouldCauseFailure($quotationItem);
+
+        return response()->json([
+            'can_withdraw' => $canWithdraw['can_withdraw'],
+            'reason' => $canWithdraw['reason'] ?? null,
+            'would_cause_failure' => $wouldCauseFailure,
+            'next_bidder' => $nextBidder,
+            'current_item' => [
+                'supplier' => $quotationItem->quotation->supplier->business_name,
+                'unit_price' => $quotationItem->unit_price,
+                'total_price' => $quotationItem->total_price,
+                'item_name' => $quotationItem->purchaseRequestItem->item_name,
+            ],
+        ]);
+    }
+
+    /**
+     * Get withdrawal history for a PR (AJAX endpoint)
+     */
+    public function withdrawalHistory(PurchaseRequest $purchaseRequest)
+    {
+        $withdrawalService = new SupplierWithdrawalService(new AoqService);
+        $history = $withdrawalService->getWithdrawalHistory($purchaseRequest);
+
+        return response()->json([
+            'history' => $history->map(function ($withdrawal) {
+                return [
+                    'id' => $withdrawal->id,
+                    'item_name' => $withdrawal->purchaseRequestItem->item_name,
+                    'supplier' => $withdrawal->supplier->business_name,
+                    'reason' => $withdrawal->withdrawal_reason,
+                    'withdrawn_at' => $withdrawal->withdrawn_at->format('M d, Y H:i'),
+                    'withdrawn_by' => $withdrawal->withdrawnBy->name,
+                    'resulted_in_failure' => $withdrawal->resulted_in_failure,
+                    'successor' => $withdrawal->successorQuotationItem
+                        ? $withdrawal->successorQuotationItem->quotation->supplier->business_name
+                        : null,
+                ];
+            }),
+            'summary' => $withdrawalService->getWithdrawalSummary($purchaseRequest),
+        ]);
     }
 }

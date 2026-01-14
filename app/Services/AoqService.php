@@ -4,10 +4,13 @@ namespace App\Services;
 
 use App\Models\AoqGeneration;
 use App\Models\AoqItemDecision;
+use App\Models\PrItemGroup;
 use App\Models\PurchaseRequest;
-use App\Models\Quotation;
+use App\Models\PurchaseRequestItem;
 use App\Models\QuotationItem;
+use App\Models\SupplierWithdrawal;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpWord\IOFactory;
@@ -22,19 +25,27 @@ class AoqService
      * Calculate winners, detect ties, and update quotation_items
      * This is the core logic for determining bid outcomes
      */
-    public function calculateWinnersAndTies(PurchaseRequest $purchaseRequest): array
+    public function calculateWinnersAndTies(PurchaseRequest $purchaseRequest, ?PrItemGroup $itemGroup = null): array
     {
         $results = [];
 
-        // Get all quotations for this PR
-        $quotations = $purchaseRequest->quotations()
-            ->with(['supplier', 'quotationItems.purchaseRequestItem'])
-            ->get();
+        // Determine which items to process
+        if ($itemGroup) {
+            $items = $itemGroup->items;
+            $quotations = $itemGroup->quotations()
+                ->with(['supplier', 'quotationItems.purchaseRequestItem'])
+                ->get();
+        } else {
+            $items = $purchaseRequest->items;
+            $quotations = $purchaseRequest->quotations()
+                ->with(['supplier', 'quotationItems.purchaseRequestItem'])
+                ->get();
+        }
 
         // Group quotation items by purchase request item
-        foreach ($purchaseRequest->items as $prItem) {
+        foreach ($items as $prItem) {
             $itemQuotes = [];
-            $allQuotes = []; // Include all quotes for display (including disqualified)
+            $allQuotes = []; // Include all quotes for display (including disqualified/withdrawn)
 
             // Collect all quotes for this item
             foreach ($quotations as $quotation) {
@@ -59,8 +70,9 @@ class AoqService
                     // Add to all quotes for display
                     $allQuotes[] = $quoteData;
 
-                    // Only include non-disqualified quotes in winner calculation
-                    if (! $quoteItem->isDisqualified()) {
+                    // Only include eligible quotes in winner calculation
+                    // (not disqualified, not withdrawn)
+                    if (! $quoteItem->isDisqualified() && ! $quoteItem->isWithdrawn()) {
                         $itemQuotes[] = $quoteData;
                     }
                 }
@@ -69,10 +81,11 @@ class AoqService
             if (empty($itemQuotes)) {
                 $results[$prItem->id] = [
                     'item' => $prItem,
-                    'quotes' => $allQuotes, // Show all quotes including disqualified
+                    'quotes' => $allQuotes,
                     'lowest_price' => null,
                     'winners' => [],
                     'has_tie' => false,
+                    'has_eligible_bidders' => false,
                 ];
 
                 continue;
@@ -111,11 +124,18 @@ class AoqService
                 ->first();
 
             if ($existingDecision) {
-                // Use existing decision
-                $winnerId = $existingDecision->winning_quotation_item_id;
-                foreach ($itemQuotes as $quote) {
-                    $quote['quotation_item']->is_winner = ($quote['quotation_item']->id == $winnerId);
-                    $quote['quotation_item']->save();
+                // Check if the existing winner is still eligible
+                $existingWinner = QuotationItem::find($existingDecision->winning_quotation_item_id);
+                if ($existingWinner && ! $existingWinner->isWithdrawn() && ! $existingWinner->isDisqualified()) {
+                    // Use existing decision
+                    $winnerId = $existingDecision->winning_quotation_item_id;
+                    foreach ($itemQuotes as $quote) {
+                        $quote['quotation_item']->is_winner = ($quote['quotation_item']->id == $winnerId);
+                        $quote['quotation_item']->save();
+                    }
+                } else {
+                    // Existing winner is no longer eligible, need to reassign
+                    $this->reassignWinnerAfterWithdrawal($prItem, $purchaseRequest);
                 }
             } else {
                 // Auto-assign winner if no tie
@@ -137,14 +157,231 @@ class AoqService
 
             $results[$prItem->id] = [
                 'item' => $prItem,
-                'quotes' => $allQuotes, // Show all quotes including disqualified ones
+                'quotes' => $allQuotes,
                 'lowest_price' => $lowestPrice,
                 'winners' => array_filter($itemQuotes, fn ($q) => $q['quotation_item']->is_winner),
                 'has_tie' => $hasTie,
+                'has_eligible_bidders' => ! empty($itemQuotes),
             ];
         }
 
         return $results;
+    }
+
+    /**
+     * Reassign winner after a withdrawal
+     */
+    protected function reassignWinnerAfterWithdrawal(PurchaseRequestItem $prItem, PurchaseRequest $purchaseRequest): ?QuotationItem
+    {
+        // Get the next eligible bidder
+        $eligibleBidders = QuotationItem::where('purchase_request_item_id', $prItem->id)
+            ->eligible()
+            ->orderBy('rank', 'asc')
+            ->get();
+
+        if ($eligibleBidders->isEmpty()) {
+            return null;
+        }
+
+        $newWinner = $eligibleBidders->first();
+
+        // Deactivate existing decisions
+        AoqItemDecision::where('purchase_request_item_id', $prItem->id)
+            ->update(['is_active' => false]);
+
+        // Clear all winners for this item
+        QuotationItem::where('purchase_request_item_id', $prItem->id)
+            ->update(['is_winner' => false]);
+
+        // Mark new winner
+        $newWinner->update(['is_winner' => true]);
+
+        // Create new decision
+        AoqItemDecision::create([
+            'purchase_request_id' => $purchaseRequest->id,
+            'purchase_request_item_id' => $prItem->id,
+            'winning_quotation_item_id' => $newWinner->id,
+            'decision_type' => 'withdrawal_succession',
+            'is_active' => true,
+            'decided_at' => now(),
+        ]);
+
+        return $newWinner;
+    }
+
+    /**
+     * Process supplier withdrawal for a specific quotation item
+     */
+    public function processSupplierWithdrawal(
+        QuotationItem $quotationItem,
+        string $reason,
+        User $processedBy
+    ): array {
+        return DB::transaction(function () use ($quotationItem, $reason, $processedBy) {
+            $prItem = $quotationItem->purchaseRequestItem;
+            $quotation = $quotationItem->quotation;
+            $purchaseRequest = $quotation->purchaseRequest;
+
+            // Withdraw the quotation item
+            $quotationItem->withdraw($reason);
+
+            // Find the next ranked bidder
+            $successor = $quotationItem->getNextRankedBidder();
+
+            // Create withdrawal record
+            $withdrawal = SupplierWithdrawal::create([
+                'quotation_item_id' => $quotationItem->id,
+                'supplier_id' => $quotation->supplier_id,
+                'purchase_request_item_id' => $prItem->id,
+                'pr_item_group_id' => $prItem->pr_item_group_id,
+                'withdrawal_reason' => $reason,
+                'withdrawn_at' => now(),
+                'withdrawn_by' => $processedBy->id,
+                'successor_quotation_item_id' => $successor?->id,
+                'resulted_in_failure' => $successor === null,
+            ]);
+
+            if ($successor) {
+                // Promote the next winner
+                $this->promoteNextWinner($prItem, $successor, $purchaseRequest);
+
+                return [
+                    'success' => true,
+                    'has_successor' => true,
+                    'successor' => $successor,
+                    'withdrawal' => $withdrawal,
+                    'message' => "Withdrawal processed. {$successor->quotation->supplier->business_name} is now the winner.",
+                ];
+            } else {
+                // No eligible successor - mark item as failed
+                $prItem->markAsFailed('All suppliers have withdrawn or been disqualified');
+
+                return [
+                    'success' => true,
+                    'has_successor' => false,
+                    'successor' => null,
+                    'withdrawal' => $withdrawal,
+                    'message' => 'Withdrawal processed. No eligible bidders remaining - item marked as failed procurement.',
+                ];
+            }
+        });
+    }
+
+    /**
+     * Promote the next winner after a withdrawal
+     */
+    protected function promoteNextWinner(
+        PurchaseRequestItem $prItem,
+        QuotationItem $newWinner,
+        PurchaseRequest $purchaseRequest
+    ): void {
+        // Deactivate existing decisions
+        AoqItemDecision::where('purchase_request_item_id', $prItem->id)
+            ->update(['is_active' => false]);
+
+        // Clear all winners for this item
+        QuotationItem::where('purchase_request_item_id', $prItem->id)
+            ->update(['is_winner' => false]);
+
+        // Mark new winner
+        $newWinner->update(['is_winner' => true]);
+
+        // Create new decision
+        AoqItemDecision::create([
+            'purchase_request_id' => $purchaseRequest->id,
+            'purchase_request_item_id' => $prItem->id,
+            'winning_quotation_item_id' => $newWinner->id,
+            'decision_type' => 'withdrawal_succession',
+            'is_active' => true,
+            'decided_at' => now(),
+        ]);
+    }
+
+    /**
+     * Handle failed procurement for items with no eligible bidders
+     * Creates a replacement PR automatically
+     */
+    public function handleFailedProcurement(
+        Collection $failedItems,
+        PurchaseRequest $originalPr,
+        User $processedBy
+    ): ?PurchaseRequest {
+        if ($failedItems->isEmpty()) {
+            return null;
+        }
+
+        return DB::transaction(function () use ($failedItems, $originalPr) {
+            // Calculate total cost for replacement PR
+            $totalCost = $failedItems->sum(function ($item) {
+                return $item->quantity_requested * $item->estimated_unit_cost;
+            });
+
+            // Create replacement PR
+            $replacementPr = PurchaseRequest::create([
+                'pr_number' => PurchaseRequest::generateNextPrNumber(),
+                'requester_id' => $originalPr->requester_id,
+                'department_id' => $originalPr->department_id,
+                'purpose' => "Replacement PR for failed items from {$originalPr->pr_number}",
+                'justification' => 'Auto-created replacement PR. Original items failed procurement due to all suppliers withdrawing.',
+                'date_needed' => null,
+                'estimated_total' => $totalCost,
+                'funding_source' => $originalPr->funding_source,
+                'budget_code' => $originalPr->budget_code,
+                'procurement_type' => $originalPr->procurement_type,
+                'procurement_method' => null,
+                'status' => 'supply_office_review',
+                'submitted_at' => now(),
+                'status_updated_at' => now(),
+                'current_handler_id' => null,
+                'has_ppmp' => true,
+                'replaces_pr_id' => $originalPr->id,
+            ]);
+
+            // Create items for replacement PR
+            foreach ($failedItems as $originalItem) {
+                PurchaseRequestItem::create([
+                    'purchase_request_id' => $replacementPr->id,
+                    'ppmp_item_id' => $originalItem->ppmp_item_id,
+                    'ppmp_quarter' => $originalItem->ppmp_quarter,
+                    'ppmp_planned_qty_for_quarter' => $originalItem->ppmp_planned_qty_for_quarter,
+                    'ppmp_remaining_qty_at_creation' => $originalItem->ppmp_remaining_qty_at_creation,
+                    'item_code' => $originalItem->item_code,
+                    'item_name' => $originalItem->getRawOriginal('item_name'),
+                    'detailed_specifications' => $originalItem->detailed_specifications,
+                    'unit_of_measure' => $originalItem->getRawOriginal('unit_of_measure'),
+                    'quantity_requested' => $originalItem->quantity_requested,
+                    'estimated_unit_cost' => $originalItem->estimated_unit_cost,
+                    'estimated_total_cost' => $originalItem->estimated_total_cost,
+                    'item_category' => $originalItem->item_category,
+                    'special_requirements' => $originalItem->special_requirements,
+                    'needed_by_date' => $originalItem->needed_by_date,
+                    'is_available_locally' => $originalItem->is_available_locally,
+                    'budget_line_item' => $originalItem->budget_line_item,
+                    'approved_budget' => $originalItem->approved_budget,
+                    'item_status' => 'pending',
+                    'procurement_status' => 'pending',
+                ]);
+
+                // Link original item to replacement PR
+                $originalItem->linkToReplacementPr($replacementPr);
+
+                // Return quantity to PPMP
+                $originalItem->returnQuantityToPpmp();
+            }
+
+            return $replacementPr;
+        });
+    }
+
+    /**
+     * Get failed items that need re-PR
+     */
+    public function getFailedItemsNeedingRePr(PurchaseRequest $purchaseRequest): Collection
+    {
+        return $purchaseRequest->items()
+            ->where('procurement_status', 'failed')
+            ->whereNull('replacement_pr_id')
+            ->get();
     }
 
     /**
@@ -238,7 +475,7 @@ class AoqService
     }
 
     /**
-     * Check if PR is ready for AOQ generation
+     * Check if PR is ready for AOQ generation (for non-grouped PRs)
      */
     public function canGenerateAoq(PurchaseRequest $purchaseRequest): array
     {
@@ -254,23 +491,33 @@ class AoqService
             $errors[] = 'No quotations have been submitted yet.';
         }
 
-        // Must have all items with quotes
+        // Must have all items with quotes (excluding failed items)
         foreach ($purchaseRequest->items as $item) {
+            if ($item->procurement_status === 'failed') {
+                continue; // Skip failed items
+            }
+
             $hasQuote = QuotationItem::where('purchase_request_item_id', $item->id)
                 ->whereNotNull('unit_price')
+                ->where('is_withdrawn', false)
                 ->exists();
 
             if (! $hasQuote) {
-                $errors[] = "Item '{$item->item_name}' has no quotations.";
+                $errors[] = "Item '{$item->item_name}' has no valid quotations.";
             }
         }
 
         // Check for unresolved ties
         $unresolvedTies = [];
         foreach ($purchaseRequest->items as $item) {
+            if ($item->procurement_status === 'failed') {
+                continue;
+            }
+
             $tiedItems = QuotationItem::where('purchase_request_item_id', $item->id)
                 ->where('is_tied', true)
                 ->where('is_winner', false)
+                ->where('is_withdrawn', false)
                 ->count();
 
             if ($tiedItems > 0) {
@@ -295,7 +542,76 @@ class AoqService
     }
 
     /**
-     * Generate AOQ document (Word format)
+     * Check if AOQ can be generated for a specific group
+     */
+    public function canGenerateAoqForGroup(PrItemGroup $itemGroup): array
+    {
+        $errors = [];
+        $purchaseRequest = $itemGroup->purchaseRequest;
+
+        // Must be in bac_evaluation status
+        if ($purchaseRequest->status !== 'bac_evaluation') {
+            $errors[] = 'Purchase request must be in BAC evaluation stage.';
+        }
+
+        // Check if there are quotations for this group
+        $quotationsCount = $itemGroup->quotations()->count();
+        if ($quotationsCount === 0) {
+            $errors[] = 'No quotations have been submitted for this group yet.';
+        }
+
+        // Check each item in the group
+        foreach ($itemGroup->items as $item) {
+            if ($item->procurement_status === 'failed') {
+                continue; // Skip failed items
+            }
+
+            $hasQuote = QuotationItem::where('purchase_request_item_id', $item->id)
+                ->whereNotNull('unit_price')
+                ->where('is_withdrawn', false)
+                ->exists();
+
+            if (! $hasQuote) {
+                $errors[] = "Item '{$item->item_name}' has no valid quotations.";
+            }
+        }
+
+        // Check for unresolved ties in this group
+        $unresolvedTies = [];
+        foreach ($itemGroup->items as $item) {
+            if ($item->procurement_status === 'failed') {
+                continue;
+            }
+
+            $tiedItems = QuotationItem::where('purchase_request_item_id', $item->id)
+                ->where('is_tied', true)
+                ->where('is_winner', false)
+                ->where('is_withdrawn', false)
+                ->count();
+
+            if ($tiedItems > 0) {
+                $decision = AoqItemDecision::where('purchase_request_item_id', $item->id)
+                    ->where('is_active', true)
+                    ->exists();
+
+                if (! $decision) {
+                    $unresolvedTies[] = $item->item_name;
+                }
+            }
+        }
+
+        if (! empty($unresolvedTies)) {
+            $errors[] = 'The following items have unresolved ties: '.implode(', ', $unresolvedTies);
+        }
+
+        return [
+            'can_generate' => empty($errors),
+            'errors' => $errors,
+        ];
+    }
+
+    /**
+     * Generate AOQ document (Word format) for non-grouped PRs
      */
     public function generateAoqDocument(PurchaseRequest $purchaseRequest, User $generatedBy, ?array $signatoryData = null): AoqGeneration
     {
@@ -339,12 +655,12 @@ class AoqService
     /**
      * Generate AOQ document for a specific item group
      */
-    public function generateAoqDocumentForGroup(\App\Models\PrItemGroup $itemGroup, User $generatedBy, ?array $signatoryData = null): AoqGeneration
+    public function generateAoqDocumentForGroup(PrItemGroup $itemGroup, User $generatedBy, ?array $signatoryData = null): AoqGeneration
     {
         $purchaseRequest = $itemGroup->purchaseRequest;
 
         // Recalculate winners and ties for this group only
-        $aoqData = $this->calculateWinnersAndTiesForGroup($itemGroup);
+        $aoqData = $this->calculateWinnersAndTies($purchaseRequest, $itemGroup);
 
         // Check if can generate for this group
         $validation = $this->canGenerateAoqForGroup($itemGroup);
@@ -382,97 +698,150 @@ class AoqService
     }
 
     /**
-     * Calculate winners and ties for a specific item group
+     * Generate consolidated AOQ document for all groups in a PR
      */
-    protected function calculateWinnersAndTiesForGroup(\App\Models\PrItemGroup $itemGroup): array
+    public function generateConsolidatedAoq(PurchaseRequest $purchaseRequest, User $generatedBy, ?array $signatoryData = null): AoqGeneration
     {
-        // Get quotations for this group only
-        $quotations = $itemGroup->quotations()
-            ->with(['supplier', 'quotationItems.purchaseRequestItem'])
-            ->get();
+        // Collect AOQ data from all groups
+        $allAoqData = [];
+        $totalItems = 0;
+        $totalSuppliers = 0;
 
-        // Filter items to only those in this group
-        $groupItems = $itemGroup->items;
-
-        // Use similar logic to calculateWinnersAndTies but filtered to group items
-        $aoqData = [];
-        foreach ($groupItems as $prItem) {
-            $itemQuotes = [];
-            foreach ($quotations as $quotation) {
-                $quotationItem = $quotation->quotationItems->firstWhere('purchase_request_item_id', $prItem->id);
-                if ($quotationItem && $quotationItem->unit_price !== null) {
-                    $itemQuotes[] = [
-                        'quotation_id' => $quotation->id,
-                        'supplier_name' => $quotation->supplier->business_name,
-                        'unit_price' => $quotationItem->unit_price,
-                        'total_price' => $quotationItem->total_price,
-                        'is_within_abc' => $quotationItem->is_within_abc,
-                    ];
+        if ($purchaseRequest->itemGroups->count() > 0) {
+            foreach ($purchaseRequest->itemGroups as $group) {
+                $groupData = $this->calculateWinnersAndTies($purchaseRequest, $group);
+                foreach ($groupData as $itemId => $data) {
+                    $allAoqData[$itemId] = $data;
+                    $allAoqData[$itemId]['group'] = $group;
                 }
+                $totalItems += count($groupData);
+                $totalSuppliers = max($totalSuppliers, $group->quotations()->count());
             }
+        } else {
+            $allAoqData = $this->calculateWinnersAndTies($purchaseRequest);
+            $totalItems = count($allAoqData);
+            $totalSuppliers = $purchaseRequest->quotations()->count();
+        }
 
-            // Sort by unit price to find lowest
-            usort($itemQuotes, fn ($a, $b) => $a['unit_price'] <=> $b['unit_price']);
+        // Generate reference number
+        $referenceNumber = AoqGeneration::generateNextReferenceNumber();
 
-            $aoqData[$prItem->id] = [
-                'item' => $prItem,
-                'quotes' => $itemQuotes,
-                'lowest_price' => $itemQuotes[0]['unit_price'] ?? null,
-                'winner_id' => $itemQuotes[0]['quotation_id'] ?? null,
+        // Prepare consolidated data snapshot
+        $dataSnapshot = [
+            'pr_number' => $purchaseRequest->pr_number,
+            'is_consolidated' => true,
+            'groups' => $purchaseRequest->itemGroups->map(fn ($g) => [
+                'code' => $g->group_code,
+                'name' => $g->group_name,
+            ])->toArray(),
+            'generated_at' => now()->toISOString(),
+            'items' => [],
+        ];
+
+        foreach ($allAoqData as $itemId => $data) {
+            $item = $data['item'];
+            $dataSnapshot['items'][] = [
+                'item_id' => $item->id,
+                'item_name' => $item->item_name,
+                'group_code' => isset($data['group']) ? $data['group']->group_code : null,
+                'quantity' => $item->quantity_requested,
+                'quotes' => array_map(function ($quote) {
+                    return [
+                        'supplier' => $quote['quotation']->supplier->business_name,
+                        'unit_price' => $quote['quotation_item']->unit_price,
+                        'total_price' => $quote['total_price'],
+                        'rank' => $quote['quotation_item']->rank,
+                        'is_winner' => $quote['quotation_item']->is_winner,
+                        'is_withdrawn' => $quote['quotation_item']->is_withdrawn,
+                    ];
+                }, $data['quotes']),
             ];
         }
 
-        return $aoqData;
-    }
+        // Generate Word document
+        $filePath = $this->createWordDocument($purchaseRequest, $allAoqData, $referenceNumber, $signatoryData, true);
 
-    /**
-     * Check if AOQ can be generated for a specific group
-     */
-    protected function canGenerateAoqForGroup(\App\Models\PrItemGroup $itemGroup): array
-    {
-        $errors = [];
+        // Calculate hash
+        $documentHash = hash('sha256', json_encode($dataSnapshot));
 
-        // Check if there are quotations for this group
-        $quotationsCount = $itemGroup->quotations()->count();
-        if ($quotationsCount === 0) {
-            $errors[] = 'No quotations have been submitted for this group yet.';
-        }
+        // Create AOQ generation record
+        $aoqGeneration = AoqGeneration::create([
+            'aoq_reference_number' => $referenceNumber,
+            'purchase_request_id' => $purchaseRequest->id,
+            'pr_item_group_id' => null, // Consolidated = no specific group
+            'generated_by' => $generatedBy->id,
+            'document_hash' => $documentHash,
+            'exported_data_snapshot' => $dataSnapshot,
+            'file_path' => $filePath,
+            'file_format' => 'docx',
+            'total_items' => $totalItems,
+            'total_suppliers' => $totalSuppliers,
+            'generation_notes' => 'Consolidated AOQ for all item groups',
+        ]);
 
-        return [
-            'can_generate' => empty($errors),
-            'errors' => $errors,
-        ];
+        return $aoqGeneration;
     }
 
     /**
      * Prepare data snapshot for a specific group
      */
-    protected function prepareDataSnapshotForGroup(\App\Models\PrItemGroup $itemGroup, array $aoqData): array
+    protected function prepareDataSnapshotForGroup(PrItemGroup $itemGroup, array $aoqData): array
     {
         $purchaseRequest = $itemGroup->purchaseRequest;
 
-        return [
+        $snapshot = [
             'pr_number' => $purchaseRequest->pr_number,
             'group_name' => $itemGroup->group_name,
             'group_code' => $itemGroup->group_code,
-            'aoq_data' => $aoqData,
             'generated_at' => now()->toDateTimeString(),
+            'items' => [],
         ];
+
+        foreach ($aoqData as $itemId => $data) {
+            $item = $data['item'];
+            $snapshot['items'][] = [
+                'item_id' => $item->id,
+                'item_name' => $item->item_name,
+                'quantity' => $item->quantity_requested,
+                'procurement_status' => $item->procurement_status,
+                'quotes' => array_map(function ($quote) {
+                    return [
+                        'supplier' => $quote['quotation']->supplier->business_name,
+                        'unit_price' => $quote['quotation_item']->unit_price,
+                        'total_price' => $quote['total_price'],
+                        'rank' => $quote['quotation_item']->rank,
+                        'is_winner' => $quote['quotation_item']->is_winner,
+                        'is_withdrawn' => $quote['quotation_item']->is_withdrawn,
+                    ];
+                }, $data['quotes']),
+            ];
+        }
+
+        return $snapshot;
     }
 
     /**
-     * Create Word document for a specific group (simplified version)
+     * Create Word document for a specific group
      */
-    protected function createWordDocumentForGroup(\App\Models\PrItemGroup $itemGroup, array $aoqData, string $referenceNumber, ?array $signatoryData = null): string
+    protected function createWordDocumentForGroup(PrItemGroup $itemGroup, array $aoqData, string $referenceNumber, ?array $signatoryData = null): string
     {
-        // Reuse existing createWordDocument logic but filter to group data
-        // For now, use the parent method and add group identifier
         $purchaseRequest = $itemGroup->purchaseRequest;
-        $filePath = $this->createWordDocument($purchaseRequest, $aoqData, $referenceNumber, $signatoryData);
+
+        // Filter to only include group's quotations
+        $groupQuotations = $itemGroup->quotations()->with('supplier')->get();
+
+        $filePath = $this->createWordDocumentWithQuotations(
+            $purchaseRequest,
+            $aoqData,
+            $referenceNumber,
+            $signatoryData,
+            $groupQuotations,
+            $itemGroup->group_name
+        );
 
         // Rename to include group code
         $newPath = str_replace('.docx', '_'.$itemGroup->group_code.'.docx', $filePath);
-        \Illuminate\Support\Facades\Storage::move($filePath, $newPath);
+        Storage::move($filePath, $newPath);
 
         return $newPath;
     }
@@ -494,6 +863,7 @@ class AoqService
                 'item_id' => $item->id,
                 'item_name' => $item->item_name,
                 'quantity' => $item->quantity_requested,
+                'procurement_status' => $item->procurement_status ?? 'pending',
                 'quotes' => array_map(function ($quote) {
                     return [
                         'supplier' => $quote['quotation']->supplier->business_name,
@@ -501,6 +871,7 @@ class AoqService
                         'total_price' => $quote['total_price'],
                         'rank' => $quote['quotation_item']->rank,
                         'is_winner' => $quote['quotation_item']->is_winner,
+                        'is_withdrawn' => $quote['quotation_item']->is_withdrawn ?? false,
                     ];
                 }, $data['quotes']),
             ];
@@ -512,8 +883,36 @@ class AoqService
     /**
      * Create Word document using PhpWord - matches existing template format
      */
-    protected function createWordDocument(PurchaseRequest $purchaseRequest, array $aoqData, string $referenceNumber, ?array $signatoryData = null): string
-    {
+    protected function createWordDocument(
+        PurchaseRequest $purchaseRequest,
+        array $aoqData,
+        string $referenceNumber,
+        ?array $signatoryData = null,
+        bool $isConsolidated = false
+    ): string {
+        $quotations = $purchaseRequest->quotations()->with('supplier')->get();
+
+        return $this->createWordDocumentWithQuotations(
+            $purchaseRequest,
+            $aoqData,
+            $referenceNumber,
+            $signatoryData,
+            $quotations,
+            $isConsolidated ? 'Consolidated' : null
+        );
+    }
+
+    /**
+     * Create Word document with specific quotations
+     */
+    protected function createWordDocumentWithQuotations(
+        PurchaseRequest $purchaseRequest,
+        array $aoqData,
+        string $referenceNumber,
+        ?array $signatoryData,
+        $quotations,
+        ?string $groupLabel = null
+    ): string {
         $phpWord = new PhpWord;
         $phpWord->setDefaultFontName('Century Gothic');
         $phpWord->setDefaultFontSize(7);
@@ -541,12 +940,6 @@ class AoqService
             'cellMargin' => 0,
         ], ['alignment' => JcTable::CENTER]);
 
-        $phpWord->addTableStyle('certificationTable', [
-            'borderSize' => 1,
-            'borderColor' => '000000',
-            'cellMargin' => 10,
-        ], ['alignment' => JcTable::CENTER]);
-
         $phpWord->addTableStyle('signatureTable', [
             'borderSize' => 0,
             'borderColor' => 'FFFFFF',
@@ -561,6 +954,7 @@ class AoqService
         $dataText = ['size' => 7, 'name' => 'Century Gothic'];
         $unitDataText = array_merge($dataText, ['allCaps' => true]);
         $articleDataText = array_merge($dataText, ['allCaps' => true]);
+        $withdrawnText = array_merge($dataText, ['strikethrough' => true, 'color' => '999999']);
         $signatureNameStyle = ['bold' => true, 'size' => 7, 'name' => 'Century Gothic', 'allCaps' => true];
         $signaturePositionStyle = ['bold' => true, 'size' => 6, 'name' => 'Century Gothic'];
         $metaLabelStyle = ['bold' => false, 'size' => 6, 'name' => 'Century Gothic'];
@@ -586,7 +980,12 @@ class AoqService
         $section->addText('Republic of the Philippines', ['bold' => false, 'size' => 6, 'name' => 'Century Gothic'], $tightHeaderParagraph);
         $section->addText('CAGAYAN STATE UNIVERSITY', ['bold' => false, 'size' => 6, 'name' => 'Century Gothic'], $tightHeaderParagraph);
         $section->addText('Sanchez Mira, Cagayan', ['bold' => false, 'size' => 6, 'name' => 'Century Gothic'], $tightHeaderParagraph);
-        $section->addText('ABSTRACT OF QUOTATIONS', ['bold' => true, 'size' => 6, 'name' => 'Century Gothic'], $tightHeaderParagraph);
+
+        $aoqTitle = 'ABSTRACT OF QUOTATIONS';
+        if ($groupLabel) {
+            $aoqTitle .= ' - '.strtoupper($groupLabel);
+        }
+        $section->addText($aoqTitle, ['bold' => true, 'size' => 6, 'name' => 'Century Gothic'], $tightHeaderParagraph);
 
         // Meta table
         $metaCellStyle = ['borderSize' => 0, 'borderColor' => 'FFFFFF'];
@@ -630,7 +1029,6 @@ class AoqService
         $section->addTextBreak(0.05);
 
         // Get all suppliers
-        $quotations = $purchaseRequest->quotations()->with('supplier')->get();
         $suppliers = $quotations->pluck('supplier')->unique('id')->values();
 
         $minimumSuppliers = 4;
@@ -696,7 +1094,6 @@ class AoqService
         }
 
         // Calculate item winners and totals
-        $itemWinners = [];
         $totalPrices = array_fill(0, $supplierCount, 0.0);
         $totalAmountAwarded = array_fill(0, $supplierCount, 0.0);
 
@@ -706,13 +1103,17 @@ class AoqService
             $item = $data['item'];
             $winners = [];
 
+            // Skip failed items in the document
+            if ($item->procurement_status === 'failed') {
+                continue;
+            }
+
             // Find winners for this item
             foreach ($data['quotes'] as $quote) {
-                if ($quote['quotation_item']->is_winner) {
+                if ($quote['quotation_item']->is_winner && ! $quote['quotation_item']->is_withdrawn) {
                     $winners[] = $suppliers->search(fn ($s) => $s->id === $quote['quotation']->supplier_id);
                 }
             }
-            $itemWinners[$rowNum - 1] = $winners;
 
             $table->addRow();
             $table->addCell($widths['no'], $cellMiddle)->addText((string) $rowNum, $dataText, $paragraphCenter);
@@ -724,20 +1125,34 @@ class AoqService
                 $quote = collect($data['quotes'])->first(fn ($q) => $q['quotation']->supplier_id === $supplier->id);
 
                 $isWinner = in_array($supplierIndex, $winners);
-                $cellStyle = $isWinner ? array_merge($cellMiddle, ['bgColor' => 'FFFF00']) : $cellMiddle;
+                $isWithdrawn = $quote && $quote['quotation_item']->is_withdrawn;
+
+                $cellStyle = $cellMiddle;
+                if ($isWinner) {
+                    $cellStyle = array_merge($cellMiddle, ['bgColor' => 'FFFF00']);
+                } elseif ($isWithdrawn) {
+                    $cellStyle = array_merge($cellMiddle, ['bgColor' => 'EEEEEE']);
+                }
 
                 if ($quote && $quote['quotation_item']->isQuoted()) {
+                    $textStyle = $isWithdrawn ? $withdrawnText : $dataText;
                     $unitPrice = number_format($quote['quotation_item']->unit_price, 2);
                     $totalPrice = number_format($quote['total_price'], 2);
 
-                    $table->addCell($widths['vendor'], $cellStyle)
-                        ->addText($unitPrice, $dataText, $paragraphRight);
-                    $table->addCell($widths['vendor'], $cellStyle)
-                        ->addText($totalPrice, $dataText, $paragraphRight);
+                    if ($isWithdrawn) {
+                        $unitPrice .= ' (W)';
+                    }
 
-                    $totalPrices[$supplierIndex] += $quote['total_price'];
-                    if ($isWinner) {
-                        $totalAmountAwarded[$supplierIndex] += $quote['total_price'];
+                    $table->addCell($widths['vendor'], $cellStyle)
+                        ->addText($unitPrice, $textStyle, $paragraphRight);
+                    $table->addCell($widths['vendor'], $cellStyle)
+                        ->addText($totalPrice, $textStyle, $paragraphRight);
+
+                    if (! $isWithdrawn) {
+                        $totalPrices[$supplierIndex] += $quote['total_price'];
+                        if ($isWinner) {
+                            $totalAmountAwarded[$supplierIndex] += $quote['total_price'];
+                        }
                     }
                 } else {
                     $placeholderText = $supplier->id === null ? '' : 'NONE';
@@ -838,7 +1253,6 @@ class AoqService
         // Build signatory list
         $signatories = [];
         if ($signatoryData) {
-            // Use provided signatory data (from regeneration)
             $positions = ['bac_chairman', 'bac_vice_chairman', 'bac_member_1', 'bac_member_2', 'bac_member_3'];
             foreach ($positions as $position) {
                 if (isset($signatoryData[$position])) {
@@ -853,13 +1267,11 @@ class AoqService
                 }
             }
         } else {
-            // Load from BAC Signatories setup using SignatoryLoaderService
             $signatoryLoader = new SignatoryLoaderService;
             $requiredPositions = ['bac_chairman', 'bac_vice_chairman', 'bac_member_1', 'bac_member_2', 'bac_member_3'];
             $bacSignatoriesData = $signatoryLoader->loadActiveSignatories($requiredPositions, false);
 
             if (! empty($bacSignatoriesData)) {
-                // Use configured signatories
                 foreach ($requiredPositions as $position) {
                     if (isset($bacSignatoriesData[$position])) {
                         $signatories[] = [
@@ -873,7 +1285,6 @@ class AoqService
                     }
                 }
             } else {
-                // Fall back to loading any active BAC signatories from database (legacy)
                 $bacSignatories = \App\Models\BacSignatory::with('user')->active()->get();
                 foreach ($bacSignatories->take(5) as $signatory) {
                     $signatories[] = [
@@ -909,7 +1320,7 @@ class AoqService
             $paragraphLeft
         );
 
-        // Approver signatures (Head BAC Secretariat and CEO)
+        // Approver signatures
         $headBacName = 'N/A';
         $ceoName = 'N/A';
 
@@ -953,5 +1364,18 @@ class AoqService
         unlink($tempPath);
 
         return $storagePath;
+    }
+
+    /**
+     * Get withdrawal history for a purchase request
+     */
+    public function getWithdrawalHistory(PurchaseRequest $purchaseRequest): Collection
+    {
+        return SupplierWithdrawal::whereHas('purchaseRequestItem', function ($query) use ($purchaseRequest) {
+            $query->where('purchase_request_id', $purchaseRequest->id);
+        })
+            ->with(['supplier', 'quotationItem', 'purchaseRequestItem', 'withdrawnBy', 'successorQuotationItem'])
+            ->orderByDesc('withdrawn_at')
+            ->get();
     }
 }

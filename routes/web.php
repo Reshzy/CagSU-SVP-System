@@ -230,6 +230,18 @@ Route::middleware('auth')->group(function () {
         Route::post('/bac/item-groups/{itemGroup}/aoq/generate', [BacQuotationController::class, 'generateAoqForGroup'])->name('bac.item-groups.aoq.generate');
         Route::get('/bac/item-groups/{itemGroup}/aoq/{aoqGeneration}/download', [BacQuotationController::class, 'downloadAoqForGroup'])->name('bac.item-groups.aoq.download');
 
+        // Consolidated AOQ for grouped PRs
+        Route::post('/bac/quotations/{purchaseRequest}/aoq/consolidated', [BacQuotationController::class, 'generateConsolidatedAoq'])->name('bac.quotations.aoq.consolidated');
+
+        // Supplier Withdrawal
+        Route::post('/bac/quotation-items/{quotationItem}/withdraw', [BacQuotationController::class, 'processWithdrawal'])->name('bac.quotation-items.withdraw');
+        Route::get('/bac/quotation-items/{quotationItem}/withdrawal-preview', [BacQuotationController::class, 'withdrawalPreview'])->name('bac.quotation-items.withdrawal-preview');
+        Route::get('/bac/quotations/{purchaseRequest}/withdrawal-history', [BacQuotationController::class, 'withdrawalHistory'])->name('bac.quotations.withdrawal-history');
+
+        // Failed Procurement Handling
+        Route::post('/bac/pr-items/{prItem}/mark-failed', [BacQuotationController::class, 'markItemFailed'])->name('bac.pr-items.mark-failed');
+        Route::post('/bac/quotations/{purchaseRequest}/create-replacement-pr', [BacQuotationController::class, 'createReplacementPr'])->name('bac.quotations.create-replacement-pr');
+
         // Meetings
         Route::get('/bac/meetings', [BacMeetingController::class, 'index'])->name('bac.meetings.index');
         Route::get('/bac/meetings/create', [BacMeetingController::class, 'create'])->name('bac.meetings.create');
