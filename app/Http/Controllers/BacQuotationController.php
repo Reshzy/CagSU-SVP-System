@@ -980,34 +980,6 @@ class BacQuotationController extends Controller
 
             foreach ($purchaseRequest->itemGroups as $group) {
                 $aoqData = $aoqService->calculateWinnersAndTies($purchaseRequest, $group);
-                // #region agent log
-                @file_put_contents(base_path('.cursor/debug.log'), json_encode([
-                    'sessionId' => 'debug-session',
-                    'runId' => 'withdrawal-debug',
-                    'hypothesisId' => 'H3',
-                    'location' => 'BacQuotationController.php:viewAoq',
-                    'message' => 'Grouped AOQ computed',
-                    'data' => [
-                        'purchase_request_id' => $purchaseRequest->id,
-                        'group_id' => $group->id,
-                        'item_count' => count($aoqData),
-                        'items' => collect($aoqData)->map(function ($itemData) {
-                            $item = $itemData['item'] ?? null;
-                            $winners = $itemData['winners'] ?? [];
-                            $winner = is_array($winners) && count($winners) > 0 ? reset($winners) : null;
-
-                            return [
-                                'purchase_request_item_id' => $item?->id,
-                                'has_tie' => $itemData['has_tie'] ?? null,
-                                'winners_count' => is_array($winners) ? count($winners) : null,
-                                'winner_quotation_item_id' => $winner['quotation_item']->id ?? null,
-                                'winner_is_winner' => $winner['quotation_item']->is_winner ?? null,
-                            ];
-                        })->values(),
-                    ],
-                    'timestamp' => (int) (microtime(true) * 1000),
-                ]).PHP_EOL, FILE_APPEND);
-                // #endregion
 
                 $groupsData[] = [
                     'group' => $group,
@@ -1456,24 +1428,6 @@ class BacQuotationController extends Controller
         $validated = $request->validate([
             'withdrawal_reason' => ['required', 'string', 'min:10', 'max:1000'],
         ]);
-
-        // #region agent log
-        @file_put_contents(base_path('.cursor/debug.log'), json_encode([
-            'sessionId' => 'debug-session',
-            'runId' => 'withdrawal-debug',
-            'hypothesisId' => 'H1',
-            'location' => 'BacQuotationController.php:processWithdrawal',
-            'message' => 'Withdrawal request received',
-            'data' => [
-                'quotation_item_id' => $quotationItem->id,
-                'purchase_request_id' => $purchaseRequest->id,
-                'purchase_request_item_id' => $quotationItem->purchase_request_item_id,
-                'is_winner' => $quotationItem->is_winner,
-                'is_withdrawn' => $quotationItem->isWithdrawn(),
-            ],
-            'timestamp' => (int) (microtime(true) * 1000),
-        ]).PHP_EOL, FILE_APPEND);
-        // #endregion
 
         $withdrawalService = new SupplierWithdrawalService(new AoqService);
         $result = $withdrawalService->withdraw($quotationItem, $validated['withdrawal_reason'], auth()->user());

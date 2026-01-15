@@ -222,23 +222,6 @@ class AoqService
             $quotation = $quotationItem->quotation;
             $purchaseRequest = $quotation->purchaseRequest;
 
-            // #region agent log
-            @file_put_contents(base_path('.cursor/debug.log'), json_encode([
-                'sessionId' => 'debug-session',
-                'runId' => 'withdrawal-debug',
-                'hypothesisId' => 'H2',
-                'location' => 'AoqService.php:processSupplierWithdrawal',
-                'message' => 'Processing withdrawal',
-                'data' => [
-                    'quotation_item_id' => $quotationItem->id,
-                    'purchase_request_item_id' => $prItem->id,
-                    'purchase_request_id' => $purchaseRequest->id,
-                    'successor_id' => $quotationItem->getNextRankedBidder()?->id,
-                ],
-                'timestamp' => (int) (microtime(true) * 1000),
-            ]).PHP_EOL, FILE_APPEND);
-            // #endregion
-
             // Withdraw the quotation item
             $quotationItem->withdraw($reason);
 
@@ -304,22 +287,6 @@ class AoqService
         $newWinner->update(['is_winner' => true]);
 
         // Create new decision
-        // #region agent log
-        @file_put_contents(base_path('.cursor/debug.log'), json_encode([
-            'sessionId' => 'debug-session',
-            'runId' => 'withdrawal-debug',
-            'hypothesisId' => 'H2',
-            'location' => 'AoqService.php:promoteNextWinner',
-            'message' => 'Creating withdrawal decision',
-            'data' => [
-                'purchase_request_item_id' => $prItem->id,
-                'winning_quotation_item_id' => $newWinner->id,
-                'decision_type' => 'withdrawal_succession',
-            ],
-            'timestamp' => (int) (microtime(true) * 1000),
-        ]).PHP_EOL, FILE_APPEND);
-        // #endregion
-
         AoqItemDecision::create([
             'purchase_request_id' => $purchaseRequest->id,
             'purchase_request_item_id' => $prItem->id,
@@ -328,21 +295,6 @@ class AoqService
             'is_active' => true,
             'decided_at' => now(),
         ]);
-
-        // #region agent log
-        @file_put_contents(base_path('.cursor/debug.log'), json_encode([
-            'sessionId' => 'debug-session',
-            'runId' => 'withdrawal-debug',
-            'hypothesisId' => 'H2',
-            'location' => 'AoqService.php:promoteNextWinner',
-            'message' => 'Withdrawal decision created',
-            'data' => [
-                'purchase_request_item_id' => $prItem->id,
-                'winning_quotation_item_id' => $newWinner->id,
-            ],
-            'timestamp' => (int) (microtime(true) * 1000),
-        ]).PHP_EOL, FILE_APPEND);
-        // #endregion
     }
 
     /**
