@@ -917,39 +917,68 @@ class BacQuotationController extends Controller
 
         $aoqService = new AoqService;
 
-        // Calculate winners and ties
-        $aoqData = $aoqService->calculateWinnersAndTies($purchaseRequest);
-
-        // Check if can generate
-        $validation = $aoqService->canGenerateAoq($purchaseRequest);
-
-        // Get all quotations
-        $quotations = $purchaseRequest->quotations()
-            ->with(['supplier', 'quotationItems.purchaseRequestItem'])
-            ->get();
-
-        // Get existing AOQ generations
-        $aoqGenerations = $purchaseRequest->aoqGenerations()
-            ->with('generatedBy')
-            ->latest()
-            ->get();
-
         // Prepare signatory data sources
         $activeBacSignatories = BacSignatory::with('user')->active()->get();
         $signatoryDefaults = $this->buildAoqSignatoryDefaults($activeBacSignatories);
         $bacSignatoryOptions = $this->groupAoqSignatoryOptions($activeBacSignatories);
         $eligibleSignatoryUsers = $this->getEligibleSignatoryUsers();
 
-        return view('bac.quotations.aoq', compact(
-            'purchaseRequest',
-            'aoqData',
-            'validation',
-            'quotations',
-            'aoqGenerations',
-            'eligibleSignatoryUsers',
-            'signatoryDefaults',
-            'bacSignatoryOptions'
-        ));
+        // Check if this PR is grouped
+        $purchaseRequest->load('itemGroups.items', 'itemGroups.quotations.supplier', 'itemGroups.aoqGeneration');
+
+        if ($purchaseRequest->itemGroups()->exists()) {
+            // Handle grouped PR - calculate per group
+            $groupsData = [];
+
+            foreach ($purchaseRequest->itemGroups as $group) {
+                $groupsData[] = [
+                    'group' => $group,
+                    'aoqData' => $aoqService->calculateWinnersAndTies($purchaseRequest, $group),
+                    'validation' => $aoqService->canGenerateAoqForGroup($group),
+                    'quotations' => $group->quotations()
+                        ->with(['supplier', 'quotationItems.purchaseRequestItem'])
+                        ->get(),
+                    'aoqGeneration' => $group->aoqGeneration,
+                ];
+            }
+
+            return view('bac.quotations.aoq-grouped', compact(
+                'purchaseRequest',
+                'groupsData',
+                'eligibleSignatoryUsers',
+                'signatoryDefaults',
+                'bacSignatoryOptions'
+            ));
+        } else {
+            // Non-grouped PR - keep current logic
+            // Calculate winners and ties
+            $aoqData = $aoqService->calculateWinnersAndTies($purchaseRequest);
+
+            // Check if can generate
+            $validation = $aoqService->canGenerateAoq($purchaseRequest);
+
+            // Get all quotations
+            $quotations = $purchaseRequest->quotations()
+                ->with(['supplier', 'quotationItems.purchaseRequestItem'])
+                ->get();
+
+            // Get existing AOQ generations
+            $aoqGenerations = $purchaseRequest->aoqGenerations()
+                ->with('generatedBy')
+                ->latest()
+                ->get();
+
+            return view('bac.quotations.aoq', compact(
+                'purchaseRequest',
+                'aoqData',
+                'validation',
+                'quotations',
+                'aoqGenerations',
+                'eligibleSignatoryUsers',
+                'signatoryDefaults',
+                'bacSignatoryOptions'
+            ));
+        }
     }
 
     /**
@@ -1271,7 +1300,7 @@ class BacQuotationController extends Controller
         abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
 
         $validated = $request->validate([
-            'signatories' => ['required', 'array'],
+            'signatories' => ['nullable', 'array'],
             'signatories.bac_head.user_id' => ['nullable', 'exists:users,id'],
             'signatories.bac_head.name' => ['nullable', 'string', 'max:255'],
             'signatories.bac_head.selected_name' => ['nullable', 'string', 'max:255'],
@@ -1285,13 +1314,17 @@ class BacQuotationController extends Controller
         ]);
 
         try {
-            $signatoryData = $this->prepareSignatoryData($validated['signatories']);
+            $signatoryData = ! empty($validated['signatories'])
+                ? $this->prepareSignatoryData($validated['signatories'])
+                : null;
 
             $aoqService = new AoqService;
             $aoqGeneration = $aoqService->generateAoqDocumentForGroup($itemGroup, auth()->user(), $signatoryData);
 
-            // Save signatories to database
-            $this->saveAoqSignatories($aoqGeneration, $validated['signatories']);
+            // Save signatories to database (if provided)
+            if (! empty($validated['signatories'])) {
+                $this->saveAoqSignatories($aoqGeneration, $validated['signatories']);
+            }
 
             Log::info('AOQ generated for group', [
                 'pr_number' => $purchaseRequest->pr_number,
