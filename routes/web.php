@@ -201,6 +201,7 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/bac/quotations', [BacQuotationController::class, 'index'])->name('bac.quotations.index');
         Route::get('/bac/quotations/{purchaseRequest}/manage', [BacQuotationController::class, 'manage'])->name('bac.quotations.manage');
+        Route::get('/bac/quotations/{purchaseRequest}/groups/{group}/quotations', [BacQuotationController::class, 'groupQuotationsPartial'])->name('bac.quotations.group-quotations');
         Route::post('/bac/quotations/{purchaseRequest}', [BacQuotationController::class, 'store'])->name('bac.quotations.store');
         Route::put('/bac/quotations/{quotation}/evaluate', [BacQuotationController::class, 'evaluate'])->name('bac.quotations.evaluate');
         Route::put('/bac/quotations/{purchaseRequest}/finalize', [BacQuotationController::class, 'finalize'])->name('bac.quotations.finalize');

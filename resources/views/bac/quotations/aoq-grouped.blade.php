@@ -224,7 +224,33 @@
                                                 
                                                 <td class="px-4 py-4">
                                                     @php $winnersArray = array_values($winners); @endphp
-                                                    @if(count($winnersArray) > 0)
+                                                    @if($hasTie)
+                                                        @php $winner = count($winnersArray) > 0 ? $winnersArray[0] : null; @endphp
+                                                        <div class="text-sm">
+                                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                                Multiple Winners (Tie)
+                                                            </span>
+                                                            @if($winner)
+                                                                <div class="text-xs text-gray-500 mt-1">
+                                                                    Current Winner: {{ $winner['quotation']->supplier->business_name }}
+                                                                </div>
+                                                            @endif
+                                                            <div class="mt-2 flex items-center gap-2">
+                                                                @if($winner && $winner['quotation_item']->is_winner)
+                                                                    <button type="button"
+                                                                            onclick="openWithdrawalModal({{ $winner['quotation_item']->id }}, '{{ addslashes($item->item_name) }}', '{{ addslashes($winner['quotation']->supplier->business_name) }}')"
+                                                                            class="text-xs text-orange-600 hover:text-orange-800 underline">
+                                                                        Withdraw
+                                                                    </button>
+                                                                @endif
+                                                                <button
+                                                                    onclick="openBacOverrideModal({{ $item->id }}, '{{ addslashes($item->item_name) }}', {{ json_encode($itemData['quotes']) }})"
+                                                                    class="px-2 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700">
+                                                                    Override
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    @elseif(count($winnersArray) > 0)
                                                         @if(count($winnersArray) === 1)
                                                             @php $winner = $winnersArray[0]; @endphp
                                                             <div class="text-sm">
@@ -232,13 +258,20 @@
                                                                     ✓ {{ $winner['quotation']->supplier->business_name }}
                                                                 </span>
                                                                 <div class="text-xs text-gray-500 mt-1">₱{{ number_format($winner['quotation_item']->unit_price, 2) }} / {{ $item->unit_of_measure }}</div>
-                                                                
+
                                                                 @if($winner['quotation_item']->is_winner)
-                                                                    <button type="button" 
-                                                                            onclick="openWithdrawalModal({{ $winner['quotation_item']->id }}, '{{ addslashes($item->item_name) }}', '{{ addslashes($winner['quotation']->supplier->business_name) }}')"
-                                                                            class="mt-2 text-xs text-orange-600 hover:text-orange-800 underline">
-                                                                        Withdraw
-                                                                    </button>
+                                                                    <div class="mt-2 flex items-center gap-2">
+                                                                        <button type="button"
+                                                                                onclick="openWithdrawalModal({{ $winner['quotation_item']->id }}, '{{ addslashes($item->item_name) }}', '{{ addslashes($winner['quotation']->supplier->business_name) }}')"
+                                                                                class="text-xs text-orange-600 hover:text-orange-800 underline">
+                                                                            Withdraw
+                                                                        </button>
+                                                                        <button
+                                                                            onclick="openBacOverrideModal({{ $item->id }}, '{{ addslashes($item->item_name) }}', {{ json_encode($itemData['quotes']) }})"
+                                                                            class="px-2 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700">
+                                                                            Override
+                                                                        </button>
+                                                                    </div>
                                                                 @endif
                                                             </div>
                                                         @else
@@ -333,6 +366,52 @@
         </div>
     @endforeach
 
+    {{-- BAC Override Modal --}}
+    <div id="bacOverrideModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">BAC Override</h3>
+                <div class="bg-orange-50 border border-orange-200 text-orange-800 px-4 py-3 rounded-lg mb-4">
+                    <p class="text-sm font-semibold">Warning: This will override the automatically determined winner.</p>
+                    <p class="text-xs mt-1">Provide a detailed justification for audit purposes.</p>
+                </div>
+                <form id="bacOverrideForm" method="POST" action="{{ route('bac.quotations.aoq.bac-override', $purchaseRequest) }}">
+                    @csrf
+                    <input type="hidden" name="purchase_request_item_id" id="override_item_id">
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Item:</label>
+                        <p id="override_item_name" class="text-gray-900"></p>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Select New Winner:</label>
+                        <select name="winning_quotation_item_id" id="override_winner_select" required class="w-full border-gray-300 rounded-md shadow-sm">
+                            <option value="">-- Select Supplier --</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Justification: <span class="text-red-500">*</span></label>
+                        <textarea name="justification" required minlength="20" maxlength="1000" rows="4"
+                            class="w-full border-gray-300 rounded-md shadow-sm"
+                            placeholder="Provide detailed justification for this override decision..."></textarea>
+                        <p class="text-xs text-gray-500 mt-1">Minimum 20 characters required for override justification</p>
+                    </div>
+
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" onclick="closeBacOverrideModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700">
+                            Apply Override
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     {{-- Withdrawal Modal --}}
     <div id="withdrawalModal" class="hidden fixed z-50 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -405,10 +484,41 @@
             document.getElementById('withdrawalModal').classList.add('hidden');
             document.getElementById('withdrawalForm').reset();
         }
+
+        function openBacOverrideModal(itemId, itemName, quotes) {
+            document.getElementById('override_item_id').value = itemId;
+            document.getElementById('override_item_name').textContent = itemName;
+
+            const select = document.getElementById('override_winner_select');
+            select.innerHTML = '<option value="">-- Select Supplier --</option>';
+
+            quotes.forEach(quote => {
+                const isDisqualified = quote.quotation_item.disqualification_reason && quote.quotation_item.disqualification_reason.length > 0;
+
+                if (!isDisqualified) {
+                    const option = document.createElement('option');
+                    option.value = quote.quotation_item.id;
+                    const isWinner = quote.quotation_item.is_winner ? ' (Current Winner)' : '';
+                    option.textContent = `${quote.quotation.supplier.business_name} - ₱${parseFloat(quote.total_price).toLocaleString('en-US', {minimumFractionDigits: 2})}${isWinner}`;
+                    select.appendChild(option);
+                }
+            });
+
+            document.getElementById('bacOverrideModal').classList.remove('hidden');
+        }
+
+        function closeBacOverrideModal() {
+            document.getElementById('bacOverrideModal').classList.add('hidden');
+            document.getElementById('bacOverrideForm').reset();
+        }
         
         // Close modals when clicking outside
         window.onclick = function(event) {
+            const bacOverrideModal = document.getElementById('bacOverrideModal');
             const withdrawalModal = document.getElementById('withdrawalModal');
+            if (event.target === bacOverrideModal) {
+                closeBacOverrideModal();
+            }
             if (event.target === withdrawalModal) {
                 closeWithdrawalModal();
             }

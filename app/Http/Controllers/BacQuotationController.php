@@ -15,6 +15,7 @@ use App\Services\AoqService;
 use App\Services\BacResolutionService;
 use App\Services\BacRfqService;
 use App\Services\SupplierWithdrawalService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -82,7 +83,28 @@ class BacQuotationController extends Controller
         return view('bac.quotations.manage', compact('purchaseRequest', 'suppliers', 'quotations', 'quotationsByGroup', 'resolution', 'rfq', 'bacSignatories'));
     }
 
-    public function store(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
+    public function groupQuotationsPartial(PurchaseRequest $purchaseRequest, PrItemGroup $group): View
+    {
+        abort_unless($purchaseRequest->status === 'bac_evaluation', 403);
+
+        if ($group->purchase_request_id !== $purchaseRequest->id) {
+            abort(404);
+        }
+
+        $group->load('items');
+        $groupQuotations = Quotation::where('purchase_request_id', $purchaseRequest->id)
+            ->where('pr_item_group_id', $group->id)
+            ->with(['supplier', 'quotationItems.purchaseRequestItem'])
+            ->get();
+
+        return view('bac.quotations.partials.group-quotations', [
+            'purchaseRequest' => $purchaseRequest,
+            'group' => $group,
+            'groupQuotations' => $groupQuotations,
+        ]);
+    }
+
+    public function store(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse|JsonResponse
     {
         abort_if(empty($purchaseRequest->procurement_method), 403, 'Procurement method must be set first.');
 
@@ -116,9 +138,9 @@ class BacQuotationController extends Controller
         }
 
         if (! $hasAtLeastOnePrice) {
-            return back()->withErrors([
+            return $this->errorResponse($request, [
                 'items' => 'Supplier must provide pricing for at least one item.',
-            ])->withInput();
+            ]);
         }
 
         // Validate quotation date is within 4 days of RFQ creation
@@ -127,9 +149,9 @@ class BacQuotationController extends Controller
             $deadline = $rfqDate->copy()->addDays(4);
 
             if ($validated['quotation_date'] > $deadline->toDateString()) {
-                return back()->withErrors([
+                return $this->errorResponse($request, [
                     'quotation_date' => 'Quotation date must be within 4 days of RFQ creation date ('.$rfqDate->format('M d, Y').'). Deadline was '.$deadline->format('M d, Y').'.',
-                ])->withInput();
+                ]);
             }
         }
 
@@ -162,9 +184,9 @@ class BacQuotationController extends Controller
                 ? 'A quotation from this supplier already exists for this item group.'
                 : 'A quotation from this supplier already exists for this PR.';
 
-            return back()->withErrors([
+            return $this->errorResponse($request, [
                 'supplier_id' => $errorMessage,
-            ])->withInput();
+            ]);
         }
 
         try {
@@ -278,14 +300,40 @@ class BacQuotationController extends Controller
                 $message .= ' Note: Some items exceed the ABC and this quotation is marked as non-compliant.';
             }
 
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $message,
+                    'quotation_id' => $quotation->id,
+                    'group_id' => $prItemGroupId,
+                ], 201);
+            }
+
             return back()->with('status', $message);
 
         } catch (\Exception $e) {
             \DB::rollBack();
             Log::error('Failed to store quotation: '.$e->getMessage());
 
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Failed to save quotation. Please try again.',
+                ], 500);
+            }
+
             return back()->with('error', 'Failed to save quotation. Please try again.')->withInput();
         }
+    }
+
+    private function errorResponse(Request $request, array $errors): RedirectResponse|JsonResponse
+    {
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Validation failed.',
+                'errors' => $errors,
+            ], 422);
+        }
+
+        return back()->withErrors($errors)->withInput();
     }
 
     /**
@@ -931,9 +979,39 @@ class BacQuotationController extends Controller
             $groupsData = [];
 
             foreach ($purchaseRequest->itemGroups as $group) {
+                $aoqData = $aoqService->calculateWinnersAndTies($purchaseRequest, $group);
+                // #region agent log
+                @file_put_contents(base_path('.cursor/debug.log'), json_encode([
+                    'sessionId' => 'debug-session',
+                    'runId' => 'withdrawal-debug',
+                    'hypothesisId' => 'H3',
+                    'location' => 'BacQuotationController.php:viewAoq',
+                    'message' => 'Grouped AOQ computed',
+                    'data' => [
+                        'purchase_request_id' => $purchaseRequest->id,
+                        'group_id' => $group->id,
+                        'item_count' => count($aoqData),
+                        'items' => collect($aoqData)->map(function ($itemData) {
+                            $item = $itemData['item'] ?? null;
+                            $winners = $itemData['winners'] ?? [];
+                            $winner = is_array($winners) && count($winners) > 0 ? reset($winners) : null;
+
+                            return [
+                                'purchase_request_item_id' => $item?->id,
+                                'has_tie' => $itemData['has_tie'] ?? null,
+                                'winners_count' => is_array($winners) ? count($winners) : null,
+                                'winner_quotation_item_id' => $winner['quotation_item']->id ?? null,
+                                'winner_is_winner' => $winner['quotation_item']->is_winner ?? null,
+                            ];
+                        })->values(),
+                    ],
+                    'timestamp' => (int) (microtime(true) * 1000),
+                ]).PHP_EOL, FILE_APPEND);
+                // #endregion
+
                 $groupsData[] = [
                     'group' => $group,
-                    'aoqData' => $aoqService->calculateWinnersAndTies($purchaseRequest, $group),
+                    'aoqData' => $aoqData,
                     'validation' => $aoqService->canGenerateAoqForGroup($group),
                     'quotations' => $group->quotations()
                         ->with(['supplier', 'quotationItems.purchaseRequestItem'])
@@ -1378,6 +1456,24 @@ class BacQuotationController extends Controller
         $validated = $request->validate([
             'withdrawal_reason' => ['required', 'string', 'min:10', 'max:1000'],
         ]);
+
+        // #region agent log
+        @file_put_contents(base_path('.cursor/debug.log'), json_encode([
+            'sessionId' => 'debug-session',
+            'runId' => 'withdrawal-debug',
+            'hypothesisId' => 'H1',
+            'location' => 'BacQuotationController.php:processWithdrawal',
+            'message' => 'Withdrawal request received',
+            'data' => [
+                'quotation_item_id' => $quotationItem->id,
+                'purchase_request_id' => $purchaseRequest->id,
+                'purchase_request_item_id' => $quotationItem->purchase_request_item_id,
+                'is_winner' => $quotationItem->is_winner,
+                'is_withdrawn' => $quotationItem->isWithdrawn(),
+            ],
+            'timestamp' => (int) (microtime(true) * 1000),
+        ]).PHP_EOL, FILE_APPEND);
+        // #endregion
 
         $withdrawalService = new SupplierWithdrawalService(new AoqService);
         $result = $withdrawalService->withdraw($quotationItem, $validated['withdrawal_reason'], auth()->user());

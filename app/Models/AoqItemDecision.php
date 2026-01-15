@@ -79,10 +79,11 @@ class AoqItemDecision extends Model
      */
     public function getDecisionTypeLabel(): string
     {
-        return match($this->decision_type) {
+        return match ($this->decision_type) {
             'auto' => 'Automatic (Lowest Bid)',
             'tie_resolution' => 'Tie Resolution',
             'bac_override' => 'BAC Override',
+            'withdrawal_succession' => 'Withdrawal Succession',
             default => 'Unknown'
         };
     }
