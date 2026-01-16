@@ -131,7 +131,7 @@
                                                             <input
                                                                 type="number"
                                                                 :value="getQuantity({{ $appItem->id }}, 'q1')"
-                                                                @input="updateQuantity({{ $appItem->id }}, 'q1', $event.target.value)"
+                                                                @input="updateQuantity({{ $appItem->id }}, 'q1', $event.target.value, '{{ addslashes($appItem->item_name) }}', {{ $appItem->unit_price ?? 0 }}, needsCustomPrice)"
                                                                 min="0"
                                                                 class="qty-input w-full rounded text-sm"
                                                             />
@@ -141,7 +141,7 @@
                                                             <input
                                                                 type="number"
                                                                 :value="getQuantity({{ $appItem->id }}, 'q2')"
-                                                                @input="updateQuantity({{ $appItem->id }}, 'q2', $event.target.value)"
+                                                                @input="updateQuantity({{ $appItem->id }}, 'q2', $event.target.value, '{{ addslashes($appItem->item_name) }}', {{ $appItem->unit_price ?? 0 }}, needsCustomPrice)"
                                                                 min="0"
                                                                 class="qty-input w-full rounded text-sm"
                                                             />
@@ -151,7 +151,7 @@
                                                             <input
                                                                 type="number"
                                                                 :value="getQuantity({{ $appItem->id }}, 'q3')"
-                                                                @input="updateQuantity({{ $appItem->id }}, 'q3', $event.target.value)"
+                                                                @input="updateQuantity({{ $appItem->id }}, 'q3', $event.target.value, '{{ addslashes($appItem->item_name) }}', {{ $appItem->unit_price ?? 0 }}, needsCustomPrice)"
                                                                 min="0"
                                                                 class="qty-input w-full rounded text-sm"
                                                             />
@@ -161,7 +161,7 @@
                                                             <input
                                                                 type="number"
                                                                 :value="getQuantity({{ $appItem->id }}, 'q4')"
-                                                                @input="updateQuantity({{ $appItem->id }}, 'q4', $event.target.value)"
+                                                                @input="updateQuantity({{ $appItem->id }}, 'q4', $event.target.value, '{{ addslashes($appItem->item_name) }}', {{ $appItem->unit_price ?? 0 }}, needsCustomPrice)"
                                                                 min="0"
                                                                 class="qty-input w-full rounded text-sm"
                                                             />
@@ -274,7 +274,7 @@
                     <div class="flex gap-2 justify-end">
                         <button 
                             type="button"
-                            @click="showPriceModal = false; removeItem(priceModalItem.id)"
+                            @click="showPriceModal = false; removeItem(priceModalItem.id); pendingQuantityUpdate = { quarter: null, value: null }"
                             class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
                             Cancel
                         </button>
@@ -300,6 +300,7 @@
                 budgetAvailable: {{ $budgetStatus['allocated'] }},
                 showPriceModal: false,
                 priceModalItem: { id: null, name: '', customPrice: null },
+                pendingQuantityUpdate: { quarter: null, value: null },
 
                 init() {
                     // Load existing items
@@ -383,6 +384,49 @@
                     }
                 },
 
+                ensureItemSelected(itemId, itemName, unitPrice, needsCustomPrice, quarter, value) {
+                    // Check if item is already selected
+                    const item = this.selectedItems.find(item => item.id === itemId);
+                    if (item) {
+                        // Item already selected, just return true
+                        return true;
+                    }
+
+                    // Item not selected, need to add it
+                    if (needsCustomPrice) {
+                        // Store pending quantity update
+                        this.pendingQuantityUpdate = { quarter: quarter, value: value };
+                        
+                        // Show modal for custom price
+                        this.priceModalItem = {
+                            id: itemId,
+                            name: itemName,
+                            customPrice: null
+                        };
+                        this.showPriceModal = true;
+                        
+                        // Return false to indicate item not yet added (waiting for price)
+                        return false;
+                    } else {
+                        // Add with default price
+                        this.selectedItems.push({
+                            id: itemId,
+                            name: itemName,
+                            price: unitPrice,
+                            needsCustomPrice: false,
+                            q1: 0,
+                            q2: 0,
+                            q3: 0,
+                            q4: 0,
+                            totalQty: 0,
+                            totalCost: 0
+                        });
+                        
+                        // Return true to indicate item was added
+                        return true;
+                    }
+                },
+
                 saveCustomPrice() {
                     const price = parseFloat(this.priceModalItem.customPrice);
                     if (!price || price <= 0) {
@@ -390,7 +434,8 @@
                         return;
                     }
 
-                    this.selectedItems.push({
+                    // Create the new item with initial quantities
+                    const newItem = {
                         id: this.priceModalItem.id,
                         name: this.priceModalItem.name,
                         price: price,
@@ -401,10 +446,23 @@
                         q4: 0,
                         totalQty: 0,
                         totalCost: 0
-                    });
+                    };
 
+                    // Apply pending quantity update if exists
+                    if (this.pendingQuantityUpdate.quarter && this.pendingQuantityUpdate.value !== null) {
+                        const quarter = this.pendingQuantityUpdate.quarter;
+                        const value = parseInt(this.pendingQuantityUpdate.value) || 0;
+                        newItem[quarter] = value;
+                        newItem.totalQty = newItem.q1 + newItem.q2 + newItem.q3 + newItem.q4;
+                        newItem.totalCost = newItem.totalQty * newItem.price;
+                    }
+
+                    this.selectedItems.push(newItem);
+
+                    // Clear modal and pending update
                     this.showPriceModal = false;
                     this.priceModalItem = { id: null, name: '', customPrice: null };
+                    this.pendingQuantityUpdate = { quarter: null, value: null };
                 },
 
                 removeItem(itemId) {
@@ -419,13 +477,21 @@
                     return item ? item[quarter] : 0;
                 },
 
-                updateQuantity(itemId, quarter, value) {
-                    const item = this.selectedItems.find(item => item.id === itemId);
-                    if (item) {
-                        item[quarter] = parseInt(value) || 0;
-                        item.totalQty = item.q1 + item.q2 + item.q3 + item.q4;
-                        item.totalCost = item.totalQty * item.price;
+                updateQuantity(itemId, quarter, value, itemName, unitPrice, needsCustomPrice) {
+                    // Ensure item is selected first
+                    const wasAdded = this.ensureItemSelected(itemId, itemName, unitPrice, needsCustomPrice, quarter, value);
+                    
+                    // If item was added immediately (not waiting for custom price), update the quantity
+                    if (wasAdded) {
+                        const item = this.selectedItems.find(item => item.id === itemId);
+                        if (item) {
+                            item[quarter] = parseInt(value) || 0;
+                            item.totalQty = item.q1 + item.q2 + item.q3 + item.q4;
+                            item.totalCost = item.totalQty * item.price;
+                        }
                     }
+                    // If wasAdded is false, it means we're waiting for custom price modal
+                    // The quantity will be applied in saveCustomPrice()
                 },
 
                 categoryVisible(category, itemNames, itemCodes) {
