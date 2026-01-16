@@ -20,7 +20,7 @@ return [
     | Default: 14 days (2 weeks)
     |
     */
-    'quarter_grace_period_days' => env('PPMP_GRACE_PERIOD_DAYS', 14),
+    'quarter_grace_period_days' => (int) env('PPMP_GRACE_PERIOD_DAYS', 14),
 
     /*
     |--------------------------------------------------------------------------
@@ -34,5 +34,5 @@ return [
     | Default: true (enabled)
     |
     */
-    'enable_grace_period' => env('PPMP_ENABLE_GRACE_PERIOD', true),
+    'enable_grace_period' => (bool) env('PPMP_ENABLE_GRACE_PERIOD', true),
 ];
