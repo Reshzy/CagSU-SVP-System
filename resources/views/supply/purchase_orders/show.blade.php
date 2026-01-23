@@ -48,7 +48,7 @@
 
 					<div class="border-t pt-4">
 						<div class="text-sm text-gray-600 mb-2">Inspection & Acceptance Report</div>
-						<form action="{{ route('supply.purchase-orders.show', $purchaseOrder) }}" method="POST" enctype="multipart/form-data" class="flex items-center space-x-2">
+						<form action="{{ route('supply.purchase-orders.update', $purchaseOrder) }}" method="POST" enctype="multipart/form-data" class="flex items-center space-x-2">
 							@csrf
 							@method('PUT')
 							<input type="hidden" name="action" value="complete" />
@@ -62,7 +62,7 @@
 					</div>
 
 					<div class="flex justify-end mt-4">
-						<form action="{{ route('supply.purchase-orders.show', $purchaseOrder) }}" method="POST" class="inline-flex items-center space-x-2 mr-3">
+						<form action="{{ route('supply.purchase-orders.update', $purchaseOrder) }}" method="POST" class="inline-flex items-center space-x-2 mr-3">
 							@csrf
 							@method('PUT')
 							<select name="action" class="border-gray-300 rounded-md">

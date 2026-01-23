@@ -42,7 +42,7 @@
 					</div>
 
 					<div class="flex justify-end">
-						<form action="{{ route('accounting.vouchers.show', $voucher) }}" method="POST" class="inline-flex items-center space-x-2 mr-3">
+						<form action="{{ route('accounting.vouchers.update', $voucher) }}" method="POST" class="inline-flex items-center space-x-2 mr-3">
 							@csrf
 							@method('PUT')
 							<select name="action" class="border-gray-300 rounded-md">
