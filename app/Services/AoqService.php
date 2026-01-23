@@ -185,9 +185,10 @@ class AoqService
 
         $newWinner = $eligibleBidders->first();
 
-        // Deactivate existing decisions
+        // Delete existing active decisions to avoid unique constraint violation
         AoqItemDecision::where('purchase_request_item_id', $prItem->id)
-            ->update(['is_active' => false]);
+            ->where('is_active', true)
+            ->delete();
 
         // Clear all winners for this item
         QuotationItem::where('purchase_request_item_id', $prItem->id)
@@ -275,9 +276,11 @@ class AoqService
         QuotationItem $newWinner,
         PurchaseRequest $purchaseRequest
     ): void {
-        // Deactivate existing decisions
+        // Delete the currently active decision to avoid unique constraint violation
+        // (The constraint prevents multiple is_active=0 for the same item)
         AoqItemDecision::where('purchase_request_item_id', $prItem->id)
-            ->update(['is_active' => false]);
+            ->where('is_active', true)
+            ->delete();
 
         // Clear all winners for this item
         QuotationItem::where('purchase_request_item_id', $prItem->id)
@@ -401,9 +404,10 @@ class AoqService
             $justification,
             $decidedBy
         ) {
-            // Deactivate existing decisions
+            // Delete existing active decisions to avoid unique constraint violation
             AoqItemDecision::where('purchase_request_item_id', $purchaseRequestItemId)
-                ->update(['is_active' => false]);
+                ->where('is_active', true)
+                ->delete();
 
             // Create new decision
             $decision = AoqItemDecision::create([
@@ -446,9 +450,10 @@ class AoqService
             $justification,
             $decidedBy
         ) {
-            // Deactivate existing decisions
+            // Delete existing active decisions to avoid unique constraint violation
             AoqItemDecision::where('purchase_request_item_id', $purchaseRequestItemId)
-                ->update(['is_active' => false]);
+                ->where('is_active', true)
+                ->delete();
 
             // Create new decision
             $decision = AoqItemDecision::create([
