@@ -4,7 +4,6 @@ use App\Http\Controllers\AccountingDisbursementController;
 use App\Http\Controllers\Api\BudgetCheckController;
 use App\Http\Controllers\AppItemController;
 use App\Http\Controllers\BacMeetingController;
-use App\Http\Controllers\BacProcurementMethodController;
 use App\Http\Controllers\BacQuotationController;
 use App\Http\Controllers\BudgetEarmarkController;
 use App\Http\Controllers\BudgetManagementController;
@@ -187,11 +186,6 @@ Route::middleware('auth')->group(function () {
 
     // BAC Quotations & Meetings
     Route::middleware('role:BAC Chair|BAC Members|BAC Secretariat')->group(function () {
-        // BAC Procurement Method Determination
-        Route::get('/bac/procurement-method', [BacProcurementMethodController::class, 'index'])->name('bac.procurement-method.index');
-        Route::get('/bac/procurement-method/{purchaseRequest}/edit', [BacProcurementMethodController::class, 'edit'])->name('bac.procurement-method.edit');
-        Route::put('/bac/procurement-method/{purchaseRequest}', [BacProcurementMethodController::class, 'update'])->name('bac.procurement-method.update');
-
         // BAC Item Grouping
         Route::get('/bac/item-groups/{purchaseRequest}/create', [\App\Http\Controllers\BacItemGroupController::class, 'create'])->name('bac.item-groups.create');
         Route::post('/bac/item-groups/{purchaseRequest}', [\App\Http\Controllers\BacItemGroupController::class, 'store'])->name('bac.item-groups.store');

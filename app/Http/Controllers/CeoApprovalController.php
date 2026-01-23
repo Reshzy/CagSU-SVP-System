@@ -70,10 +70,36 @@ class CeoApprovalController extends Controller
             $purchaseRequest->rejected_at = now();
         }
         $purchaseRequest->status_updated_at = now();
+
+        // Auto-set procurement method to Small Value Procurement when entering BAC evaluation
+        if ($newStatus === 'bac_evaluation') {
+            $purchaseRequest->procurement_method = 'small_value_procurement';
+            $purchaseRequest->procurement_method_set_at = now();
+            $purchaseRequest->procurement_method_set_by = Auth::id();
+
+            // Generate resolution number if not set
+            if (empty($purchaseRequest->resolution_number)) {
+                $purchaseRequest->resolution_number = PurchaseRequest::generateNextResolutionNumber();
+            }
+        }
+
         $purchaseRequest->save();
 
-        // Create pending approval for BAC
+        // Auto-generate BAC Resolution when entering BAC evaluation
         if ($newStatus === 'bac_evaluation') {
+            try {
+                $resolutionService = new \App\Services\BacResolutionService;
+                $resolutionService->generateResolution($purchaseRequest, null);
+
+                // Log activity for resolution generation
+                $activityLogger = new \App\Services\PurchaseRequestActivityLogger;
+                $activityLogger->logResolutionGenerated($purchaseRequest, $purchaseRequest->resolution_number);
+            } catch (\Exception $e) {
+                \Log::error('Failed to auto-generate BAC resolution for PR '.$purchaseRequest->pr_number.': '.$e->getMessage());
+                // Continue with workflow even if resolution generation fails
+            }
+
+            // Create pending approval for BAC
             WorkflowRouter::createPendingForRole($purchaseRequest, 'bac_evaluation', 'BAC Secretariat');
         }
 

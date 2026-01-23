@@ -39,15 +39,12 @@ class BacQuotationController extends Controller
         return view('bac.quotations.index', compact('requests'));
     }
 
-    public function manage(PurchaseRequest $purchaseRequest): View|RedirectResponse
+    public function manage(PurchaseRequest $purchaseRequest): View
     {
         abort_unless($purchaseRequest->status === 'bac_evaluation', 403);
 
-        // Redirect to procurement method setting if not set yet
-        if (empty($purchaseRequest->procurement_method)) {
-            return redirect()->route('bac.procurement-method.edit', $purchaseRequest)
-                ->with('error', 'Please set the procurement method first before managing quotations.');
-        }
+        // Safety check - procurement method should already be auto-set when PR reaches BAC evaluation
+        abort_if(empty($purchaseRequest->procurement_method), 500, 'Procurement method not set. This should not happen.');
 
         $purchaseRequest->load([
             'items',
@@ -537,13 +534,26 @@ class BacQuotationController extends Controller
         ]);
 
         try {
+            // Generate resolution number if not already set (for initial generation)
+            $isInitialGeneration = empty($purchaseRequest->resolution_number);
+            if ($isInitialGeneration) {
+                $purchaseRequest->resolution_number = PurchaseRequest::generateNextResolutionNumber();
+                $purchaseRequest->save();
+
+                Log::info('Generated resolution number for initial generation', [
+                    'pr_number' => $purchaseRequest->pr_number,
+                    'resolution_number' => $purchaseRequest->resolution_number,
+                ]);
+            }
+
             $signatoryData = null;
 
             // If signatories are provided, save them and prepare data
             if (! empty($validated['signatories'])) {
-                Log::info('Regenerating resolution with signatories', [
+                Log::info('Generating resolution with signatories', [
                     'pr_number' => $purchaseRequest->pr_number,
                     'signatory_count' => count($validated['signatories']),
+                    'is_initial' => $isInitialGeneration,
                 ]);
 
                 $this->saveSignatories($purchaseRequest, $validated['signatories']);
@@ -560,17 +570,24 @@ class BacQuotationController extends Controller
             } else {
                 Log::info('No signatories provided, will use existing or defaults', [
                     'pr_number' => $purchaseRequest->pr_number,
+                    'is_initial' => $isInitialGeneration,
                 ]);
             }
 
             $resolutionService = new BacResolutionService;
             $resolutionService->generateResolution($purchaseRequest, $signatoryData);
 
-            // Log activity for resolution regeneration
+            // Log activity for resolution generation/regeneration
             $activityLogger = new PurchaseRequestActivityLogger;
-            $activityLogger->logResolutionRegenerated($purchaseRequest, $purchaseRequest->resolution_number);
+            if ($isInitialGeneration) {
+                $activityLogger->logResolutionGenerated($purchaseRequest, $purchaseRequest->resolution_number);
+                $message = 'Resolution has been generated successfully.';
+            } else {
+                $activityLogger->logResolutionRegenerated($purchaseRequest, $purchaseRequest->resolution_number);
+                $message = 'Resolution has been regenerated successfully.';
+            }
 
-            return back()->with('status', 'Resolution has been regenerated successfully.');
+            return back()->with('status', $message);
         } catch (\Exception $e) {
             Log::error('Failed to regenerate BAC resolution for PR '.$purchaseRequest->pr_number.': '.$e->getMessage());
 
