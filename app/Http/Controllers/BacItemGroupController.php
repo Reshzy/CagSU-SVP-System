@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PrItemGroup;
 use App\Models\PurchaseRequest;
+use App\Services\PurchaseRequestActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -37,7 +38,9 @@ class BacItemGroupController extends Controller
             'groups.*.items.*' => ['required', 'exists:purchase_request_items,id'],
         ]);
 
-        DB::transaction(function () use ($validated, $purchaseRequest) {
+        $groupsInfo = [];
+
+        DB::transaction(function () use ($validated, $purchaseRequest, &$groupsInfo) {
             // Delete existing groups if any
             $purchaseRequest->itemGroups()->delete();
 
@@ -58,8 +61,18 @@ class BacItemGroupController extends Controller
                         ->where('id', $itemId)
                         ->update(['pr_item_group_id' => $group->id]);
                 }
+
+                $groupsInfo[] = [
+                    'group_code' => $groupCode,
+                    'group_name' => $groupData['name'],
+                    'item_count' => count($groupData['items']),
+                ];
             }
         });
+
+        // Log activity for item groups creation
+        $activityLogger = new PurchaseRequestActivityLogger;
+        $activityLogger->logItemGroupsCreated($purchaseRequest, $groupsInfo);
 
         return redirect()
             ->route('bac.quotations.manage', $purchaseRequest)
@@ -92,7 +105,9 @@ class BacItemGroupController extends Controller
             'groups.*.items.*' => ['required', 'exists:purchase_request_items,id'],
         ]);
 
-        DB::transaction(function () use ($validated, $purchaseRequest) {
+        $groupsInfo = [];
+
+        DB::transaction(function () use ($validated, $purchaseRequest, &$groupsInfo) {
             // Clear all item group assignments
             DB::table('purchase_request_items')
                 ->where('purchase_request_id', $purchaseRequest->id)
@@ -118,8 +133,18 @@ class BacItemGroupController extends Controller
                         ->where('id', $itemId)
                         ->update(['pr_item_group_id' => $group->id]);
                 }
+
+                $groupsInfo[] = [
+                    'group_code' => $groupCode,
+                    'group_name' => $groupData['name'],
+                    'item_count' => count($groupData['items']),
+                ];
             }
         });
+
+        // Log activity for item groups update
+        $activityLogger = new PurchaseRequestActivityLogger;
+        $activityLogger->logItemGroupsUpdated($purchaseRequest, $groupsInfo);
 
         return redirect()
             ->route('bac.quotations.manage', $purchaseRequest)

@@ -14,6 +14,7 @@ use App\Models\Supplier;
 use App\Services\AoqService;
 use App\Services\BacResolutionService;
 use App\Services\BacRfqService;
+use App\Services\PurchaseRequestActivityLogger;
 use App\Services\SupplierWithdrawalService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -293,6 +294,11 @@ class BacQuotationController extends Controller
             // Automatically identify lowest bidder
             $this->autoIdentifyLowestBidder($purchaseRequest);
 
+            // Log activity for quotation submission
+            $quotation->load('supplier', 'prItemGroup');
+            $activityLogger = new PurchaseRequestActivityLogger;
+            $activityLogger->logQuotationSubmitted($purchaseRequest, $quotation);
+
             \DB::commit();
 
             $message = 'Quotation recorded successfully.';
@@ -401,6 +407,12 @@ class BacQuotationController extends Controller
             'bac_remarks' => $validated['bac_remarks'] ?? null,
             'evaluated_at' => now(),
         ]);
+
+        // Log activity for quotation evaluation
+        $quotation->load('supplier', 'prItemGroup', 'purchaseRequest');
+        $evaluationStatus = $validated['bac_status'] === 'non_compliant' ? 'non_responsive' : 'responsive';
+        $activityLogger = new PurchaseRequestActivityLogger;
+        $activityLogger->logQuotationEvaluated($quotation->purchaseRequest, $quotation, $evaluationStatus);
 
         return back()->with('status', 'Quotation evaluated.');
     }
@@ -554,6 +566,10 @@ class BacQuotationController extends Controller
             $resolutionService = new BacResolutionService;
             $resolutionService->generateResolution($purchaseRequest, $signatoryData);
 
+            // Log activity for resolution regeneration
+            $activityLogger = new PurchaseRequestActivityLogger;
+            $activityLogger->logResolutionRegenerated($purchaseRequest, $purchaseRequest->resolution_number);
+
             return back()->with('status', 'Resolution has been regenerated successfully.');
         } catch (\Exception $e) {
             Log::error('Failed to regenerate BAC resolution for PR '.$purchaseRequest->pr_number.': '.$e->getMessage());
@@ -692,6 +708,10 @@ class BacQuotationController extends Controller
             $rfqService = new BacRfqService;
             $rfqService->generateRfq($purchaseRequest);
 
+            // Log activity for RFQ generation
+            $activityLogger = new PurchaseRequestActivityLogger;
+            $activityLogger->logRfqGenerated($purchaseRequest);
+
             return back()->with('status', 'RFQ has been generated successfully.');
         } catch (\Exception $e) {
             Log::error('Failed to generate RFQ for PR '.$purchaseRequest->pr_number.': '.$e->getMessage());
@@ -780,6 +800,10 @@ class BacQuotationController extends Controller
 
             $rfqService = new BacRfqService;
             $rfqService->generateRfq($purchaseRequest, $signatoryData);
+
+            // Log activity for RFQ regeneration (uses same action as generation)
+            $activityLogger = new PurchaseRequestActivityLogger;
+            $activityLogger->logRfqGenerated($purchaseRequest);
 
             return back()->with('status', 'RFQ has been regenerated successfully.');
         } catch (\Exception $e) {
@@ -877,6 +901,10 @@ class BacQuotationController extends Controller
 
             $rfqService = new BacRfqService;
             $rfqService->generateRfqForGroup($itemGroup);
+
+            // Log activity for RFQ generation for group
+            $activityLogger = new PurchaseRequestActivityLogger;
+            $activityLogger->logRfqGenerated($purchaseRequest, $itemGroup);
 
             return back()->with('status', 'RFQ has been generated successfully for '.$itemGroup->group_name.'.');
         } catch (\Exception $e) {
@@ -1142,6 +1170,21 @@ class BacQuotationController extends Controller
                 auth()->user()
             );
 
+            // Log activity for tie resolution
+            $prItem = PurchaseRequestItem::find($validated['purchase_request_item_id']);
+            $winnerItem = QuotationItem::with('quotation.supplier')->find($validated['winning_quotation_item_id']);
+            $group = $prItem?->prItemGroup;
+
+            $activityLogger = new PurchaseRequestActivityLogger;
+            $activityLogger->logTieResolved($purchaseRequest, [
+                [
+                    'item_id' => $prItem?->id,
+                    'item_description' => $prItem?->item_description ?? 'N/A',
+                    'winner_supplier_id' => $winnerItem?->quotation?->supplier_id,
+                    'winner_supplier_name' => $winnerItem?->quotation?->supplier?->business_name ?? 'N/A',
+                ],
+            ], $group);
+
             Log::info('Tie resolved', [
                 'pr_number' => $purchaseRequest->pr_number,
                 'item_id' => $validated['purchase_request_item_id'],
@@ -1179,6 +1222,22 @@ class BacQuotationController extends Controller
                 $validated['justification'],
                 auth()->user()
             );
+
+            // Log activity for BAC override
+            $prItem = PurchaseRequestItem::find($validated['purchase_request_item_id']);
+            $winnerItem = QuotationItem::with('quotation.supplier')->find($validated['winning_quotation_item_id']);
+            $group = $prItem?->prItemGroup;
+
+            $activityLogger = new PurchaseRequestActivityLogger;
+            $activityLogger->logBacOverride($purchaseRequest, [
+                [
+                    'item_id' => $prItem?->id,
+                    'item_description' => $prItem?->item_description ?? 'N/A',
+                    'original_winner' => 'N/A',
+                    'new_winner' => $winnerItem?->quotation?->supplier?->business_name ?? 'N/A',
+                    'reason' => $validated['justification'],
+                ],
+            ], $group);
 
             Log::info('BAC override applied', [
                 'pr_number' => $purchaseRequest->pr_number,
@@ -1273,6 +1332,10 @@ class BacQuotationController extends Controller
 
             // Save signatories to database
             $this->saveAoqSignatories($aoqGeneration, $validated['signatories']);
+
+            // Log activity for AOQ generation
+            $activityLogger = new PurchaseRequestActivityLogger;
+            $activityLogger->logAoqGenerated($purchaseRequest, $aoqGeneration);
 
             Log::info('AOQ generated', [
                 'pr_number' => $purchaseRequest->pr_number,
@@ -1375,6 +1438,10 @@ class BacQuotationController extends Controller
             if (! empty($validated['signatories'])) {
                 $this->saveAoqSignatories($aoqGeneration, $validated['signatories']);
             }
+
+            // Log activity for AOQ generation for group
+            $activityLogger = new PurchaseRequestActivityLogger;
+            $activityLogger->logAoqGenerated($purchaseRequest, $aoqGeneration, $itemGroup);
 
             Log::info('AOQ generated for group', [
                 'pr_number' => $purchaseRequest->pr_number,

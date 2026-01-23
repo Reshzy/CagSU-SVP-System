@@ -35,7 +35,27 @@ class SupplierWithdrawalService
         }
 
         // Delegate to AoqService for the actual withdrawal processing
-        return $this->aoqService->processSupplierWithdrawal($quotationItem, $reason, $processedBy);
+        $result = $this->aoqService->processSupplierWithdrawal($quotationItem, $reason, $processedBy);
+
+        // Log activity for supplier withdrawal
+        if ($result['success']) {
+            $quotation = $quotationItem->quotation;
+            $quotation->load('supplier', 'prItemGroup', 'purchaseRequest');
+
+            $successorName = $result['has_successor']
+                ? $result['successor']->quotation->supplier->business_name
+                : null;
+
+            $activityLogger = new PurchaseRequestActivityLogger;
+            $activityLogger->logSupplierWithdrawal(
+                $quotation->purchaseRequest,
+                $quotation,
+                $reason,
+                $successorName
+            );
+        }
+
+        return $result;
     }
 
     /**

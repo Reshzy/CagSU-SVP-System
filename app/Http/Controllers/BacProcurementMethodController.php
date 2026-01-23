@@ -8,6 +8,7 @@ use App\Models\ResolutionSignatory;
 use App\Models\WorkflowApproval;
 use App\Notifications\PurchaseRequestStatusUpdated;
 use App\Services\BacResolutionService;
+use App\Services\PurchaseRequestActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -159,6 +160,10 @@ class BacProcurementMethodController extends Controller
         try {
             $resolutionService = new BacResolutionService;
             $resolutionService->generateResolution($purchaseRequest, $signatoryData);
+
+            // Log activity for resolution generation
+            $activityLogger = new PurchaseRequestActivityLogger;
+            $activityLogger->logResolutionGenerated($purchaseRequest, $purchaseRequest->resolution_number);
         } catch (\Exception $e) {
             \Log::error('Failed to generate BAC resolution for PR '.$purchaseRequest->pr_number.': '.$e->getMessage());
 
