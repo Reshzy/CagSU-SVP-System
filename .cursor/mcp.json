@@ -5,7 +5,8 @@
             "args": [
                 "artisan",
                 "boost:mcp"
-            ]
+            ],
+            "cwd": "c:\\xampp\\htdocs\\CapstoneOJT\\CagSU-SVP-System"
         }
     }
 }
