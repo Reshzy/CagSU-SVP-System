@@ -153,7 +153,13 @@ class RolePermissionSeeder extends Seeder
         // 6. BAC Chair - Lead BAC Activities
         $bacChair = Role::create(['name' => 'BAC Chair']);
         $bacChair->givePermissionTo([
+            'create-purchase-request',
             'view-purchase-request',
+            'view-workflow-status',
+            'upload-documents',
+            'view-documents',
+            'view-budget-info',
+            'view-reports',
             'view-bac-documents',
             'create-bac-resolution',
             'evaluate-quotations',
@@ -162,42 +168,43 @@ class RolePermissionSeeder extends Seeder
             'award-contract',
             'view-supplier-info',
             'evaluate-supplier-performance',
-            'view-workflow-status',
             'manage-approvals',
-            'upload-documents',
-            'view-documents',
             'approve-documents',
-            'view-reports',
         ]);
 
         // 7. BAC Members - Participate in BAC Activities
         $bacMembers = Role::create(['name' => 'BAC Members']);
         $bacMembers->givePermissionTo([
+            'create-purchase-request',
             'view-purchase-request',
+            'view-workflow-status',
+            'upload-documents',
+            'view-documents',
+            'view-budget-info',
+            'view-reports',
             'view-bac-documents',
             'evaluate-quotations',
             'conduct-bac-meeting',
             'view-supplier-info',
-            'view-workflow-status',
-            'view-documents',
-            'view-reports',
         ]);
 
         // 8. BAC Secretariat - Administrative Support for BAC
         $bacSecretariat = Role::create(['name' => 'BAC Secretariat']);
         $bacSecretariat->givePermissionTo([
+            'create-purchase-request',
             'view-purchase-request',
+            'view-workflow-status',
+            'upload-documents',
+            'view-documents',
+            'view-budget-info',
+            'view-reports',
             'view-bac-documents',
             'create-bac-resolution',
             'evaluate-quotations',
             'conduct-bac-meeting',
             'view-supplier-info',
             'request-quotations',
-            'view-workflow-status',
-            'upload-documents',
-            'view-documents',
             'create-reports',
-            'view-reports',
         ]);
 
         // 9. Canvassing Unit - Supplier Outreach

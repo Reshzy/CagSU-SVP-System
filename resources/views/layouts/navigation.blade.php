@@ -39,7 +39,7 @@
                             </x-nav-link>
                         @endif
 
-                        @if(auth()->user()->can('manage-suppliers'))
+                        @if(auth()->user()->can('manage-suppliers') && !auth()->user()->hasRole('Executive Officer'))
                             <x-nav-link :href="route('supply.suppliers.index')" :active="request()->routeIs('supply.suppliers.*')" class="text-gray-700 hover:text-cagsu-maroon">
                                 <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h8m-6 4h6" />
