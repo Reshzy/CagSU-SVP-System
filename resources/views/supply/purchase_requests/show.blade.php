@@ -143,6 +143,92 @@
                         </div>
                     </div>
 
+                    <!-- Item Groups & Quotations Card -->
+                    @if($purchaseRequest->itemGroups->count() > 0)
+                    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                        <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-900">Item Groups & Quotations ({{ $purchaseRequest->itemGroups->count() }} groups)</h3>
+                        </div>
+                        <div class="p-6 space-y-4">
+                            @foreach($purchaseRequest->itemGroups as $group)
+                            <div class="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <h4 class="text-base font-semibold text-gray-900">{{ $group->group_code }}: {{ $group->group_name }}</h4>
+                                            @if($group->isReadyForPo())
+                                                <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                                                    ✓ AOQ Generated
+                                                </span>
+                                            @else
+                                                <span class="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
+                                                    ⏳ Awaiting AOQ
+                                                </span>
+                                            @endif
+                                        </div>
+                                        
+                                        <div class="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-3">
+                                            <div>
+                                                <span class="font-medium">Items:</span> {{ $group->items->count() }}
+                                            </div>
+                                            <div>
+                                                <span class="font-medium">Est. Total:</span> ₱{{ number_format($group->calculateTotalCost(), 2) }}
+                                            </div>
+                                        </div>
+
+                                        @if($group->aoqGeneration)
+                                        <div class="text-sm text-gray-600 mb-2">
+                                            <span class="font-medium">AOQ:</span> {{ $group->aoqGeneration->aoq_reference_number }}
+                                        </div>
+                                        @endif
+
+                                        @php
+                                            $winningQuotation = $group->getWinningQuotation();
+                                        @endphp
+                                        @if($winningQuotation)
+                                        <div class="text-sm text-gray-600 mb-2">
+                                            <span class="font-medium">Supplier:</span> {{ $winningQuotation->supplier->business_name }} <span class="text-green-600 font-semibold">(Winner)</span>
+                                        </div>
+                                        @endif
+
+                                        @if($group->hasExistingPo())
+                                        <div class="text-sm mb-2">
+                                            <span class="font-medium text-gray-600">PO:</span>
+                                            @foreach($group->purchaseOrders as $po)
+                                                <a href="{{ route('supply.purchase-orders.show', $po) }}" class="text-cagsu-maroon hover:text-cagsu-orange font-medium">
+                                                    {{ $po->po_number }}
+                                                </a>
+                                            @endforeach
+                                        </div>
+                                        @else
+                                        <div class="text-sm text-gray-500">
+                                            <span class="font-medium">PO Status:</span> Pending
+                                        </div>
+                                        @endif
+                                    </div>
+
+                                    <div class="ml-4">
+                                        @if($group->hasExistingPo())
+                                            <a href="{{ route('supply.purchase-orders.show', $group->purchaseOrders->first()) }}" class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm font-medium">
+                                                View PO →
+                                            </a>
+                                        @elseif($group->isReadyForPo() && in_array($purchaseRequest->status, ['bac_evaluation', 'bac_approved']))
+                                            <a href="{{ route('supply.purchase-orders.create', ['purchaseRequest' => $purchaseRequest, 'group' => $group->id]) }}" class="inline-flex items-center px-4 py-2 bg-cagsu-maroon text-white rounded-lg hover:bg-cagsu-orange transition text-sm font-medium">
+                                                Create PO →
+                                            </a>
+                                        @else
+                                            <span class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-400 rounded-lg text-sm font-medium cursor-not-allowed">
+                                                Not Ready
+                                            </span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+                    </div>
+                    @endif
+
                     <!-- Documents Card -->
                     @if($purchaseRequest->documents->count() > 0)
                     <div class="bg-white rounded-lg shadow-sm overflow-hidden">
@@ -328,12 +414,96 @@
 
                             <!-- Create Purchase Order -->
                             @if(in_array($purchaseRequest->status, ['bac_evaluation', 'bac_approved']))
-                            <a href="{{ route('supply.purchase-orders.create', $purchaseRequest) }}" class="block w-full px-4 py-3 bg-cagsu-maroon text-white rounded-lg hover:bg-cagsu-orange transition font-medium text-center">
-                                <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                                Create Purchase Order
-                            </a>
+                                @if($purchaseRequest->itemGroups->count() > 0)
+                                    <!-- Dropdown for grouped PRs -->
+                                    <div x-data="{ open: false }" class="relative">
+                                        <button @click="open = !open" class="w-full px-4 py-3 bg-cagsu-maroon text-white rounded-lg hover:bg-cagsu-orange transition font-medium flex items-center justify-between">
+                                            <span class="flex items-center">
+                                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                                </svg>
+                                                Create Purchase Order
+                                            </span>
+                                            <svg class="w-4 h-4 ml-2 transition-transform" :class="{'rotate-180': open}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </button>
+                                        
+                                        <div x-show="open" @click.away="open = false" x-cloak class="absolute z-10 w-full mt-2 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+                                            @foreach($purchaseRequest->itemGroups as $group)
+                                            <div class="border-b border-gray-100 last:border-b-0">
+                                                <div class="p-3 hover:bg-gray-50">
+                                                    <div class="flex items-start justify-between">
+                                                        <div class="flex-1 min-w-0">
+                                                            <div class="flex items-center gap-2 mb-1">
+                                                                <span class="text-sm font-semibold text-gray-900">{{ $group->group_code }}: {{ $group->group_name }}</span>
+                                                            </div>
+                                                            
+                                                            @if($group->isReadyForPo())
+                                                                <div class="flex items-center gap-1 text-xs text-green-600 mb-1">
+                                                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                                                    </svg>
+                                                                    <span>AOQ Generated</span>
+                                                                </div>
+                                                            @else
+                                                                <div class="flex items-center gap-1 text-xs text-yellow-600 mb-1">
+                                                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+                                                                    </svg>
+                                                                    <span>Awaiting AOQ</span>
+                                                                </div>
+                                                            @endif
+
+                                                            @php
+                                                                $winningQuotation = $group->getWinningQuotation();
+                                                            @endphp
+                                                            @if($winningQuotation)
+                                                                <div class="text-xs text-gray-600 truncate">
+                                                                    Supplier: {{ $winningQuotation->supplier->business_name }}
+                                                                </div>
+                                                            @endif
+
+                                                            @if($group->hasExistingPo())
+                                                                <div class="flex items-center gap-1 text-xs text-blue-600 mt-1">
+                                                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                                                    </svg>
+                                                                    <span>PO: {{ $group->purchaseOrders->first()->po_number }}</span>
+                                                                </div>
+                                                            @endif
+                                                        </div>
+
+                                                        <div class="ml-2 flex-shrink-0">
+                                                            @if($group->hasExistingPo())
+                                                                <a href="{{ route('supply.purchase-orders.show', $group->purchaseOrders->first()) }}" class="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-700 rounded text-xs font-medium hover:bg-gray-200">
+                                                                    View PO
+                                                                </a>
+                                                            @elseif($group->isReadyForPo())
+                                                                <a href="{{ route('supply.purchase-orders.create', ['purchaseRequest' => $purchaseRequest, 'group' => $group->id]) }}" class="inline-flex items-center px-3 py-1 bg-cagsu-maroon text-white rounded text-xs font-medium hover:bg-cagsu-orange">
+                                                                    Create PO
+                                                                </a>
+                                                            @else
+                                                                <span class="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-400 rounded text-xs font-medium cursor-not-allowed">
+                                                                    Not Ready
+                                                                </span>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @else
+                                    <!-- Single button for non-grouped PRs -->
+                                    <a href="{{ route('supply.purchase-orders.create', $purchaseRequest) }}" class="block w-full px-4 py-3 bg-cagsu-maroon text-white rounded-lg hover:bg-cagsu-orange transition font-medium text-center">
+                                        <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                        </svg>
+                                        Create Purchase Order
+                                    </a>
+                                @endif
                             @endif
 
                             <!-- Info Section -->

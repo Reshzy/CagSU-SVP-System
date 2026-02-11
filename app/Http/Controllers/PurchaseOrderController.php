@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StorePurchaseOrderRequest;
 use App\Models\PoSignatory;
+use App\Models\PrItemGroup;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseRequest;
 use App\Models\Quotation;
@@ -28,11 +29,27 @@ class PurchaseOrderController extends Controller
     public function create(Request $request, PurchaseRequest $purchaseRequest): View
     {
         abort_unless(in_array($purchaseRequest->status, ['bac_approved', 'bac_evaluation']), 403);
-        $purchaseRequest->load('items');
+
+        // Check if creating PO for a specific group
+        $groupId = $request->query('group');
+        $itemGroup = $groupId ? PrItemGroup::find($groupId) : null;
+
+        // Load items (all or just from the group)
+        if ($itemGroup) {
+            $purchaseRequest->load(['items' => function ($query) use ($itemGroup) {
+                $query->where('pr_item_group_id', $itemGroup->id);
+            }]);
+        } else {
+            $purchaseRequest->load('items');
+        }
+
+        // Load winning quotation for specific group or entire PR
         $winningQuotation = Quotation::where('purchase_request_id', $purchaseRequest->id)
+            ->when($itemGroup, fn ($q) => $q->where('pr_item_group_id', $itemGroup->id))
             ->where('is_winning_bid', true)
             ->with('supplier')
             ->first();
+
         $suppliers = Supplier::orderBy('business_name')->get();
 
         // Load PO signatories
@@ -48,7 +65,8 @@ class PurchaseOrderController extends Controller
             'suppliers',
             'ceoSignatory',
             'chiefAccountantSignatory',
-            'nextPoNumber'
+            'nextPoNumber',
+            'itemGroup'
         ));
     }
 

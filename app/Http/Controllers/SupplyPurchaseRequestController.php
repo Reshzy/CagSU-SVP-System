@@ -96,6 +96,10 @@ class SupplyPurchaseRequestController extends Controller
             'replacedByPr',
             'activities.user',
             'documents',
+            'itemGroups.aoqGeneration',
+            'itemGroups.quotations.supplier',
+            'itemGroups.purchaseOrders',
+            'itemGroups.items',
         ]);
 
         return view('supply.purchase_requests.show', compact('purchaseRequest'));

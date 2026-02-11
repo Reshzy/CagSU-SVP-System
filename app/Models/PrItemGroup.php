@@ -88,4 +88,29 @@ class PrItemGroup extends Model
     {
         return (float) $this->items->sum('estimated_total_cost');
     }
+
+    /**
+     * Check if this group is ready for PO creation
+     * A group is ready when an AOQ has been generated for it
+     */
+    public function isReadyForPo(): bool
+    {
+        return $this->aoqGeneration()->exists();
+    }
+
+    /**
+     * Check if this group already has a PO created
+     */
+    public function hasExistingPo(): bool
+    {
+        return $this->purchaseOrders()->exists();
+    }
+
+    /**
+     * Get the winning quotation for this group
+     */
+    public function getWinningQuotation(): ?Quotation
+    {
+        return $this->quotations()->where('is_winning_bid', true)->first();
+    }
 }

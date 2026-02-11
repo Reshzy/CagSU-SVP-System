@@ -2,13 +2,36 @@
 
 <x-app-layout>
 	<x-slot name="header">
-		<h2 class="font-semibold text-2xl text-gray-800 leading-tight">{{ __('Create Purchase Order for ') . $purchaseRequest->pr_number }}</h2>
+		<h2 class="font-semibold text-2xl text-gray-800 leading-tight">
+			{{ __('Create Purchase Order for ') . $purchaseRequest->pr_number }}
+			@if(isset($itemGroup))
+				<span class="text-lg text-gray-600"> - {{ $itemGroup->group_code }}: {{ $itemGroup->group_name }}</span>
+			@endif
+		</h2>
 	</x-slot>
 
 	<div class="py-8">
 		<div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
 			<div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
 				<div class="p-6 text-gray-900">
+					@if(isset($itemGroup))
+						<div class="mb-4 p-4 rounded-md bg-blue-50 border border-blue-200">
+							<div class="flex items-start">
+								<svg class="w-5 h-5 text-blue-600 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+									<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+								</svg>
+								<div class="flex-1">
+									<h4 class="text-sm font-semibold text-blue-900 mb-1">Creating PO for Item Group</h4>
+									<p class="text-sm text-blue-800">
+										<span class="font-medium">{{ $itemGroup->group_code }}: {{ $itemGroup->group_name }}</span>
+										<br>
+										<span class="text-xs">{{ $itemGroup->items->count() }} items | Est. Total: ₱{{ number_format($itemGroup->calculateTotalCost(), 2) }}</span>
+									</p>
+								</div>
+							</div>
+						</div>
+					@endif
+
 					@if($winningQuotation)
 						<div class="mb-4 p-3 rounded-md bg-green-50 text-green-700">
 							Winning quotation detected: {{ $winningQuotation->supplier?->business_name }} (₱{{ number_format((float)$winningQuotation->total_amount, 2) }})
@@ -24,6 +47,9 @@
 
 					<form action="{{ route('supply.purchase-orders.store', $purchaseRequest) }}" method="POST" class="space-y-6">
 						@csrf
+						@if(isset($itemGroup))
+							<input type="hidden" name="pr_item_group_id" value="{{ $itemGroup->id }}" />
+						@endif
 
 						<!-- Section 1: Auto-Generated Information -->
 						<div class="border-b pb-4">
