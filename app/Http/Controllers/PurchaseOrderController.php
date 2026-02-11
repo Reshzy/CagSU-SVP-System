@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreBatchPurchaseOrderRequest;
 use App\Http\Requests\StorePurchaseOrderRequest;
 use App\Models\PoSignatory;
 use App\Models\PrItemGroup;
@@ -10,6 +11,7 @@ use App\Models\PurchaseRequest;
 use App\Models\Quotation;
 use App\Models\Supplier;
 use App\Services\PurchaseOrderExportService;
+use App\Services\PurchaseOrderService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -43,12 +45,13 @@ class PurchaseOrderController extends Controller
             $purchaseRequest->load('items');
         }
 
-        // Load winning quotation for specific group or entire PR
-        $winningQuotation = Quotation::where('purchase_request_id', $purchaseRequest->id)
-            ->when($itemGroup, fn ($q) => $q->where('pr_item_group_id', $itemGroup->id))
-            ->where('is_winning_bid', true)
-            ->with('supplier')
-            ->first();
+        // Get winning supplier info from AOQ item-level winners
+        $poService = new PurchaseOrderService;
+        $winningItemsBySupplier = $poService->getWinningItemsGroupedBySupplier($purchaseRequest, $itemGroup);
+        
+        // Get the first (and should be only) winning supplier data
+        $winningSupplierData = $winningItemsBySupplier->first();
+        $winningQuotation = $winningSupplierData ? $winningSupplierData['quotation'] : null;
 
         $suppliers = Supplier::orderBy('business_name')->get();
 
@@ -203,5 +206,81 @@ class PurchaseOrderController extends Controller
         $filePath = $exportService->generateExcel($purchaseOrder);
 
         return response()->download($filePath, 'PO-'.$purchaseOrder->po_number.'.xlsx')->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Preview purchase orders to be created from winning suppliers
+     */
+    public function preview(Request $request, PurchaseRequest $purchaseRequest): View|RedirectResponse
+    {
+        abort_unless(in_array($purchaseRequest->status, ['bac_approved', 'bac_evaluation']), 403);
+
+        $groupId = $request->query('group');
+        $itemGroup = $groupId ? PrItemGroup::find($groupId) : null;
+
+        $poService = new PurchaseOrderService;
+        $winningItemsBySupplier = $poService->getWinningItemsGroupedBySupplier($purchaseRequest, $itemGroup);
+
+        // If only one supplier, redirect to single PO creation (backward compatibility)
+        if ($winningItemsBySupplier->count() === 1) {
+            return redirect()->route('supply.purchase-orders.create', [
+                'purchaseRequest' => $purchaseRequest,
+                'group' => $groupId,
+            ]);
+        }
+
+        return view('supply.purchase_orders.preview', compact(
+            'purchaseRequest',
+            'itemGroup',
+            'winningItemsBySupplier'
+        ));
+    }
+
+    /**
+     * Show batch creation form for multiple POs
+     */
+    public function batchCreate(Request $request, PurchaseRequest $purchaseRequest): View
+    {
+        abort_unless(in_array($purchaseRequest->status, ['bac_approved', 'bac_evaluation']), 403);
+
+        $groupId = $request->query('group');
+        $itemGroup = $groupId ? PrItemGroup::find($groupId) : null;
+
+        $poService = new PurchaseOrderService;
+        $winningItemsBySupplier = $poService->getWinningItemsGroupedBySupplier($purchaseRequest, $itemGroup);
+
+        // Load PO signatories
+        $ceoSignatory = PoSignatory::active()->position('ceo')->first();
+        $chiefAccountantSignatory = PoSignatory::active()->position('chief_accountant')->first();
+
+        return view('supply.purchase_orders.batch-create', compact(
+            'purchaseRequest',
+            'itemGroup',
+            'winningItemsBySupplier',
+            'ceoSignatory',
+            'chiefAccountantSignatory'
+        ));
+    }
+
+    /**
+     * Store multiple purchase orders in batch
+     */
+    public function batchStore(StoreBatchPurchaseOrderRequest $request, PurchaseRequest $purchaseRequest): RedirectResponse
+    {
+        abort_unless(in_array($purchaseRequest->status, ['bac_approved', 'bac_evaluation']), 403);
+
+        $validated = $request->validated();
+        $groupId = $request->input('pr_item_group_id');
+        $itemGroup = $groupId ? PrItemGroup::find($groupId) : null;
+
+        $poService = new PurchaseOrderService;
+        $createdPOs = $poService->createBatchPurchaseOrders(
+            $purchaseRequest,
+            $itemGroup,
+            $validated['purchase_orders']
+        );
+
+        return redirect()->route('supply.purchase-requests.show', $purchaseRequest)
+            ->with('status', count($createdPOs).' Purchase Orders created successfully.');
     }
 }

@@ -81,6 +81,9 @@ Route::middleware('auth')->group(function () {
 
         // Purchase Orders
         Route::get('/supply/purchase-orders', [PurchaseOrderController::class, 'index'])->name('supply.purchase-orders.index');
+        Route::get('/supply/purchase-requests/{purchaseRequest}/purchase-orders/preview', [PurchaseOrderController::class, 'preview'])->name('supply.purchase-orders.preview');
+        Route::get('/supply/purchase-requests/{purchaseRequest}/purchase-orders/batch-create', [PurchaseOrderController::class, 'batchCreate'])->name('supply.purchase-orders.batch-create');
+        Route::post('/supply/purchase-requests/{purchaseRequest}/purchase-orders/batch', [PurchaseOrderController::class, 'batchStore'])->name('supply.purchase-orders.batch-store');
         Route::get('/supply/purchase-requests/{purchaseRequest}/purchase-orders/create', [PurchaseOrderController::class, 'create'])->name('supply.purchase-orders.create');
         Route::post('/supply/purchase-requests/{purchaseRequest}/purchase-orders', [PurchaseOrderController::class, 'store'])->name('supply.purchase-orders.store');
         Route::get('/supply/purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->name('supply.purchase-orders.show');

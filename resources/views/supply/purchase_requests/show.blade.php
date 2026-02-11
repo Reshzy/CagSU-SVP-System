@@ -213,7 +213,7 @@
                                                 View PO →
                                             </a>
                                         @elseif($group->isReadyForPo() && in_array($purchaseRequest->status, ['bac_evaluation', 'bac_approved']))
-                                            <a href="{{ route('supply.purchase-orders.create', ['purchaseRequest' => $purchaseRequest, 'group' => $group->id]) }}" class="inline-flex items-center px-4 py-2 bg-cagsu-maroon text-white rounded-lg hover:bg-cagsu-orange transition text-sm font-medium">
+                                            <a href="{{ route('supply.purchase-orders.preview', ['purchaseRequest' => $purchaseRequest, 'group' => $group->id]) }}" class="inline-flex items-center px-4 py-2 bg-cagsu-maroon text-white rounded-lg hover:bg-cagsu-orange transition text-sm font-medium">
                                                 Create PO →
                                             </a>
                                         @else
@@ -480,7 +480,7 @@
                                                                     View PO
                                                                 </a>
                                                             @elseif($group->isReadyForPo())
-                                                                <a href="{{ route('supply.purchase-orders.create', ['purchaseRequest' => $purchaseRequest, 'group' => $group->id]) }}" class="inline-flex items-center px-3 py-1 bg-cagsu-maroon text-white rounded text-xs font-medium hover:bg-cagsu-orange">
+                                                                <a href="{{ route('supply.purchase-orders.preview', ['purchaseRequest' => $purchaseRequest, 'group' => $group->id]) }}" class="inline-flex items-center px-3 py-1 bg-cagsu-maroon text-white rounded text-xs font-medium hover:bg-cagsu-orange">
                                                                     Create PO
                                                                 </a>
                                                             @else
@@ -497,7 +497,7 @@
                                     </div>
                                 @else
                                     <!-- Single button for non-grouped PRs -->
-                                    <a href="{{ route('supply.purchase-orders.create', $purchaseRequest) }}" class="block w-full px-4 py-3 bg-cagsu-maroon text-white rounded-lg hover:bg-cagsu-orange transition font-medium text-center">
+                                    <a href="{{ route('supply.purchase-orders.preview', $purchaseRequest) }}" class="block w-full px-4 py-3 bg-cagsu-maroon text-white rounded-lg hover:bg-cagsu-orange transition font-medium text-center">
                                         <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                         </svg>

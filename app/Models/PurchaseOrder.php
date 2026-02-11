@@ -45,6 +45,14 @@ class PurchaseOrder extends Model
     }
 
     /**
+     * Get the items in this purchase order
+     */
+    public function items()
+    {
+        return $this->hasMany(PurchaseOrderItem::class);
+    }
+
+    /**
      * Generate next PO number in format: PO-MMYY-####
      * Example: PO-0126-0001 (January 2026)
      */
