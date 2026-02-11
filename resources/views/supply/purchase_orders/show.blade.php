@@ -2,7 +2,12 @@
 
 <x-app-layout>
 	<x-slot name="header">
-		<h2 class="font-semibold text-2xl text-gray-800 leading-tight">{{ __('PO Details: ') . $purchaseOrder->po_number }}</h2>
+		<div class="flex justify-between items-center">
+			<h2 class="font-semibold text-2xl text-gray-800 leading-tight">{{ __('PO Details: ') . $purchaseOrder->po_number }}</h2>
+			<a href="{{ route('supply.purchase-orders.export', $purchaseOrder) }}" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-semibold">
+				📥 Export to Excel
+			</a>
+		</div>
 	</x-slot>
 
 	<div class="py-8">

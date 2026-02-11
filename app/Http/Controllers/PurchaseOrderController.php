@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StorePurchaseOrderRequest;
+use App\Models\PoSignatory;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseRequest;
 use App\Models\Quotation;
 use App\Models\Supplier;
+use App\Services\PurchaseOrderExportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class PurchaseOrderController extends Controller
 {
@@ -31,24 +35,28 @@ class PurchaseOrderController extends Controller
             ->first();
         $suppliers = Supplier::orderBy('business_name')->get();
 
-        return view('supply.purchase_orders.create', compact('purchaseRequest', 'winningQuotation', 'suppliers'));
+        // Load PO signatories
+        $ceoSignatory = PoSignatory::active()->position('ceo')->first();
+        $chiefAccountantSignatory = PoSignatory::active()->position('chief_accountant')->first();
+
+        // Generate next PO number for display
+        $nextPoNumber = PurchaseOrder::generateNextPoNumber();
+
+        return view('supply.purchase_orders.create', compact(
+            'purchaseRequest',
+            'winningQuotation',
+            'suppliers',
+            'ceoSignatory',
+            'chiefAccountantSignatory',
+            'nextPoNumber'
+        ));
     }
 
-    public function store(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
+    public function store(StorePurchaseOrderRequest $request, PurchaseRequest $purchaseRequest): RedirectResponse
     {
         abort_unless(in_array($purchaseRequest->status, ['bac_approved', 'bac_evaluation']), 403);
 
-        $validated = $request->validate([
-            'pr_item_group_id' => ['nullable', 'exists:pr_item_groups,id'],
-            'supplier_id' => ['required', 'exists:suppliers,id'],
-            'quotation_id' => ['nullable', 'exists:quotations,id'],
-            'po_date' => ['required', 'date'],
-            'total_amount' => ['required', 'numeric', 'min:0'],
-            'delivery_address' => ['required', 'string'],
-            'delivery_date_required' => ['required', 'date', 'after_or_equal:po_date'],
-            'terms_and_conditions' => ['required', 'string'],
-            'special_instructions' => ['nullable', 'string'],
-        ]);
+        $validated = $request->validated();
 
         // Determine the item group from the quotation if not provided
         $prItemGroupId = $validated['pr_item_group_id'] ?? null;
@@ -63,7 +71,13 @@ class PurchaseOrderController extends Controller
             'pr_item_group_id' => $prItemGroupId,
             'supplier_id' => $validated['supplier_id'],
             'quotation_id' => $validated['quotation_id'] ?? null,
-            'po_date' => $validated['po_date'],
+            'po_date' => now(),
+            'tin' => $validated['tin'] ?? null,
+            'supplier_name_override' => $validated['supplier_name_override'] ?? null,
+            'funds_cluster' => $validated['funds_cluster'],
+            'funds_available' => $validated['funds_available'],
+            'ors_burs_no' => $validated['ors_burs_no'],
+            'ors_burs_date' => $validated['ors_burs_date'],
             'total_amount' => $validated['total_amount'],
             'delivery_address' => $validated['delivery_address'],
             'delivery_date_required' => $validated['delivery_date_required'],
@@ -72,7 +86,7 @@ class PurchaseOrderController extends Controller
             'status' => 'pending_approval',
         ]);
 
-        // Optionally update PR status to po_generation
+        // Update PR status to po_generation
         $purchaseRequest->status = 'po_generation';
         $purchaseRequest->status_updated_at = now();
         $purchaseRequest->save();
@@ -163,5 +177,13 @@ class PurchaseOrderController extends Controller
         $purchaseOrder->save();
 
         return back()->with('status', 'PO updated.');
+    }
+
+    public function export(PurchaseOrder $purchaseOrder): BinaryFileResponse
+    {
+        $exportService = new PurchaseOrderExportService;
+        $filePath = $exportService->generateExcel($purchaseOrder);
+
+        return response()->download($filePath, 'PO-'.$purchaseOrder->po_number.'.xlsx')->deleteFileAfterSend(true);
     }
 }

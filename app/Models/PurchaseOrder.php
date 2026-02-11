@@ -20,6 +20,8 @@ class PurchaseOrder extends Model
         'acknowledged_at' => 'datetime',
         'actual_delivery_date' => 'date',
         'delivery_complete' => 'boolean',
+        'ors_burs_date' => 'date',
+        'funds_available' => 'decimal:2',
     ];
 
     public function purchaseRequest()

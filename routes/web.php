@@ -85,6 +85,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/supply/purchase-requests/{purchaseRequest}/purchase-orders', [PurchaseOrderController::class, 'store'])->name('supply.purchase-orders.store');
         Route::get('/supply/purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->name('supply.purchase-orders.show');
         Route::put('/supply/purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'update'])->name('supply.purchase-orders.update');
+        Route::get('/supply/purchase-orders/{purchaseOrder}/export', [PurchaseOrderController::class, 'export'])->name('supply.purchase-orders.export');
+
+        // PO Signatories Management
+        Route::resource('supply/po-signatories', \App\Http\Controllers\PoSignatoryController::class)->except(['show']);
 
         // Inventory Receipts
         Route::get('/supply/inventory-receipts', [InventoryReceiptController::class, 'index'])->name('supply.inventory-receipts.index');
