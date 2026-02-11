@@ -128,7 +128,7 @@ class BacSignatoryController extends Controller
             'position' => ['required', 'in:bac_chairman,bac_vice_chairman,bac_member,head_bac_secretariat,ceo,canvassing_officer'],
             'prefix' => ['nullable', 'string', 'max:50'],
             'suffix' => ['nullable', 'string', 'max:50'],
-            'is_active' => ['boolean'],
+            'is_active' => ['nullable', 'boolean'],
         ]);
 
         // Check if user-based signatory already exists for this position (excluding current record)
@@ -145,13 +145,15 @@ class BacSignatoryController extends Controller
             }
         }
 
+        $isActiveValue = $request->boolean('is_active');
+
         $signatory->update([
             'user_id' => $validated['input_type'] === 'user' ? $validated['user_id'] : null,
             'manual_name' => $validated['input_type'] === 'manual' ? $validated['manual_name'] : null,
             'position' => $validated['position'],
             'prefix' => $validated['prefix'] ?? null,
             'suffix' => $validated['suffix'] ?? null,
-            'is_active' => $validated['is_active'] ?? $signatory->is_active,
+            'is_active' => $isActiveValue,
         ]);
 
         return redirect()->route('bac.signatories.index')

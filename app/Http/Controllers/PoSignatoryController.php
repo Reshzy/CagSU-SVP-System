@@ -28,9 +28,9 @@ class PoSignatoryController extends Controller
      */
     public function create(): View
     {
-        // Get users with Supply-related roles
+        // Get users with Supply-related roles or Accounting Office (for Chief Accountant signatory)
         $users = User::whereHas('roles', function ($query) {
-            $query->whereIn('name', ['Supply Officer', 'System Admin', 'Executive Officer']);
+            $query->whereIn('name', ['Supply Officer', 'System Admin', 'Executive Officer', 'Accounting Office']);
         })->orderBy('name')->get();
 
         // If no users found with roles, get all users as fallback
@@ -87,9 +87,9 @@ class PoSignatoryController extends Controller
     {
         $poSignatory->load('user');
 
-        // Get users with Supply-related roles
+        // Get users with Supply-related roles or Accounting Office (for Chief Accountant signatory)
         $users = User::whereHas('roles', function ($query) {
-            $query->whereIn('name', ['Supply Officer', 'System Admin', 'Executive Officer']);
+            $query->whereIn('name', ['Supply Officer', 'System Admin', 'Executive Officer', 'Accounting Office']);
         })->orderBy('name')->get();
 
         // If no users found with roles, get all users as fallback
@@ -112,7 +112,7 @@ class PoSignatoryController extends Controller
             'position' => ['required', 'in:ceo,chief_accountant'],
             'prefix' => ['nullable', 'string', 'max:50'],
             'suffix' => ['nullable', 'string', 'max:50'],
-            'is_active' => ['boolean'],
+            'is_active' => ['nullable', 'boolean'],
         ]);
 
         // Check if there's already an active signatory for this position (excluding current)
@@ -121,7 +121,9 @@ class PoSignatoryController extends Controller
             ->where('id', '!=', $poSignatory->id)
             ->exists();
 
-        if ($existingActive && ($validated['is_active'] ?? $poSignatory->is_active)) {
+        $isActiveValue = $request->boolean('is_active');
+
+        if ($existingActive && $isActiveValue) {
             return back()
                 ->withInput()
                 ->with('error', 'There is already an active signatory for this position. Please deactivate the existing one first.');
@@ -133,7 +135,7 @@ class PoSignatoryController extends Controller
             'position' => $validated['position'],
             'prefix' => $validated['prefix'] ?? null,
             'suffix' => $validated['suffix'] ?? null,
-            'is_active' => $validated['is_active'] ?? $poSignatory->is_active,
+            'is_active' => $isActiveValue,
         ]);
 
         return redirect()->route('supply.po-signatories.index')
