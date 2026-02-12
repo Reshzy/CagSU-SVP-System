@@ -49,7 +49,7 @@ class PurchaseOrderController extends Controller
         // Get winning supplier info from AOQ item-level winners
         $poService = new PurchaseOrderService;
         $winningItemsBySupplier = $poService->getWinningItemsGroupedBySupplier($purchaseRequest, $itemGroup);
-        
+
         // Get the first (and should be only) winning supplier data
         $winningSupplierData = $winningItemsBySupplier->first();
         $winningQuotation = $winningSupplierData ? $winningSupplierData['quotation'] : null;
@@ -108,8 +108,18 @@ class PurchaseOrderController extends Controller
             'status' => 'pending_approval',
         ]);
 
-        // Update PR status to po_generation
-        $purchaseRequest->status = 'po_generation';
+        // Update PR status based on group completion
+        // If PR has groups, check if all groups now have POs
+        if ($purchaseRequest->itemGroups->isNotEmpty()) {
+            $newStatus = $purchaseRequest->allGroupsHavePo()
+                ? 'po_generation'
+                : 'partial_po_generation';
+        } else {
+            // Non-grouped PR - straight to po_generation
+            $newStatus = 'po_generation';
+        }
+
+        $purchaseRequest->status = $newStatus;
         $purchaseRequest->status_updated_at = now();
         $purchaseRequest->save();
 

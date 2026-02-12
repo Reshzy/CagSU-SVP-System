@@ -17,6 +17,39 @@
                         <div class="mb-4 p-3 rounded-md bg-red-50 text-red-700">{{ session('error') }}</div>
                     @endif
 
+                    {{-- Status Indicator --}}
+                    @if($purchaseRequest->status === 'partial_po_generation')
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                            <div class="flex items-start">
+                                <svg class="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                                </svg>
+                                <div class="flex-1">
+                                    <h4 class="font-semibold text-blue-800">Partial PO Generation in Progress</h4>
+                                    <p class="text-sm text-blue-700 mt-1">
+                                        Some item groups have Purchase Orders created, but others are still awaiting quotation completion. 
+                                        You can continue adding and evaluating quotations for groups without POs.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    @elseif($isReadOnly)
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+                            <div class="flex items-start">
+                                <svg class="w-5 h-5 text-gray-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+                                </svg>
+                                <div class="flex-1">
+                                    <h4 class="font-semibold text-gray-800">Read-Only Mode</h4>
+                                    <p class="text-sm text-gray-700 mt-1">
+                                        This PR has moved beyond BAC evaluation (Status: <span class="font-medium">{{ ucwords(str_replace('_', ' ', $purchaseRequest->status)) }}</span>). 
+                                        You can view and print documents, but cannot add or edit quotations.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
                     {{-- Withdrawal/Failed Items Alert --}}
                     @php
                         $failedItems = $purchaseRequest->items->where('procurement_status', 'failed');

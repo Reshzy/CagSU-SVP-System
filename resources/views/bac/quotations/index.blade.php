@@ -18,6 +18,7 @@
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PR #</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
                                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resolution</th>
                                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
@@ -29,6 +30,25 @@
                                 @forelse($requests as $req)
                                 <tr>
                                     <td class="px-4 py-2 font-mono">{{ $req->pr_number }}</td>
+                                    <td class="px-4 py-2">
+                                        @php
+                                            $statusColors = [
+                                                'bac_evaluation' => 'bg-yellow-100 text-yellow-800',
+                                                'partial_po_generation' => 'bg-blue-100 text-blue-800',
+                                                'bac_approved' => 'bg-green-100 text-green-800',
+                                                'po_generation' => 'bg-purple-100 text-purple-800',
+                                                'po_approved' => 'bg-indigo-100 text-indigo-800',
+                                                'supplier_processing' => 'bg-orange-100 text-orange-800',
+                                                'delivered' => 'bg-teal-100 text-teal-800',
+                                                'completed' => 'bg-gray-100 text-gray-800',
+                                            ];
+                                            $statusColor = $statusColors[$req->status] ?? 'bg-gray-100 text-gray-800';
+                                            $statusLabel = ucwords(str_replace('_', ' ', $req->status));
+                                        @endphp
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $statusColor }}">
+                                            {{ $statusLabel }}
+                                        </span>
+                                    </td>
                                     <td class="px-4 py-2">
                                         <span class="text-sm font-medium">Small Value Procurement</span>
                                     </td>
@@ -62,7 +82,7 @@
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="6" class="px-4 py-6 text-center text-gray-500">No PRs awaiting BAC evaluation.</td>
+                                    <td colspan="7" class="px-4 py-6 text-center text-gray-500">No PRs available for BAC.</td>
                                 </tr>
                                 @endforelse
                             </tbody>

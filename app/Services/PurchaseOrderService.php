@@ -117,8 +117,18 @@ class PurchaseOrderService
                 $createdPOs->push($po);
             }
 
-            // Update PR status to po_generation
-            $purchaseRequest->status = 'po_generation';
+            // Update PR status based on group completion
+            // If PR has groups, check if all groups now have POs
+            if ($purchaseRequest->itemGroups->isNotEmpty()) {
+                $newStatus = $purchaseRequest->allGroupsHavePo()
+                    ? 'po_generation'
+                    : 'partial_po_generation';
+            } else {
+                // Non-grouped PR - straight to po_generation
+                $newStatus = 'po_generation';
+            }
+
+            $purchaseRequest->status = $newStatus;
             $purchaseRequest->status_updated_at = now();
             $purchaseRequest->save();
 

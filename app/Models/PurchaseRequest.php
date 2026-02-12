@@ -101,6 +101,11 @@ class PurchaseRequest extends Model
         return $this->hasMany(AoqItemDecision::class);
     }
 
+    public function purchaseOrders()
+    {
+        return $this->hasMany(PurchaseOrder::class);
+    }
+
     public function activities()
     {
         return $this->hasMany(PurchaseRequestActivity::class)->orderByDesc('created_at');
@@ -280,5 +285,40 @@ class PurchaseRequest extends Model
         }
 
         return $prefix.str_pad((string) $nextSequence, 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Check if all item groups have at least one PO created.
+     * Used to determine if PR should be in 'partial_po_generation' or 'po_generation' status.
+     */
+    public function allGroupsHavePo(): bool
+    {
+        $groups = $this->itemGroups;
+
+        // If no groups, check if any PO exists for the PR
+        if ($groups->isEmpty()) {
+            return $this->purchaseOrders()->exists();
+        }
+
+        // All groups must have at least one PO
+        return $groups->every(fn ($group) => $group->hasExistingPo());
+    }
+
+    /**
+     * Check if this PR has been through BAC evaluation.
+     * Used to determine if BAC should have view access.
+     */
+    public function hasBeenThroughBac(): bool
+    {
+        return in_array($this->status, [
+            'bac_evaluation',
+            'bac_approved',
+            'partial_po_generation',
+            'po_generation',
+            'po_approved',
+            'supplier_processing',
+            'delivered',
+            'completed',
+        ]);
     }
 }

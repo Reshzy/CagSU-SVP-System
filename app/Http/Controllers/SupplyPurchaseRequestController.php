@@ -47,6 +47,7 @@ class SupplyPurchaseRequestController extends Controller
                 'supply_office_review',
                 'bac_evaluation',
                 'bac_approved',
+                'partial_po_generation',
                 'po_generation',
             ]);
         }

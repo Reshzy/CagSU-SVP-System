@@ -53,6 +53,7 @@
                                     <option value="budget_office_review" @selected($statusFilter==='budget_office_review')>Budget Review</option>
                                     <option value="bac_evaluation" @selected($statusFilter==='bac_evaluation')>BAC Evaluation</option>
                                     <option value="bac_approved" @selected($statusFilter==='bac_approved')>BAC Approved</option>
+                                    <option value="partial_po_generation" @selected($statusFilter==='partial_po_generation')>Partial PO Generation</option>
                                     <option value="po_generation" @selected($statusFilter==='po_generation')>PO Generation</option>
                                     <option value="rejected" @selected($statusFilter==='rejected')>Rejected</option>
                                     <option value="cancelled" @selected($statusFilter==='cancelled')>Cancelled</option>
@@ -121,6 +122,7 @@
                                                         'budget_office_review' => 'bg-purple-100 text-purple-800',
                                                         'bac_evaluation' => 'bg-orange-100 text-orange-800',
                                                         'bac_approved' => 'bg-green-100 text-green-800',
+                                                        'partial_po_generation' => 'bg-cyan-100 text-cyan-800',
                                                         'po_generation' => 'bg-indigo-100 text-indigo-800',
                                                         'rejected' => 'bg-red-100 text-red-800',
                                                         'cancelled' => 'bg-gray-100 text-gray-800',
@@ -172,7 +174,7 @@
                                         View Details
                                     </a>
                                     
-                                    @if(in_array($req->status, ['bac_evaluation','bac_approved']))
+                                    @if(in_array($req->status, ['bac_evaluation','bac_approved','partial_po_generation']))
                                         <a href="{{ route('supply.purchase-orders.preview', $req) }}" class="inline-flex items-center justify-center px-4 py-2 bg-cagsu-maroon text-white rounded-lg hover:bg-cagsu-orange transition">
                                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>

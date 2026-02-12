@@ -28,11 +28,21 @@ class BacQuotationController extends Controller
 {
     public function index(Request $request): View
     {
+        // Show all PRs that have been through BAC evaluation (including completed ones for reference)
         $requests = PurchaseRequest::withCount('items')
             ->with(['documents' => function ($query) {
                 $query->where('document_type', 'bac_resolution')->latest();
             }])
-            ->where('status', 'bac_evaluation')
+            ->whereIn('status', [
+                'bac_evaluation',
+                'bac_approved',
+                'partial_po_generation',
+                'po_generation',
+                'po_approved',
+                'supplier_processing',
+                'delivered',
+                'completed',
+            ])
             ->latest()
             ->paginate(15);
 
@@ -41,7 +51,12 @@ class BacQuotationController extends Controller
 
     public function manage(PurchaseRequest $purchaseRequest): View
     {
-        abort_unless($purchaseRequest->status === 'bac_evaluation', 403);
+        // Allow view access for any PR that has been through BAC
+        abort_unless($purchaseRequest->hasBeenThroughBac(), 403);
+
+        // Determine if editing is allowed (only for bac_evaluation and partial_po_generation)
+        $canEdit = in_array($purchaseRequest->status, ['bac_evaluation', 'partial_po_generation']);
+        $isReadOnly = ! $canEdit;
 
         // Safety check - procurement method should already be auto-set when PR reaches BAC evaluation
         abort_if(empty($purchaseRequest->procurement_method), 500, 'Procurement method not set. This should not happen.');
@@ -78,12 +93,13 @@ class BacQuotationController extends Controller
         // Get BAC signatories for regeneration form
         $bacSignatories = BacSignatory::with('user')->active()->get()->groupBy('position');
 
-        return view('bac.quotations.manage', compact('purchaseRequest', 'suppliers', 'quotations', 'quotationsByGroup', 'resolution', 'rfq', 'bacSignatories'));
+        return view('bac.quotations.manage', compact('purchaseRequest', 'suppliers', 'quotations', 'quotationsByGroup', 'resolution', 'rfq', 'bacSignatories', 'canEdit', 'isReadOnly'));
     }
 
     public function groupQuotationsPartial(PurchaseRequest $purchaseRequest, PrItemGroup $group): View
     {
-        abort_unless($purchaseRequest->status === 'bac_evaluation', 403);
+        // Allow edit for bac_evaluation and partial_po_generation
+        abort_unless(in_array($purchaseRequest->status, ['bac_evaluation', 'partial_po_generation']), 403);
 
         if ($group->purchase_request_id !== $purchaseRequest->id) {
             abort(404);
@@ -416,7 +432,8 @@ class BacQuotationController extends Controller
 
     public function finalize(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
     {
-        abort_unless($purchaseRequest->status === 'bac_evaluation', 403);
+        // Allow finalization for bac_evaluation and partial_po_generation
+        abort_unless(in_array($purchaseRequest->status, ['bac_evaluation', 'partial_po_generation']), 403);
 
         // Mark winning quotation
         $winnerId = $request->integer('winning_quotation_id');
@@ -452,7 +469,8 @@ class BacQuotationController extends Controller
      */
     public function downloadResolution(PurchaseRequest $purchaseRequest): StreamedResponse
     {
-        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        // Allow view/print for any PR that has been through BAC
+        abort_unless($purchaseRequest->hasBeenThroughBac(), 403);
 
         // Get the resolution document
         $resolution = $purchaseRequest->documents()
@@ -476,7 +494,8 @@ class BacQuotationController extends Controller
      */
     public function regenerateResolution(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
     {
-        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        // Allow view/print for any PR that has been through BAC
+        abort_unless($purchaseRequest->hasBeenThroughBac(), 403);
         abort_if(empty($purchaseRequest->procurement_method), 403, 'Procurement method must be set before generating resolution.');
 
         // Validate signatory data if provided
@@ -704,7 +723,8 @@ class BacQuotationController extends Controller
      */
     public function generateRfq(PurchaseRequest $purchaseRequest): RedirectResponse
     {
-        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        // Allow view/print for any PR that has been through BAC
+        abort_unless($purchaseRequest->hasBeenThroughBac(), 403);
         abort_if(empty($purchaseRequest->resolution_number), 403, 'Resolution must be generated before creating RFQ.');
 
         try {
@@ -742,7 +762,8 @@ class BacQuotationController extends Controller
      */
     public function downloadRfq(PurchaseRequest $purchaseRequest): StreamedResponse
     {
-        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        // Allow view/print for any PR that has been through BAC
+        abort_unless($purchaseRequest->hasBeenThroughBac(), 403);
 
         // Get the RFQ document
         $rfq = $purchaseRequest->documents()
@@ -766,7 +787,8 @@ class BacQuotationController extends Controller
      */
     public function regenerateRfq(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
     {
-        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        // Allow view/print for any PR that has been through BAC
+        abort_unless($purchaseRequest->hasBeenThroughBac(), 403);
         abort_if(empty($purchaseRequest->resolution_number), 403, 'Resolution must be generated before creating RFQ.');
 
         // Validate signatory data if provided
@@ -904,7 +926,8 @@ class BacQuotationController extends Controller
     public function generateRfqForGroup(\App\Models\PrItemGroup $itemGroup): RedirectResponse
     {
         $purchaseRequest = $itemGroup->purchaseRequest;
-        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        // Allow view/print for any PR that has been through BAC
+        abort_unless($purchaseRequest->hasBeenThroughBac(), 403);
         abort_if(empty($purchaseRequest->resolution_number), 403, 'Resolution must be generated before creating RFQ.');
 
         try {
@@ -937,7 +960,8 @@ class BacQuotationController extends Controller
     public function downloadRfqForGroup(\App\Models\PrItemGroup $itemGroup): \Symfony\Component\HttpFoundation\StreamedResponse
     {
         $purchaseRequest = $itemGroup->purchaseRequest;
-        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        // Allow view/print for any PR that has been through BAC
+        abort_unless($purchaseRequest->hasBeenThroughBac(), 403);
 
         $rfqGeneration = $itemGroup->rfqGeneration;
 
@@ -960,7 +984,8 @@ class BacQuotationController extends Controller
     public function regenerateRfqForGroup(Request $request, \App\Models\PrItemGroup $itemGroup): RedirectResponse
     {
         $purchaseRequest = $itemGroup->purchaseRequest;
-        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        // Allow view/print for any PR that has been through BAC
+        abort_unless($purchaseRequest->hasBeenThroughBac(), 403);
         abort_if(empty($purchaseRequest->resolution_number), 403, 'Resolution must be generated before creating RFQ.');
 
         // Validate signatory data if provided
@@ -1006,7 +1031,8 @@ class BacQuotationController extends Controller
      */
     public function viewAoq(PurchaseRequest $purchaseRequest): View
     {
-        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        // Allow view/print for any PR that has been through BAC
+        abort_unless($purchaseRequest->hasBeenThroughBac(), 403);
 
         $aoqService = new AoqService;
 
@@ -1169,7 +1195,8 @@ class BacQuotationController extends Controller
      */
     public function resolveTie(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
     {
-        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        // Allow view/print for any PR that has been through BAC
+        abort_unless($purchaseRequest->hasBeenThroughBac(), 403);
 
         $validated = $request->validate([
             'purchase_request_item_id' => ['required', 'exists:purchase_request_items,id'],
@@ -1222,7 +1249,8 @@ class BacQuotationController extends Controller
      */
     public function applyBacOverride(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
     {
-        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        // Allow view/print for any PR that has been through BAC
+        abort_unless($purchaseRequest->hasBeenThroughBac(), 403);
 
         $validated = $request->validate([
             'purchase_request_item_id' => ['required', 'exists:purchase_request_items,id'],
@@ -1276,7 +1304,8 @@ class BacQuotationController extends Controller
      */
     public function generateAoq(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
     {
-        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        // Allow view/print for any PR that has been through BAC
+        abort_unless($purchaseRequest->hasBeenThroughBac(), 403);
 
         // Check if BAC signatories are configured (allow override during generation)
         $signatoryLoader = new \App\Services\SignatoryLoaderService;
@@ -1427,7 +1456,8 @@ class BacQuotationController extends Controller
     public function generateAoqForGroup(Request $request, \App\Models\PrItemGroup $itemGroup): RedirectResponse
     {
         $purchaseRequest = $itemGroup->purchaseRequest;
-        abort_unless($purchaseRequest->status === 'bac_evaluation' || $purchaseRequest->status === 'bac_approved', 403);
+        // Allow view/print for any PR that has been through BAC
+        abort_unless($purchaseRequest->hasBeenThroughBac(), 403);
 
         $validated = $request->validate([
             'signatories' => ['nullable', 'array'],
