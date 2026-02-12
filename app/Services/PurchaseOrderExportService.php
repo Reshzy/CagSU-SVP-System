@@ -152,13 +152,15 @@ class PurchaseOrderExportService
         $pesos = (int) floor($amount);
         $centavos = (int) round(($amount - $pesos) * 100);
 
-        $words = ucwords($this->integerToWords($pesos)).' Pesos';
-
-        if ($centavos > 0) {
-            $words .= ' and '.ucwords($this->integerToWords($centavos)).' Centavos';
+        // Handle float rounding that can produce 100 centavos (e.g. 1.999999 -> 200).
+        if ($centavos === 100) {
+            $pesos++;
+            $centavos = 0;
         }
 
-        return $words.' Only';
+        $words = ucwords($this->integerToWords($pesos)).' Pesos';
+
+        return $words.' & '.str_pad((string) $centavos, 2, '0', STR_PAD_LEFT).'/100';
     }
 
     /**

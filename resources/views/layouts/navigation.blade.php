@@ -40,28 +40,66 @@
                         @endif
 
                         @if(auth()->user()->can('manage-suppliers') && !auth()->user()->hasRole('Executive Officer'))
-                            <x-nav-link :href="route('supply.suppliers.index')" :active="request()->routeIs('supply.suppliers.*')" class="text-gray-700 hover:text-cagsu-maroon">
-                                <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h8m-6 4h6" />
-                                </svg>
-                                {{ __('Manage Suppliers') }}
-                            </x-nav-link>
-                            <x-nav-link :href="route('reports.suppliers')" :active="request()->routeIs('reports.suppliers*')" class="text-gray-700 hover:text-cagsu-maroon">
-                                <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3v18m-4-8v8M3 13v8m16-14v14m-4-10v10" />
-                                </svg>
-                                {{ __('Suppliers Report') }}
-                            </x-nav-link>
+                            <x-dropdown align="left" width="48">
+                                <x-slot name="trigger">
+                                    <button class="inline-flex items-center px-3 py-2 text-sm leading-4 font-medium transition ease-in-out duration-150 {{ (request()->routeIs('supply.suppliers.*') || request()->routeIs('reports.suppliers*')) ? 'text-cagsu-maroon border-b-2 border-cagsu-maroon' : 'text-gray-700 hover:text-cagsu-maroon hover:border-b-2 hover:border-gray-300' }}">
+                                        <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h10m-9 4h8" />
+                                        </svg>
+                                        {{ __('Suppliers') }}
+                                        <svg class="ms-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                </x-slot>
+
+                                <x-slot name="content">
+                                    <x-dropdown-link :href="route('supply.suppliers.index')" class="flex items-center">
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h8m-6 4h6" />
+                                        </svg>
+                                        {{ __('Manage Suppliers') }}
+                                    </x-dropdown-link>
+                                    <x-dropdown-link :href="route('reports.suppliers')" class="flex items-center">
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3v18m-4-8v8M3 13v8m16-14v14m-4-10v10" />
+                                        </svg>
+                                        {{ __('Suppliers Report') }}
+                                    </x-dropdown-link>
+                                </x-slot>
+                            </x-dropdown>
                         @endif
 
                         
                         @if(auth()->user()->hasRole('Supply Officer'))
-                            <x-nav-link :href="route('supply.purchase-requests.index')" :active="request()->routeIs('supply.purchase-requests.*')" class="text-gray-700 hover:text-cagsu-maroon">
-                                <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h18M9 7h9m-9 4h9M3 7h3m0 4H3m3 4H3m6 4h12" />
-                                </svg>
-                                {{ __('Supply') }}
-                            </x-nav-link>
+                            <x-dropdown align="left" width="48">
+                                <x-slot name="trigger">
+                                    <button class="inline-flex items-center px-3 py-2 text-sm leading-4 font-medium transition ease-in-out duration-150 {{ request()->routeIs('supply.*') ? 'text-cagsu-maroon border-b-2 border-cagsu-maroon' : 'text-gray-700 hover:text-cagsu-maroon hover:border-b-2 hover:border-gray-300' }}">
+                                        <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h18M9 7h9m-9 4h9M3 7h3m0 4H3m3 4H3m6 4h12" />
+                                        </svg>
+                                        {{ __('Supply') }}
+                                        <svg class="ms-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                </x-slot>
+
+                                <x-slot name="content">
+                                    <x-dropdown-link :href="route('supply.purchase-requests.index')" class="flex items-center">
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                        </svg>
+                                        {{ __('Purchase Requests') }}
+                                    </x-dropdown-link>
+                                    <x-dropdown-link :href="route('supply.purchase-orders.index')" class="flex items-center">
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                                        </svg>
+                                        {{ __('Purchase Orders') }}
+                                    </x-dropdown-link>
+                                </x-slot>
+                            </x-dropdown>
                         @endif
 
                         @if(auth()->user()->hasAnyRole(['BAC Chair','BAC Members','BAC Secretariat']))
