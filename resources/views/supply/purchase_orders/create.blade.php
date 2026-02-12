@@ -89,7 +89,7 @@
 										/>
 										<button 
 											type="button" 
-											onclick="document.querySelector('[name=supplier_name_override]').value = '{{ addslashes($winningQuotation?->supplier?->business_name ?? '') }}'"
+											onclick="document.querySelector('[name=supplier_name_override]').value = `{{ addslashes($winningQuotation?->supplier?->business_name ?? '') }}`;"
 											class="mt-2 text-sm text-blue-600 hover:text-blue-800"
 										>
 											📋 Copy from BAC

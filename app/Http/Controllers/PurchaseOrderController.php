@@ -14,6 +14,7 @@ use App\Services\PurchaseOrderExportService;
 use App\Services\PurchaseOrderService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -189,7 +190,7 @@ class PurchaseOrderController extends Controller
                 'file_extension' => $request->file('inspection_file')->getClientOriginalExtension(),
                 'file_size' => $request->file('inspection_file')->getSize(),
                 'mime_type' => $request->file('inspection_file')->getClientMimeType(),
-                'uploaded_by' => auth()->id(),
+                'uploaded_by' => Auth::id(),
                 'is_public' => false,
                 'status' => 'approved',
             ]);

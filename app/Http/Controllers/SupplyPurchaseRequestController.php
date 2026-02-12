@@ -41,7 +41,14 @@ class SupplyPurchaseRequestController extends Controller
         if ($statusFilter) {
             $query->where('status', $statusFilter);
         } else {
-            $query->whereIn('status', ['submitted', 'supply_office_review', 'bac_evaluation', 'bac_approved']);
+            // \"All Active\" status set
+            $query->whereIn('status', [
+                'submitted',
+                'supply_office_review',
+                'bac_evaluation',
+                'bac_approved',
+                'po_generation',
+            ]);
         }
 
         // Filter by department

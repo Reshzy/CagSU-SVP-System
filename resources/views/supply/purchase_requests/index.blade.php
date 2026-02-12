@@ -53,6 +53,7 @@
                                     <option value="budget_office_review" @selected($statusFilter==='budget_office_review')>Budget Review</option>
                                     <option value="bac_evaluation" @selected($statusFilter==='bac_evaluation')>BAC Evaluation</option>
                                     <option value="bac_approved" @selected($statusFilter==='bac_approved')>BAC Approved</option>
+                                    <option value="po_generation" @selected($statusFilter==='po_generation')>PO Generation</option>
                                     <option value="rejected" @selected($statusFilter==='rejected')>Rejected</option>
                                     <option value="cancelled" @selected($statusFilter==='cancelled')>Cancelled</option>
                                 </select>
@@ -120,6 +121,7 @@
                                                         'budget_office_review' => 'bg-purple-100 text-purple-800',
                                                         'bac_evaluation' => 'bg-orange-100 text-orange-800',
                                                         'bac_approved' => 'bg-green-100 text-green-800',
+                                                        'po_generation' => 'bg-indigo-100 text-indigo-800',
                                                         'rejected' => 'bg-red-100 text-red-800',
                                                         'cancelled' => 'bg-gray-100 text-gray-800',
                                                     ];
