@@ -209,9 +209,17 @@
 
                                     <div class="ml-4">
                                         @if($group->hasExistingPo())
-                                            <a href="{{ route('supply.purchase-orders.show', $group->purchaseOrders->first()) }}" class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm font-medium">
-                                                View PO →
-                                            </a>
+                                            <div class="flex gap-2">
+                                                <a href="{{ route('supply.purchase-orders.show', $group->purchaseOrders->first()) }}" class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm font-medium">
+                                                    View PO →
+                                                </a>
+                                                <a href="{{ route('supply.purchase-orders.edit', $group->purchaseOrders->first()) }}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium">
+                                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                                    </svg>
+                                                    Edit
+                                                </a>
+                                            </div>
                                         @elseif($group->isReadyForPo() && in_array($purchaseRequest->status, ['bac_evaluation', 'bac_approved']))
                                             <a href="{{ route('supply.purchase-orders.preview', ['purchaseRequest' => $purchaseRequest, 'group' => $group->id]) }}" class="inline-flex items-center px-4 py-2 bg-cagsu-maroon text-white rounded-lg hover:bg-cagsu-orange transition text-sm font-medium">
                                                 Create PO →
@@ -476,9 +484,16 @@
 
                                                         <div class="ml-2 flex-shrink-0">
                                                             @if($group->hasExistingPo())
-                                                                <a href="{{ route('supply.purchase-orders.show', $group->purchaseOrders->first()) }}" class="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-700 rounded text-xs font-medium hover:bg-gray-200">
-                                                                    View PO
-                                                                </a>
+                                                                <div class="flex gap-1">
+                                                                    <a href="{{ route('supply.purchase-orders.show', $group->purchaseOrders->first()) }}" class="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-700 rounded text-xs font-medium hover:bg-gray-200">
+                                                                        View PO
+                                                                    </a>
+                                                                    <a href="{{ route('supply.purchase-orders.edit', $group->purchaseOrders->first()) }}" class="inline-flex items-center px-2 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700" title="Edit PO">
+                                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                                                        </svg>
+                                                                    </a>
+                                                                </div>
                                                             @elseif($group->isReadyForPo())
                                                                 <a href="{{ route('supply.purchase-orders.preview', ['purchaseRequest' => $purchaseRequest, 'group' => $group->id]) }}" class="inline-flex items-center px-3 py-1 bg-cagsu-maroon text-white rounded text-xs font-medium hover:bg-cagsu-orange">
                                                                     Create PO

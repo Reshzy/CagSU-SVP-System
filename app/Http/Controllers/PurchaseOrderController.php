@@ -133,13 +133,84 @@ class PurchaseOrderController extends Controller
         return view('supply.purchase_orders.show', compact('purchaseOrder'));
     }
 
+    public function edit(PurchaseOrder $purchaseOrder): View
+    {
+        $purchaseOrder->load(['purchaseRequest', 'supplier', 'quotation', 'prItemGroup']);
+
+        // Get the purchase request and item group
+        $purchaseRequest = $purchaseOrder->purchaseRequest;
+        $itemGroup = $purchaseOrder->prItemGroup;
+
+        // Load items associated with this PO
+        if ($itemGroup) {
+            $purchaseRequest->load(['items' => function ($query) use ($itemGroup) {
+                $query->where('pr_item_group_id', $itemGroup->id);
+            }]);
+        } else {
+            $purchaseRequest->load('items');
+        }
+
+        // Get winning quotation data
+        $winningQuotation = $purchaseOrder->quotation;
+
+        // Get all suppliers for dropdown
+        $suppliers = Supplier::orderBy('business_name')->get();
+
+        // Load PO signatories
+        $ceoSignatory = PoSignatory::active()->position('ceo')->first();
+        $chiefAccountantSignatory = PoSignatory::active()->position('chief_accountant')->first();
+
+        return view('supply.purchase_orders.edit', compact(
+            'purchaseOrder',
+            'purchaseRequest',
+            'winningQuotation',
+            'suppliers',
+            'ceoSignatory',
+            'chiefAccountantSignatory',
+            'itemGroup'
+        ));
+    }
+
     public function update(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse
     {
         $validated = $request->validate([
-            'action' => ['required', 'in:send_to_supplier,acknowledge,mark_delivered,complete'],
+            'action' => ['required', 'in:send_to_supplier,acknowledge,mark_delivered,complete,edit'],
             'notes' => ['nullable', 'string'],
             'inspection_file' => ['nullable', 'file', 'max:10240'],
+            // Edit action fields
+            'supplier_id' => ['required_if:action,edit', 'exists:suppliers,id'],
+            'tin' => ['nullable', 'string', 'max:50'],
+            'supplier_name_override' => ['nullable', 'string', 'max:255'],
+            'funds_cluster' => ['required_if:action,edit', 'string'],
+            'funds_available' => ['required_if:action,edit', 'numeric', 'min:0'],
+            'ors_burs_no' => ['required_if:action,edit', 'string'],
+            'ors_burs_date' => ['required_if:action,edit', 'date'],
+            'total_amount' => ['required_if:action,edit', 'numeric', 'min:0'],
+            'delivery_address' => ['required_if:action,edit', 'string'],
+            'delivery_date_required' => ['required_if:action,edit', 'date'],
+            'terms_and_conditions' => ['required_if:action,edit', 'string'],
+            'special_instructions' => ['nullable', 'string'],
         ]);
+
+        if ($validated['action'] === 'edit') {
+            $purchaseOrder->update([
+                'supplier_id' => $validated['supplier_id'],
+                'tin' => $validated['tin'] ?? null,
+                'supplier_name_override' => $validated['supplier_name_override'] ?? null,
+                'funds_cluster' => $validated['funds_cluster'],
+                'funds_available' => $validated['funds_available'],
+                'ors_burs_no' => $validated['ors_burs_no'],
+                'ors_burs_date' => $validated['ors_burs_date'],
+                'total_amount' => $validated['total_amount'],
+                'delivery_address' => $validated['delivery_address'],
+                'delivery_date_required' => $validated['delivery_date_required'],
+                'terms_and_conditions' => $validated['terms_and_conditions'],
+                'special_instructions' => $validated['special_instructions'] ?? null,
+            ]);
+
+            return redirect()->route('supply.purchase-orders.show', $purchaseOrder)
+                ->with('status', 'Purchase Order updated successfully.');
+        }
 
         switch ($validated['action']) {
             case 'send_to_supplier':
