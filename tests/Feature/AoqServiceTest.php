@@ -389,6 +389,208 @@ class AoqServiceTest extends TestCase
         $this->assertTrue($validation['can_generate']);
     }
 
+    /** @test */
+    public function it_allows_aoq_generation_during_partial_po_generation_status()
+    {
+        // Set PR to partial_po_generation status
+        $this->pr->update(['status' => 'partial_po_generation']);
+
+        // Create quotations
+        $this->createQuotation($this->suppliers[0], 90.00);  // Lowest
+        $this->createQuotation($this->suppliers[1], 95.00);
+        $this->createQuotation($this->suppliers[2], 100.00);
+
+        // Calculate winners
+        $this->aoqService->calculateWinnersAndTies($this->pr);
+
+        // Check if can generate
+        $validation = $this->aoqService->canGenerateAoq($this->pr);
+
+        $this->assertTrue($validation['can_generate'], 'Should be able to generate AOQ during partial_po_generation');
+        $this->assertEmpty($validation['errors']);
+    }
+
+    /** @test */
+    public function it_blocks_aoq_generation_when_status_is_not_allowed()
+    {
+        // Set PR to a status that should not allow AOQ generation
+        $this->pr->update(['status' => 'po_generation']);
+
+        // Create quotations
+        $this->createQuotation($this->suppliers[0], 90.00);
+        $this->createQuotation($this->suppliers[1], 95.00);
+
+        // Calculate winners
+        $this->aoqService->calculateWinnersAndTies($this->pr);
+
+        // Check if can generate
+        $validation = $this->aoqService->canGenerateAoq($this->pr);
+
+        $this->assertFalse($validation['can_generate']);
+        $this->assertNotEmpty($validation['errors']);
+        $this->assertStringContainsString('BAC evaluation or partial PO generation', implode(' ', $validation['errors']));
+    }
+
+    /** @test */
+    public function it_allows_aoq_generation_for_group_without_po_during_partial_po_generation()
+    {
+        // Set PR to partial_po_generation status
+        $this->pr->update(['status' => 'partial_po_generation']);
+
+        // Create item groups
+        $group1 = \App\Models\PrItemGroup::create([
+            'purchase_request_id' => $this->pr->id,
+            'group_code' => 'G1',
+            'group_name' => 'Group 1',
+            'display_order' => 1,
+        ]);
+
+        $group2 = \App\Models\PrItemGroup::create([
+            'purchase_request_id' => $this->pr->id,
+            'group_code' => 'G2',
+            'group_name' => 'Group 2',
+            'display_order' => 2,
+        ]);
+
+        // Assign item to group 2
+        $this->prItem->update(['pr_item_group_id' => $group2->id]);
+
+        // Create quotations for group 2
+        $quotation1 = Quotation::create([
+            'quotation_number' => 'QUO-G2-001',
+            'purchase_request_id' => $this->pr->id,
+            'pr_item_group_id' => $group2->id,
+            'supplier_id' => $this->suppliers[0]->id,
+            'quotation_date' => now(),
+            'validity_date' => now()->addDays(10),
+            'total_amount' => 900.00,
+            'bac_status' => 'pending_evaluation',
+        ]);
+
+        QuotationItem::create([
+            'quotation_id' => $quotation1->id,
+            'purchase_request_item_id' => $this->prItem->id,
+            'unit_price' => 90.00,
+            'total_price' => 900.00,
+            'is_within_abc' => true,
+        ]);
+
+        // Calculate winners
+        $this->aoqService->calculateWinnersAndTies($this->pr, $group2);
+
+        // Check if can generate AOQ for group 2 (no PO yet)
+        $validation = $this->aoqService->canGenerateAoqForGroup($group2);
+
+        $this->assertTrue($validation['can_generate'], 'Should be able to generate AOQ for group without PO');
+        $this->assertEmpty($validation['errors']);
+    }
+
+    /** @test */
+    public function it_blocks_aoq_generation_for_group_with_existing_po()
+    {
+        // Set PR to partial_po_generation status
+        $this->pr->update(['status' => 'partial_po_generation']);
+
+        // Create item group
+        $group1 = \App\Models\PrItemGroup::create([
+            'purchase_request_id' => $this->pr->id,
+            'group_code' => 'G1',
+            'group_name' => 'Group 1',
+            'display_order' => 1,
+        ]);
+
+        // Assign item to group
+        $this->prItem->update(['pr_item_group_id' => $group1->id]);
+
+        // Create quotations
+        $quotation1 = Quotation::create([
+            'quotation_number' => 'QUO-G1-001',
+            'purchase_request_id' => $this->pr->id,
+            'pr_item_group_id' => $group1->id,
+            'supplier_id' => $this->suppliers[0]->id,
+            'quotation_date' => now(),
+            'validity_date' => now()->addDays(10),
+            'total_amount' => 900.00,
+            'bac_status' => 'pending_evaluation',
+        ]);
+
+        QuotationItem::create([
+            'quotation_id' => $quotation1->id,
+            'purchase_request_item_id' => $this->prItem->id,
+            'unit_price' => 90.00,
+            'total_price' => 900.00,
+            'is_within_abc' => true,
+        ]);
+
+        // Create a PO for this group
+        \App\Models\PurchaseOrder::create([
+            'po_number' => 'PO-0126-0001',
+            'purchase_request_id' => $this->pr->id,
+            'pr_item_group_id' => $group1->id,
+            'supplier_id' => $this->suppliers[0]->id,
+            'po_date' => now(),
+            'total_amount' => 900.00,
+            'status' => 'pending',
+        ]);
+
+        // Calculate winners
+        $this->aoqService->calculateWinnersAndTies($this->pr, $group1);
+
+        // Check if can generate AOQ for group 1 (already has PO)
+        $validation = $this->aoqService->canGenerateAoqForGroup($group1);
+
+        $this->assertFalse($validation['can_generate'], 'Should NOT be able to generate AOQ for group with existing PO');
+        $this->assertNotEmpty($validation['errors']);
+        $this->assertStringContainsString('already has a Purchase Order', implode(' ', $validation['errors']));
+    }
+
+    /** @test */
+    public function it_allows_aoq_generation_for_all_groups_during_bac_evaluation()
+    {
+        // Keep PR in bac_evaluation status
+        $this->pr->update(['status' => 'bac_evaluation']);
+
+        // Create item group
+        $group1 = \App\Models\PrItemGroup::create([
+            'purchase_request_id' => $this->pr->id,
+            'group_code' => 'G1',
+            'group_name' => 'Group 1',
+            'display_order' => 1,
+        ]);
+
+        // Assign item to group
+        $this->prItem->update(['pr_item_group_id' => $group1->id]);
+
+        // Create quotations
+        $quotation1 = Quotation::create([
+            'quotation_number' => 'QUO-G1-001',
+            'purchase_request_id' => $this->pr->id,
+            'pr_item_group_id' => $group1->id,
+            'supplier_id' => $this->suppliers[0]->id,
+            'quotation_date' => now(),
+            'validity_date' => now()->addDays(10),
+            'total_amount' => 900.00,
+            'bac_status' => 'pending_evaluation',
+        ]);
+
+        QuotationItem::create([
+            'quotation_id' => $quotation1->id,
+            'purchase_request_item_id' => $this->prItem->id,
+            'unit_price' => 90.00,
+            'total_price' => 900.00,
+            'is_within_abc' => true,
+        ]);
+
+        // Calculate winners
+        $this->aoqService->calculateWinnersAndTies($this->pr, $group1);
+
+        // Check if can generate AOQ during bac_evaluation (should always be allowed)
+        $validation = $this->aoqService->canGenerateAoqForGroup($group1);
+
+        $this->assertTrue($validation['can_generate'], 'Should be able to generate AOQ during bac_evaluation');
+        $this->assertEmpty($validation['errors']);
+    }
+
     /**
      * Helper method to create a quotation with a quote item
      */

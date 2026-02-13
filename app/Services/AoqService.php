@@ -486,9 +486,9 @@ class AoqService
     {
         $errors = [];
 
-        // Must be in bac_evaluation status
-        if ($purchaseRequest->status !== 'bac_evaluation') {
-            $errors[] = 'Purchase request must be in BAC evaluation stage.';
+        // Must be in bac_evaluation or partial_po_generation status
+        if (! in_array($purchaseRequest->status, ['bac_evaluation', 'partial_po_generation'])) {
+            $errors[] = 'Purchase request must be in BAC evaluation or partial PO generation stage.';
         }
 
         // Must have quotations
@@ -554,9 +554,15 @@ class AoqService
         $errors = [];
         $purchaseRequest = $itemGroup->purchaseRequest;
 
-        // Must be in bac_evaluation status
-        if ($purchaseRequest->status !== 'bac_evaluation') {
-            $errors[] = 'Purchase request must be in BAC evaluation stage.';
+        // Must be in bac_evaluation or partial_po_generation status
+        $allowedStatuses = ['bac_evaluation', 'partial_po_generation'];
+        if (! in_array($purchaseRequest->status, $allowedStatuses)) {
+            $errors[] = 'Purchase request must be in BAC evaluation or partial PO generation stage.';
+        }
+
+        // If in partial_po_generation, ensure this specific group doesn't already have a PO
+        if ($purchaseRequest->status === 'partial_po_generation' && $itemGroup->hasExistingPo()) {
+            $errors[] = 'This group already has a Purchase Order created.';
         }
 
         // Check if there are quotations for this group
