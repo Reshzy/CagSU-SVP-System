@@ -22,11 +22,7 @@ class PurchaseOrderController extends Controller
 {
     public function index(Request $request): View
     {
-        $orders = PurchaseOrder::with(['purchaseRequest', 'supplier'])
-            ->latest('po_date')
-            ->paginate(15);
-
-        return view('supply.purchase_orders.index', compact('orders'));
+        return view('supply.purchase_orders.index');
     }
 
     public function create(Request $request, PurchaseRequest $purchaseRequest): View
