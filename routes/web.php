@@ -31,9 +31,6 @@ Route::get('/health', function () {
     return response()->json(['status' => 'ok', 'time' => now()->toIso8601String()]);
 })->name('health');
 
-// Public file access via controller (helps avoid web server 403 on symlinks)
-Route::get('/files/{document}', [DocumentController::class, 'show'])->name('files.show');
-
 // Public Supplier Registration
 Route::get('/suppliers/register', [SupplierRegistrationController::class, 'create'])->name('suppliers.register');
 Route::post('/suppliers/register', [SupplierRegistrationController::class, 'store'])->name('suppliers.register.store');
@@ -48,6 +45,9 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+    // Authenticated file access via controller (with authorization)
+    Route::get('/files/{document}', [DocumentController::class, 'show'])->name('files.show');
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

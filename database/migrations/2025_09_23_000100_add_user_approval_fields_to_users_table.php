@@ -29,26 +29,8 @@ return new class extends Migration
             }
         });
 
-        // Index - only add if it doesn't already exist
-        if (! Schema::hasColumn('users', 'approval_status')) {
-            // If column wasn't added above, skip index
-            return;
-        }
-
-        // Check if index already exists before creating
-        $indexExists = false;
-        try {
-            $indexes = \DB::select("SHOW INDEX FROM users WHERE Key_name = 'users_approval_status_created_at_index'");
-            $indexExists = ! empty($indexes);
-        } catch (\Exception $e) {
-            $indexExists = false;
-        }
-
-        if (! $indexExists) {
-            Schema::table('users', function (Blueprint $table) {
-                $table->index(['approval_status', 'created_at']);
-            });
-        }
+        // Index already created in base migration (0001_01_01_000000_create_users_table.php)
+        // No need to recreate it here
     }
 
     /**
