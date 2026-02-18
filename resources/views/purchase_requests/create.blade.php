@@ -102,8 +102,11 @@
                                     <div class="mb-4 border border-gray-200 dark:border-gray-700 rounded-lg"
                                          x-show="categoryVisible('{{ $category }}', {{ json_encode($items->pluck('appItem.item_name')->toArray()) }}, {{ json_encode($items->pluck('appItem.item_code')->toArray()) }})">
                                         <!-- Category Header -->
-                                        <div class="bg-gray-50 dark:bg-gray-900 px-4 py-3 cursor-pointer flex justify-between items-center"
-                                             @click="toggleCategory('{{ $category }}')">
+                                        <div class="bg-gray-50 dark:bg-gray-900 px-4 py-3 cursor-pointer flex justify-between items-center hover:bg-gray-100 dark:hover:bg-gray-800 focus-within:ring-2 focus-within:ring-inset focus-within:ring-indigo-500 transition-colors"
+                                             @click="toggleCategory('{{ $category }}')"
+                                             tabindex="0"
+                                             @keydown.enter.prevent="toggleCategory('{{ $category }}')"
+                                             @keydown.space.prevent="toggleCategory('{{ $category }}')">
                                             <div class="flex items-center gap-2">
                                                 <svg class="w-5 h-5 transition-transform duration-200 text-white" 
                                                      :class="{'rotate-90': expandedCategories.includes('{{ $category }}')}"
@@ -232,8 +235,11 @@
                                         @foreach($part2Categories as $category => $items)
                                             <div class="mb-4 border border-gray-200 dark:border-gray-700 rounded-lg"
                                                  x-show="categoryVisible('{{ $category }}', {{ json_encode($items->pluck('appItem.item_name')->toArray()) }}, {{ json_encode($items->pluck('appItem.item_code')->toArray()) }})">
-                                                <div class="bg-gray-50 dark:bg-gray-900 px-4 py-3 cursor-pointer flex justify-between items-center"
-                                                     @click="toggleCategory('{{ $category }}')">
+                                                <div class="bg-gray-50 dark:bg-gray-900 px-4 py-3 cursor-pointer flex justify-between items-center hover:bg-gray-100 dark:hover:bg-gray-800 focus-within:ring-2 focus-within:ring-inset focus-within:ring-indigo-500 transition-colors"
+                                                     @click="toggleCategory('{{ $category }}')"
+                                                     tabindex="0"
+                                                     @keydown.enter.prevent="toggleCategory('{{ $category }}')"
+                                                     @keydown.space.prevent="toggleCategory('{{ $category }}')">
                                                     <div class="flex items-center gap-2">
                                                         <svg class="w-5 h-5 transition-transform duration-200" 
                                                              :class="{'rotate-90': expandedCategories.includes('{{ $category }}')}"
