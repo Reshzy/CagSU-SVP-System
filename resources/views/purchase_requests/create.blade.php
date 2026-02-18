@@ -105,13 +105,13 @@
                                         <div class="bg-gray-50 dark:bg-gray-900 px-4 py-3 cursor-pointer flex justify-between items-center"
                                              @click="toggleCategory('{{ $category }}')">
                                             <div class="flex items-center gap-2">
-                                                <svg class="w-5 h-5 transition-transform duration-200" 
+                                                <svg class="w-5 h-5 transition-transform duration-200 text-white" 
                                                      :class="{'rotate-90': expandedCategories.includes('{{ $category }}')}"
                                                      fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                                                 </svg>
                                                 <h4 class="text-md font-semibold text-gray-800 dark:text-gray-200">{{ $category }}</h4>
-                                                <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full dark:bg-blue-900 dark:text-blue-300">
+                                                <span class="text-center bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full dark:bg-blue-900 dark:text-blue-300">
                                                     {{ $items->count() }} items
                                                 </span>
                                             </div>

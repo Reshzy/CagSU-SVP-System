@@ -56,7 +56,28 @@
         </div>
         {{-- Stack for page-specific scripts pushed from views --}}
         @stack('scripts')
-        
+
+        {{-- Back to top: fixed bottom-right, shows when scrolled down, smooth scroll to top --}}
+        <div
+            x-data="{ show: false }"
+            x-init="show = window.scrollY > 300"
+            @scroll.window.throttle.100ms="show = window.scrollY > 300"
+            x-cloak
+        >
+            <button
+                type="button"
+                aria-label="Back to top"
+                x-show="show"
+                x-transition
+                @click="window.scrollTo({ top: 0, behavior: 'smooth' })"
+                class="fixed bottom-6 right-4 sm:bottom-6 sm:right-6 z-50 flex items-center justify-center w-12 h-12 rounded-full bg-cagsu-maroon text-white shadow-lg hover:bg-cagsu-maroon/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cagsu-maroon"
+            >
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                </svg>
+            </button>
+        </div>
+
         @livewireScripts
     </body>
 </html>
