@@ -360,7 +360,8 @@
                 </div>
 
                 <!-- Sticky Summary Sidebar -->
-                <div class="w-96 sticky top-4 self-start space-y-6">
+                <div class="w-96 sticky top-4 self-start max-h-[calc(100vh-1rem)] overflow-y-auto scrollbar-hide">
+                    <div class="space-y-6">
                     <!-- PR Details Form -->
                     <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                         <div class="p-4">
@@ -520,6 +521,7 @@
                             </div>
                         </div>
                     </div>
+                    </div>{{-- end space-y-6 inner wrapper --}}
                 </div>
             </div>
         </div>

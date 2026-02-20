@@ -50,7 +50,7 @@
                                 <h3 class="text-xl font-bold text-white">{{ $group->group_name }}</h3>
                                 <p class="text-blue-100 text-sm">Code: {{ $group->group_code }} | {{ $group->items->count() }} items</p>
                             </div>
-                            <span class="bg-white bg-opacity-20 text-black px-3 py-1 rounded-full text-sm font-semibold">
+                            <span class="bg-white bg-opacity-100 text-black px-3 py-1 rounded-full text-sm font-semibold">
                                 Group {{ $index + 1 }} of {{ count($groupsData) }}
                             </span>
                         </div>
