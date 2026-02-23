@@ -49,6 +49,8 @@ class SupplyPurchaseRequestController extends Controller
                 'bac_approved',
                 'partial_po_generation',
                 'po_generation',
+                'supplier_processing',
+                'completed',
             ]);
         }
 

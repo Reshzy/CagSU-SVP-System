@@ -55,6 +55,8 @@
                                     <option value="bac_approved" @selected($statusFilter==='bac_approved')>BAC Approved</option>
                                     <option value="partial_po_generation" @selected($statusFilter==='partial_po_generation')>Partial PO Generation</option>
                                     <option value="po_generation" @selected($statusFilter==='po_generation')>PO Generation</option>
+                                    <option value="supplier_processing" @selected($statusFilter==='supplier_processing')>Supplier Processing</option>
+                                    <option value="completed" @selected($statusFilter==='completed')>Completed</option>
                                     <option value="rejected" @selected($statusFilter==='rejected')>Rejected</option>
                                     <option value="cancelled" @selected($statusFilter==='cancelled')>Cancelled</option>
                                 </select>
@@ -124,6 +126,8 @@
                                                         'bac_approved' => 'bg-green-100 text-green-800',
                                                         'partial_po_generation' => 'bg-cyan-100 text-cyan-800',
                                                         'po_generation' => 'bg-indigo-100 text-indigo-800',
+                                                        'supplier_processing' => 'bg-teal-100 text-teal-800',
+                                                        'completed' => 'bg-emerald-100 text-emerald-800',
                                                         'rejected' => 'bg-red-100 text-red-800',
                                                         'cancelled' => 'bg-gray-100 text-gray-800',
                                                     ];
