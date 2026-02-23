@@ -847,7 +847,8 @@ class AoqService
             $referenceNumber,
             $signatoryData,
             $groupQuotations,
-            $itemGroup->group_name
+            $itemGroup->group_name,
+            $itemGroup->rfqGeneration?->rfq_number
         );
 
         // Rename to include group code
@@ -922,7 +923,8 @@ class AoqService
         string $referenceNumber,
         ?array $signatoryData,
         $quotations,
-        ?string $groupLabel = null
+        ?string $groupLabel = null,
+        ?string $rfqNumber = null
     ): string {
         $phpWord = new PhpWord;
         $phpWord->setDefaultFontName('Century Gothic');
@@ -1023,7 +1025,7 @@ class AoqService
         $metaTable->addCell($metaColumnWidths['rightLabel'], ['valign' => 'center'] + $metaCellStyle)
             ->addText('RFQ.NO.: ‎ ', $metaLabelStyle, $paragraphRight);
         $metaTable->addCell($metaColumnWidths['rightValue'], ['valign' => 'center'] + $metaCellStyle)
-            ->addText($purchaseRequest->rfq_number ?? 'N/A', $metaValueStyle, $paragraphLeft);
+            ->addText($rfqNumber ?? $purchaseRequest->rfq_number ?? 'N/A', $metaValueStyle, $paragraphLeft);
 
         $metaTable->addRow($metaRowHeight, ['exactHeight' => true]);
         $metaTable->addCell($metaColumnWidths['purposeLabel'], ['valign' => 'top', 'vMerge' => 'continue'] + $metaCellStyle);

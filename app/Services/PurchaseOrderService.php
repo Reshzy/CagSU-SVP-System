@@ -80,6 +80,12 @@ class PurchaseOrderService
             $createdPOs = collect();
 
             foreach ($poDataArray as $poData) {
+                $fundsCluster = filled($poData['funds_cluster'] ?? null) ? $poData['funds_cluster'] : null;
+                $fundsAvailable = isset($poData['funds_available']) && $poData['funds_available'] !== '' ? $poData['funds_available'] : null;
+                $orsBursNo = filled($poData['ors_burs_no'] ?? null) ? $poData['ors_burs_no'] : null;
+                $orsBursDate = isset($poData['ors_burs_date']) && $poData['ors_burs_date'] !== '' ? $poData['ors_burs_date'] : null;
+                $totalAmount = isset($poData['total_amount']) && $poData['total_amount'] !== '' ? $poData['total_amount'] : null;
+
                 // Create the purchase order
                 $po = PurchaseOrder::create([
                     'po_number' => PurchaseOrder::generateNextPoNumber(),
@@ -90,11 +96,11 @@ class PurchaseOrderService
                     'po_date' => now(),
                     'tin' => $poData['tin'] ?? null,
                     'supplier_name_override' => $poData['supplier_name_override'] ?? null,
-                    'funds_cluster' => $poData['funds_cluster'],
-                    'funds_available' => $poData['funds_available'],
-                    'ors_burs_no' => $poData['ors_burs_no'],
-                    'ors_burs_date' => $poData['ors_burs_date'],
-                    'total_amount' => $poData['total_amount'],
+                    'funds_cluster' => $fundsCluster,
+                    'funds_available' => $fundsAvailable,
+                    'ors_burs_no' => $orsBursNo,
+                    'ors_burs_date' => $orsBursDate,
+                    'total_amount' => $totalAmount,
                     'delivery_address' => $poData['delivery_address'],
                     'delivery_date_required' => $poData['delivery_date_required'],
                     'terms_and_conditions' => $poData['terms_and_conditions'],

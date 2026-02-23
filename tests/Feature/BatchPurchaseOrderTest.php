@@ -315,8 +315,6 @@ class BatchPurchaseOrderTest extends TestCase
 
         $response->assertSessionHasErrors([
             'purchase_orders.0.quotation_id',
-            'purchase_orders.0.funds_cluster',
-            'purchase_orders.0.funds_available',
         ]);
     }
 

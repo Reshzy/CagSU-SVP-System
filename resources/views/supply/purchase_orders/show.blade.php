@@ -33,7 +33,7 @@
 						</div>
 						<div>
 							<div class="text-sm text-gray-600">Total Amount</div>
-							<div class="font-medium">₱{{ number_format((float)$purchaseOrder->total_amount, 2) }}</div>
+							<div class="font-medium">{{ $purchaseOrder->total_amount !== null ? '₱' . number_format((float) $purchaseOrder->total_amount, 2) : '—' }}</div>
 						</div>
 						<div>
 							<div class="text-sm text-gray-600">Status</div>

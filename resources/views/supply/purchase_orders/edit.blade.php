@@ -121,67 +121,62 @@
 							<h3 class="text-lg font-semibold mb-3">Financial Details</h3>
 							<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 								<div>
-									<label class="block text-sm font-medium text-gray-600">Funds Cluster <span class="text-red-500">*</span></label>
+									<label class="block text-sm font-medium text-gray-600">Funds Cluster</label>
 									<input 
 										type="text" 
 										name="funds_cluster" 
 										class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
 										value="{{ old('funds_cluster', $purchaseOrder->funds_cluster) }}"
-										required 
 									/>
 									@error('funds_cluster')
 										<p class="mt-1 text-sm text-red-600">{{ $message }}</p>
 									@enderror
 								</div>
 								<div>
-									<label class="block text-sm font-medium text-gray-600">Funds Available <span class="text-red-500">*</span></label>
+									<label class="block text-sm font-medium text-gray-600">Funds Available</label>
 									<input 
 										type="number" 
 										step="0.01" 
 										name="funds_available" 
 										class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
 										value="{{ old('funds_available', $purchaseOrder->funds_available) }}"
-										required 
 									/>
 									@error('funds_available')
 										<p class="mt-1 text-sm text-red-600">{{ $message }}</p>
 									@enderror
 								</div>
 								<div>
-									<label class="block text-sm font-medium text-gray-600">ORS/BURS No. <span class="text-red-500">*</span></label>
+									<label class="block text-sm font-medium text-gray-600">ORS/BURS No.</label>
 									<input 
 										type="text" 
 										name="ors_burs_no" 
 										class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
 										value="{{ old('ors_burs_no', $purchaseOrder->ors_burs_no) }}"
-										required 
 									/>
 									@error('ors_burs_no')
 										<p class="mt-1 text-sm text-red-600">{{ $message }}</p>
 									@enderror
 								</div>
 								<div>
-									<label class="block text-sm font-medium text-gray-600">Date of ORS/BURS <span class="text-red-500">*</span></label>
+									<label class="block text-sm font-medium text-gray-600">Date of ORS/BURS</label>
 									<input 
 										type="date" 
 										name="ors_burs_date" 
 										class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
 										value="{{ old('ors_burs_date', $purchaseOrder->ors_burs_date?->format('Y-m-d')) }}"
-										required 
 									/>
 									@error('ors_burs_date')
 										<p class="mt-1 text-sm text-red-600">{{ $message }}</p>
 									@enderror
 								</div>
 								<div>
-									<label class="block text-sm font-medium text-gray-600">Total Amount <span class="text-red-500">*</span></label>
+									<label class="block text-sm font-medium text-gray-600">Total Amount</label>
 									<input 
 										type="number" 
 										step="0.01" 
 										name="total_amount" 
 										class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
 										value="{{ old('total_amount', $purchaseOrder->total_amount) }}"
-										required 
 									/>
 									@error('total_amount')
 										<p class="mt-1 text-sm text-red-600">{{ $message }}</p>

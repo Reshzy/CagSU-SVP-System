@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Department;
 use App\Models\PoSignatory;
-use App\Models\PrItemGroup;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseRequest;
 use App\Models\Quotation;
@@ -94,7 +93,7 @@ class PurchaseOrderCreationTest extends TestCase
         ]);
     }
 
-    public function test_po_requires_financial_fields(): void
+    public function test_po_can_be_created_without_optional_financial_fields(): void
     {
         $department = Department::factory()->create();
         $pr = PurchaseRequest::factory()->create([
@@ -103,18 +102,33 @@ class PurchaseOrderCreationTest extends TestCase
         ]);
 
         $supplier = Supplier::factory()->create();
+        $quotation = Quotation::factory()->create([
+            'purchase_request_id' => $pr->id,
+            'supplier_id' => $supplier->id,
+            'is_winning_bid' => true,
+        ]);
 
         $response = $this->actingAs($this->user)
             ->post(route('supply.purchase-orders.store', $pr), [
                 'supplier_id' => $supplier->id,
-                'total_amount' => 45000.00,
+                'quotation_id' => $quotation->id,
                 'delivery_address' => 'Test Campus',
                 'delivery_date_required' => '2026-03-01',
                 'terms_and_conditions' => 'Standard terms',
-                // Missing: funds_cluster, funds_available, ors_burs_no, ors_burs_date
+                // Omitting optional: funds_cluster, funds_available, ors_burs_no, ors_burs_date, total_amount
             ]);
 
-        $response->assertSessionHasErrors(['funds_cluster', 'funds_available', 'ors_burs_no', 'ors_burs_date']);
+        $response->assertRedirect();
+        $this->assertDatabaseHas('purchase_orders', [
+            'purchase_request_id' => $pr->id,
+            'supplier_id' => $supplier->id,
+        ]);
+        $po = PurchaseOrder::where('purchase_request_id', $pr->id)->first();
+        $this->assertNull($po->funds_cluster);
+        $this->assertNull($po->funds_available);
+        $this->assertNull($po->ors_burs_no);
+        $this->assertNull($po->ors_burs_date);
+        $this->assertNull($po->total_amount);
     }
 
     public function test_po_signatories_can_be_created(): void
