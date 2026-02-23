@@ -2,7 +2,8 @@
     "agents": [
         "cursor"
     ],
-    "herd_mcp": false,
-    "mcp": true,
-    "sail": false
+    "skills": [
+        "livewire-development",
+        "tailwindcss-development"
+    ]
 }
