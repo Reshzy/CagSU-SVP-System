@@ -321,4 +321,117 @@ class PurchaseRequest extends Model
             'completed',
         ]);
     }
+
+    /**
+     * Compute this PR's status from the aggregate of its group statuses.
+     * Returns null for non-grouped PRs so callers can fall back to stored status.
+     *
+     * The PR status reflects the "earliest" (minimum) group status so that
+     * operations are allowed as long as any group still needs them.
+     *
+     * @return string|null Computed PR status, or null if no groups exist
+     */
+    public function computeStatusFromGroups(): ?string
+    {
+        $groups = $this->itemGroups;
+
+        if ($groups->isEmpty()) {
+            return null;
+        }
+
+        /** @var array<string, string> Maps group status → PR status */
+        $statusMap = [
+            'pending' => 'bac_evaluation',
+            'aoq_generated' => 'bac_approved',
+            'po_created' => 'partial_po_generation',
+            'all_po_approved' => 'po_approved',
+            'processing' => 'supplier_processing',
+            'delivered' => 'delivered',
+            'completed' => 'completed',
+        ];
+
+        $orderedKeys = array_keys($statusMap);
+
+        $groupStatuses = $groups->map(fn ($g) => $g->computeStatus());
+
+        // Use the minimum (earliest) group status as the effective PR status
+        $minIndex = $groupStatuses
+            ->map(fn ($s) => array_search($s, $orderedKeys, true))
+            ->min();
+
+        $minGroupStatus = $orderedKeys[$minIndex] ?? 'pending';
+
+        return $statusMap[$minGroupStatus] ?? $this->status;
+    }
+
+    /**
+     * Get the effective PR status, using computed group status for grouped PRs
+     * and the stored status for non-grouped PRs.
+     */
+    public function getEffectiveStatus(): string
+    {
+        return $this->computeStatusFromGroups() ?? $this->status;
+    }
+
+    /**
+     * Sync the stored PR status with the computed group status.
+     * Call this after any PO status change to keep the stored status accurate
+     * for database queries and reports.
+     */
+    public function syncStatusFromGroups(): void
+    {
+        $computed = $this->computeStatusFromGroups();
+
+        if ($computed === null || $this->status === $computed) {
+            return;
+        }
+
+        $this->status = $computed;
+        $this->status_updated_at = now();
+
+        if ($computed === 'completed') {
+            $this->completed_at = now();
+        }
+
+        $this->save();
+    }
+
+    /**
+     * Determine whether any group (or the non-grouped PR itself) is still in a
+     * state that allows AOQ generation.
+     */
+    public function canCreateAoq(): bool
+    {
+        $groups = $this->itemGroups;
+
+        if ($groups->isNotEmpty()) {
+            return $groups->some(fn ($g) => $g->canCreateAoq());
+        }
+
+        return in_array($this->status, ['bac_evaluation']);
+    }
+
+    /**
+     * Determine whether any group (or the non-grouped PR itself) is still in a
+     * state that allows PO creation.
+     */
+    public function canCreatePo(): bool
+    {
+        $groups = $this->itemGroups;
+
+        if ($groups->isNotEmpty()) {
+            return $groups->some(fn ($g) => $g->canCreatePo());
+        }
+
+        return in_array($this->status, ['bac_approved', 'bac_evaluation']);
+    }
+
+    /**
+     * Determine whether groups (or the non-grouped PR itself) can still be
+     * managed (created, edited, or deleted).
+     */
+    public function canManageGroups(): bool
+    {
+        return in_array($this->getEffectiveStatus(), ['bac_evaluation', 'partial_po_generation']);
+    }
 }

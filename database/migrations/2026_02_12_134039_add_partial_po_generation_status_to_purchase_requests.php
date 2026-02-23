@@ -10,7 +10,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Add 'partial_po_generation' status to the enum
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         DB::statement("ALTER TABLE purchase_requests MODIFY COLUMN status ENUM(
             'draft',
             'submitted',
@@ -36,13 +39,14 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Remove 'partial_po_generation' status from the enum
-        // First, update any records with this status to 'po_generation'
         DB::table('purchase_requests')
             ->where('status', 'partial_po_generation')
             ->update(['status' => 'po_generation']);
 
-        // Then remove from enum
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         DB::statement("ALTER TABLE purchase_requests MODIFY COLUMN status ENUM(
             'draft',
             'submitted',

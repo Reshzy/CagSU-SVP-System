@@ -17,8 +17,7 @@ class BacItemGroupController extends Controller
      */
     public function create(PurchaseRequest $purchaseRequest): View
     {
-        // Allow grouping for bac_evaluation and partial_po_generation (for groups without PO)
-        abort_unless(in_array($purchaseRequest->status, ['bac_evaluation', 'partial_po_generation']), 403, 'PR must be in BAC evaluation or partial PO generation stage to split items.');
+        abort_unless($purchaseRequest->canManageGroups(), 403, 'PR must be in BAC evaluation or partial PO generation stage to split items.');
 
         $purchaseRequest->load('items', 'itemGroups.items');
 
@@ -30,8 +29,7 @@ class BacItemGroupController extends Controller
      */
     public function store(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
     {
-        // Allow grouping for bac_evaluation and partial_po_generation (for groups without PO)
-        abort_unless(in_array($purchaseRequest->status, ['bac_evaluation', 'partial_po_generation']), 403, 'PR must be in BAC evaluation or partial PO generation stage to split items.');
+        abort_unless($purchaseRequest->canManageGroups(), 403, 'PR must be in BAC evaluation or partial PO generation stage to split items.');
 
         $validated = $request->validate([
             'groups' => ['required', 'array', 'min:1'],
@@ -86,8 +84,7 @@ class BacItemGroupController extends Controller
      */
     public function edit(PurchaseRequest $purchaseRequest): View
     {
-        // Allow editing for bac_evaluation and partial_po_generation (for groups without PO)
-        abort_unless(in_array($purchaseRequest->status, ['bac_evaluation', 'partial_po_generation']), 403, 'PR must be in BAC evaluation or partial PO generation stage to edit groups.');
+        abort_unless($purchaseRequest->canManageGroups(), 403, 'PR must be in BAC evaluation or partial PO generation stage to edit groups.');
 
         $purchaseRequest->load('items', 'itemGroups.items');
 
@@ -99,8 +96,7 @@ class BacItemGroupController extends Controller
      */
     public function update(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
     {
-        // Allow editing for bac_evaluation and partial_po_generation (for groups without PO)
-        abort_unless(in_array($purchaseRequest->status, ['bac_evaluation', 'partial_po_generation']), 403, 'PR must be in BAC evaluation or partial PO generation stage to edit groups.');
+        abort_unless($purchaseRequest->canManageGroups(), 403, 'PR must be in BAC evaluation or partial PO generation stage to edit groups.');
 
         $validated = $request->validate([
             'groups' => ['required', 'array', 'min:1'],
@@ -160,8 +156,7 @@ class BacItemGroupController extends Controller
      */
     public function destroy(PurchaseRequest $purchaseRequest): RedirectResponse
     {
-        // Allow deletion for bac_evaluation and partial_po_generation (for groups without PO)
-        abort_unless(in_array($purchaseRequest->status, ['bac_evaluation', 'partial_po_generation']), 403, 'PR must be in BAC evaluation or partial PO generation stage.');
+        abort_unless($purchaseRequest->canManageGroups(), 403, 'PR must be in BAC evaluation or partial PO generation stage.');
 
         DB::transaction(function () use ($purchaseRequest) {
             // Clear all item group assignments

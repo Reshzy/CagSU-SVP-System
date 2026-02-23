@@ -113,4 +113,69 @@ class PrItemGroup extends Model
     {
         return $this->quotations()->where('is_winning_bid', true)->first();
     }
+
+    /**
+     * Compute the current status of this group based on its PO statuses and AOQ.
+     *
+     * Group status hierarchy (from earliest to latest):
+     * - pending: No AOQ generated yet
+     * - aoq_generated: AOQ done, ready for PO
+     * - po_created: At least one PO exists (pending approval)
+     * - all_po_approved: All POs approved
+     * - processing: At least one PO sent to supplier
+     * - delivered: All POs delivered or completed
+     * - completed: All POs completed
+     */
+    public function computeStatus(): string
+    {
+        $pos = $this->purchaseOrders;
+
+        if ($pos->isEmpty()) {
+            return $this->aoqGeneration()->exists() ? 'aoq_generated' : 'pending';
+        }
+
+        if ($pos->every(fn ($po) => $po->status === 'completed')) {
+            return 'completed';
+        }
+
+        if ($pos->every(fn ($po) => in_array($po->status, ['delivered', 'completed']))) {
+            return 'delivered';
+        }
+
+        if ($pos->some(fn ($po) => in_array($po->status, ['sent_to_supplier', 'acknowledged_by_supplier', 'delivered', 'completed']))) {
+            return 'processing';
+        }
+
+        if ($pos->every(fn ($po) => in_array($po->status, ['approved', 'sent_to_supplier', 'acknowledged_by_supplier', 'delivered', 'completed']))) {
+            return 'all_po_approved';
+        }
+
+        return 'po_created';
+    }
+
+    /**
+     * Determine if this group can have a new AOQ generated.
+     * Only allowed when the group has no AOQ or PO yet.
+     */
+    public function canCreateAoq(): bool
+    {
+        return $this->computeStatus() === 'pending';
+    }
+
+    /**
+     * Determine if this group can have a new PO created.
+     * Allowed once an AOQ exists and the group has not yet been fully processed.
+     */
+    public function canCreatePo(): bool
+    {
+        return in_array($this->computeStatus(), ['aoq_generated', 'po_created']);
+    }
+
+    /**
+     * Determine if this group has been fully completed.
+     */
+    public function isCompleted(): bool
+    {
+        return $this->computeStatus() === 'completed';
+    }
 }

@@ -27,11 +27,15 @@ class PurchaseOrderController extends Controller
 
     public function create(Request $request, PurchaseRequest $purchaseRequest): View
     {
-        abort_unless(in_array($purchaseRequest->status, ['bac_approved', 'bac_evaluation']), 403);
+        abort_unless($purchaseRequest->canCreatePo(), 403);
 
         // Check if creating PO for a specific group
         $groupId = $request->query('group');
         $itemGroup = $groupId ? PrItemGroup::find($groupId) : null;
+
+        if ($itemGroup) {
+            abort_unless($itemGroup->canCreatePo(), 403, 'This group cannot have more Purchase Orders created.');
+        }
 
         // Load items (all or just from the group)
         if ($itemGroup) {
@@ -72,7 +76,7 @@ class PurchaseOrderController extends Controller
 
     public function store(StorePurchaseOrderRequest $request, PurchaseRequest $purchaseRequest): RedirectResponse
     {
-        abort_unless(in_array($purchaseRequest->status, ['bac_approved', 'bac_evaluation']), 403);
+        abort_unless($purchaseRequest->canCreatePo(), 403);
 
         $validated = $request->validated();
 
@@ -104,20 +108,15 @@ class PurchaseOrderController extends Controller
             'status' => 'pending_approval',
         ]);
 
-        // Update PR status based on group completion
-        // If PR has groups, check if all groups now have POs
+        // Sync PR status from groups (or use legacy logic for non-grouped PRs)
+        $purchaseRequest->load('itemGroups');
         if ($purchaseRequest->itemGroups->isNotEmpty()) {
-            $newStatus = $purchaseRequest->allGroupsHavePo()
-                ? 'po_generation'
-                : 'partial_po_generation';
+            $purchaseRequest->syncStatusFromGroups();
         } else {
-            // Non-grouped PR - straight to po_generation
-            $newStatus = 'po_generation';
+            $purchaseRequest->status = 'po_generation';
+            $purchaseRequest->status_updated_at = now();
+            $purchaseRequest->save();
         }
-
-        $purchaseRequest->status = $newStatus;
-        $purchaseRequest->status_updated_at = now();
-        $purchaseRequest->save();
 
         return redirect()->route('supply.purchase-orders.show', $po)->with('status', 'Purchase Order created.');
     }
@@ -212,44 +211,49 @@ class PurchaseOrderController extends Controller
             case 'send_to_supplier':
                 $purchaseOrder->status = 'sent_to_supplier';
                 $purchaseOrder->sent_to_supplier_at = now();
-                // Update related PR status to supplier_processing
-                if ($purchaseOrder->purchaseRequest) {
-                    $purchaseOrder->purchaseRequest->status = 'supplier_processing';
-                    $purchaseOrder->purchaseRequest->status_updated_at = now();
-                    $purchaseOrder->purchaseRequest->save();
-                }
                 break;
             case 'acknowledge':
                 $purchaseOrder->status = 'acknowledged_by_supplier';
                 $purchaseOrder->acknowledged_at = now();
-                // Keep PR in supplier_processing
-                if ($purchaseOrder->purchaseRequest && $purchaseOrder->purchaseRequest->status !== 'supplier_processing') {
-                    $purchaseOrder->purchaseRequest->status = 'supplier_processing';
-                    $purchaseOrder->purchaseRequest->status_updated_at = now();
-                    $purchaseOrder->purchaseRequest->save();
-                }
                 break;
             case 'mark_delivered':
                 $purchaseOrder->status = 'delivered';
                 $purchaseOrder->actual_delivery_date = now()->toDateString();
-                // Update PR to delivered
-                if ($purchaseOrder->purchaseRequest) {
-                    $purchaseOrder->purchaseRequest->status = 'delivered';
-                    $purchaseOrder->purchaseRequest->status_updated_at = now();
-                    $purchaseOrder->purchaseRequest->save();
-                }
                 break;
             case 'complete':
                 $purchaseOrder->status = 'completed';
                 $purchaseOrder->delivery_complete = true;
-                // Update PR to completed
-                if ($purchaseOrder->purchaseRequest) {
-                    $purchaseOrder->purchaseRequest->status = 'completed';
-                    $purchaseOrder->purchaseRequest->completed_at = now();
-                    $purchaseOrder->purchaseRequest->status_updated_at = now();
-                    $purchaseOrder->purchaseRequest->save();
-                }
                 break;
+        }
+
+        // Save the PO first so computeStatus() on the group sees the updated PO status
+        $purchaseOrder->save();
+
+        // Sync PR status from all group/PO statuses, or fall back to legacy per-action logic
+        if ($purchaseOrder->purchaseRequest) {
+            $pr = $purchaseOrder->purchaseRequest;
+            $pr->load('itemGroups.purchaseOrders');
+
+            if ($pr->itemGroups->isNotEmpty()) {
+                $pr->syncStatusFromGroups();
+            } else {
+                // Non-grouped PR: keep the original direct-status behaviour
+                $newPrStatus = match ($validated['action']) {
+                    'send_to_supplier', 'acknowledge' => 'supplier_processing',
+                    'mark_delivered' => 'delivered',
+                    'complete' => 'completed',
+                    default => $pr->status,
+                };
+
+                if ($pr->status !== $newPrStatus) {
+                    $pr->status = $newPrStatus;
+                    $pr->status_updated_at = now();
+                    if ($newPrStatus === 'completed') {
+                        $pr->completed_at = now();
+                    }
+                    $pr->save();
+                }
+            }
         }
 
         // Handle optional inspection report upload
@@ -273,8 +277,6 @@ class PurchaseOrderController extends Controller
             ]);
         }
 
-        $purchaseOrder->save();
-
         return back()->with('status', 'PO updated.');
     }
 
@@ -291,7 +293,7 @@ class PurchaseOrderController extends Controller
      */
     public function preview(Request $request, PurchaseRequest $purchaseRequest): View|RedirectResponse
     {
-        abort_unless(in_array($purchaseRequest->status, ['bac_approved', 'bac_evaluation']), 403);
+        abort_unless($purchaseRequest->canCreatePo(), 403);
 
         $groupId = $request->query('group');
         $itemGroup = $groupId ? PrItemGroup::find($groupId) : null;
@@ -319,7 +321,7 @@ class PurchaseOrderController extends Controller
      */
     public function batchCreate(Request $request, PurchaseRequest $purchaseRequest): View
     {
-        abort_unless(in_array($purchaseRequest->status, ['bac_approved', 'bac_evaluation']), 403);
+        abort_unless($purchaseRequest->canCreatePo(), 403);
 
         $groupId = $request->query('group');
         $itemGroup = $groupId ? PrItemGroup::find($groupId) : null;
@@ -345,7 +347,7 @@ class PurchaseOrderController extends Controller
      */
     public function batchStore(StoreBatchPurchaseOrderRequest $request, PurchaseRequest $purchaseRequest): RedirectResponse
     {
-        abort_unless(in_array($purchaseRequest->status, ['bac_approved', 'bac_evaluation']), 403);
+        abort_unless($purchaseRequest->canCreatePo(), 403);
 
         $validated = $request->validated();
         $groupId = $request->input('pr_item_group_id');

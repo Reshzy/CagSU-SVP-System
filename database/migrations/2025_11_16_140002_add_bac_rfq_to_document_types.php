@@ -1,8 +1,6 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
@@ -12,7 +10,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // For MySQL, we need to use raw SQL to modify the enum
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         DB::statement("ALTER TABLE documents MODIFY COLUMN document_type ENUM(
             'purchase_request',
             'ppmp',
@@ -36,7 +37,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Remove bac_rfq from the enum
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         DB::statement("ALTER TABLE documents MODIFY COLUMN document_type ENUM(
             'purchase_request',
             'ppmp',
@@ -54,4 +58,3 @@ return new class extends Migration
         )");
     }
 };
-

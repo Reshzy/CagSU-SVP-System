@@ -12,16 +12,20 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Check if column exists and drop foreign key if it exists
+        // On SQLite the column is already a plain integer — no re-creation needed
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
+        // Drop existing ppmp_item_id column if it exists (re-creating with correct FK target)
         if (Schema::hasColumn('purchase_request_items', 'ppmp_item_id')) {
             try {
-                // Check if foreign key constraint actually exists
                 $foreignKeys = DB::select("
-                    SELECT CONSTRAINT_NAME 
-                    FROM information_schema.KEY_COLUMN_USAGE 
-                    WHERE TABLE_SCHEMA = DATABASE() 
-                    AND TABLE_NAME = 'purchase_request_items' 
-                    AND COLUMN_NAME = 'ppmp_item_id' 
+                    SELECT CONSTRAINT_NAME
+                    FROM information_schema.KEY_COLUMN_USAGE
+                    WHERE TABLE_SCHEMA = DATABASE()
+                    AND TABLE_NAME = 'purchase_request_items'
+                    AND COLUMN_NAME = 'ppmp_item_id'
                     AND REFERENCED_TABLE_NAME IS NOT NULL
                 ");
 
@@ -31,17 +35,15 @@ return new class extends Migration
                     });
                 }
 
-                // Drop the column
                 Schema::table('purchase_request_items', function (Blueprint $table) {
                     $table->dropColumn('ppmp_item_id');
                 });
             } catch (\Exception $e) {
-                // If column doesn't exist or foreign key already dropped, continue
+                // Column doesn't exist or FK already dropped — continue
             }
         }
 
         Schema::table('purchase_request_items', function (Blueprint $table) {
-            // Add the foreign key to the new ppmp_items structure
             $table->foreignId('ppmp_item_id')
                 ->nullable()
                 ->after('purchase_request_id')

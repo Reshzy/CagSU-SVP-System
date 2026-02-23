@@ -54,8 +54,8 @@ class BacQuotationController extends Controller
         // Allow view access for any PR that has been through BAC
         abort_unless($purchaseRequest->hasBeenThroughBac(), 403);
 
-        // Determine if editing is allowed (only for bac_evaluation and partial_po_generation)
-        $canEdit = in_array($purchaseRequest->status, ['bac_evaluation', 'partial_po_generation']);
+        // Determine if editing is allowed (only while groups can still be managed)
+        $canEdit = $purchaseRequest->canManageGroups();
         $isReadOnly = ! $canEdit;
 
         // Safety check - procurement method should already be auto-set when PR reaches BAC evaluation
@@ -98,8 +98,7 @@ class BacQuotationController extends Controller
 
     public function groupQuotationsPartial(PurchaseRequest $purchaseRequest, PrItemGroup $group): View
     {
-        // Allow edit for bac_evaluation and partial_po_generation
-        abort_unless(in_array($purchaseRequest->status, ['bac_evaluation', 'partial_po_generation']), 403);
+        abort_unless($purchaseRequest->canManageGroups(), 403);
 
         if ($group->purchase_request_id !== $purchaseRequest->id) {
             abort(404);
@@ -432,8 +431,7 @@ class BacQuotationController extends Controller
 
     public function finalize(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
     {
-        // Allow finalization for bac_evaluation and partial_po_generation
-        abort_unless(in_array($purchaseRequest->status, ['bac_evaluation', 'partial_po_generation']), 403);
+        abort_unless($purchaseRequest->canManageGroups(), 403);
 
         // Mark winning quotation
         $winnerId = $request->integer('winning_quotation_id');

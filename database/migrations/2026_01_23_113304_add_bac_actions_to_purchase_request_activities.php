@@ -23,30 +23,31 @@ return new class extends Migration
             $table->index('pr_item_group_id');
         });
 
-        // Modify enum to add new BAC action types
-        DB::statement("ALTER TABLE purchase_request_activities MODIFY COLUMN action ENUM(
-            'created',
-            'submitted',
-            'status_changed',
-            'returned',
-            'rejected',
-            'approved',
-            'replacement_created',
-            'notes_added',
-            'assigned',
-            'updated',
-            'resolution_generated',
-            'resolution_regenerated',
-            'rfq_generated',
-            'quotation_submitted',
-            'quotation_evaluated',
-            'aoq_generated',
-            'tie_resolved',
-            'bac_override',
-            'supplier_withdrawal',
-            'item_groups_created',
-            'item_groups_updated'
-        ) NOT NULL");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE purchase_request_activities MODIFY COLUMN action ENUM(
+                'created',
+                'submitted',
+                'status_changed',
+                'returned',
+                'rejected',
+                'approved',
+                'replacement_created',
+                'notes_added',
+                'assigned',
+                'updated',
+                'resolution_generated',
+                'resolution_regenerated',
+                'rfq_generated',
+                'quotation_submitted',
+                'quotation_evaluated',
+                'aoq_generated',
+                'tie_resolved',
+                'bac_override',
+                'supplier_withdrawal',
+                'item_groups_created',
+                'item_groups_updated'
+            ) NOT NULL");
+        }
     }
 
     /**
@@ -54,19 +55,20 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Revert enum to original values
-        DB::statement("ALTER TABLE purchase_request_activities MODIFY COLUMN action ENUM(
-            'created',
-            'submitted',
-            'status_changed',
-            'returned',
-            'rejected',
-            'approved',
-            'replacement_created',
-            'notes_added',
-            'assigned',
-            'updated'
-        ) NOT NULL");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE purchase_request_activities MODIFY COLUMN action ENUM(
+                'created',
+                'submitted',
+                'status_changed',
+                'returned',
+                'rejected',
+                'approved',
+                'replacement_created',
+                'notes_added',
+                'assigned',
+                'updated'
+            ) NOT NULL");
+        }
 
         Schema::table('purchase_request_activities', function (Blueprint $table) {
             $table->dropForeign(['pr_item_group_id']);

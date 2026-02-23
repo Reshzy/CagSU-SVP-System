@@ -28,8 +28,10 @@ return new class extends Migration
             $table->index('replaced_by_pr_id');
         });
 
-        // Add 'returned_by_supply' to status enum
-        // Using raw SQL for enum modification (works with MySQL)
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         DB::statement("ALTER TABLE purchase_requests MODIFY COLUMN status ENUM(
             'draft',
             'submitted',
@@ -72,8 +74,8 @@ return new class extends Migration
             ]);
         });
 
-        // Revert status enum to original values
-        DB::statement("ALTER TABLE purchase_requests MODIFY COLUMN status ENUM(
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE purchase_requests MODIFY COLUMN status ENUM(
             'draft',
             'submitted',
             'supply_office_review',
@@ -89,5 +91,6 @@ return new class extends Migration
             'cancelled',
             'rejected'
         ) NOT NULL DEFAULT 'draft'");
+        }
     }
 };

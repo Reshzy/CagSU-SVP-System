@@ -10,6 +10,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         DB::statement("ALTER TABLE aoq_item_decisions MODIFY decision_type ENUM('auto', 'tie_resolution', 'bac_override', 'withdrawal_succession') NOT NULL");
     }
 
@@ -18,6 +22,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         DB::statement("ALTER TABLE aoq_item_decisions MODIFY decision_type ENUM('auto', 'tie_resolution', 'bac_override') NOT NULL");
     }
 };
