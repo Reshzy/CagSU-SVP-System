@@ -39,9 +39,8 @@ class AoqServiceTest extends TestCase
 
         // Create department
         $department = Department::create([
-            'department_code' => 'TEST',
-            'department_name' => 'Test Department',
-            'allocated_budget' => 100000,
+            'name' => 'Test Department',
+            'code' => 'TEST',
         ]);
 
         // Create purchase request
@@ -51,6 +50,9 @@ class AoqServiceTest extends TestCase
             'department_id' => $department->id,
             'purpose' => 'Test procurement',
             'status' => 'bac_evaluation',
+            'estimated_total' => 1000.00,
+            'date_needed' => now(),
+            'procurement_type' => 'supplies_materials',
         ]);
 
         // Create PR item
@@ -65,21 +67,9 @@ class AoqServiceTest extends TestCase
 
         // Create suppliers
         $this->suppliers = [
-            Supplier::create([
-                'supplier_code' => 'SUP-001',
-                'business_name' => 'Supplier A',
-                'status' => 'active',
-            ]),
-            Supplier::create([
-                'supplier_code' => 'SUP-002',
-                'business_name' => 'Supplier B',
-                'status' => 'active',
-            ]),
-            Supplier::create([
-                'supplier_code' => 'SUP-003',
-                'business_name' => 'Supplier C',
-                'status' => 'active',
-            ]),
+            Supplier::factory()->create(['business_name' => 'Supplier A']),
+            Supplier::factory()->create(['business_name' => 'Supplier B']),
+            Supplier::factory()->create(['business_name' => 'Supplier C']),
         ];
     }
 
@@ -522,15 +512,19 @@ class AoqServiceTest extends TestCase
             'is_within_abc' => true,
         ]);
 
-        // Create a PO for this group
+        // Create a PO for this group (quotation_id and other required fields)
         \App\Models\PurchaseOrder::create([
             'po_number' => 'PO-0126-0001',
             'purchase_request_id' => $this->pr->id,
             'pr_item_group_id' => $group1->id,
+            'quotation_id' => $quotation1->id,
             'supplier_id' => $this->suppliers[0]->id,
             'po_date' => now(),
             'total_amount' => 900.00,
-            'status' => 'pending',
+            'status' => 'draft',
+            'delivery_address' => 'Test delivery address',
+            'delivery_date_required' => now()->addDays(7),
+            'terms_and_conditions' => 'Test terms',
         ]);
 
         // Calculate winners
@@ -541,7 +535,7 @@ class AoqServiceTest extends TestCase
 
         $this->assertFalse($validation['can_generate'], 'Should NOT be able to generate AOQ for group with existing PO');
         $this->assertNotEmpty($validation['errors']);
-        $this->assertStringContainsString('already has a Purchase Order', implode(' ', $validation['errors']));
+        $this->assertStringContainsString('already has an AOQ or Purchase Order', implode(' ', $validation['errors']));
     }
 
     /** @test */
@@ -589,6 +583,112 @@ class AoqServiceTest extends TestCase
 
         $this->assertTrue($validation['can_generate'], 'Should be able to generate AOQ during bac_evaluation');
         $this->assertEmpty($validation['errors']);
+    }
+
+    /** @test */
+    public function it_allows_aoq_regeneration_for_group_when_aoq_exists_but_no_po()
+    {
+        $this->pr->update(['status' => 'bac_evaluation']);
+
+        $group = \App\Models\PrItemGroup::create([
+            'purchase_request_id' => $this->pr->id,
+            'group_code' => 'G1',
+            'group_name' => 'Group 1',
+            'display_order' => 1,
+        ]);
+
+        $this->prItem->update(['pr_item_group_id' => $group->id]);
+
+        $quotation = Quotation::create([
+            'quotation_number' => 'QUO-G1-001',
+            'purchase_request_id' => $this->pr->id,
+            'pr_item_group_id' => $group->id,
+            'supplier_id' => $this->suppliers[0]->id,
+            'quotation_date' => now(),
+            'validity_date' => now()->addDays(10),
+            'total_amount' => 900.00,
+            'bac_status' => 'pending_evaluation',
+        ]);
+
+        QuotationItem::create([
+            'quotation_id' => $quotation->id,
+            'purchase_request_item_id' => $this->prItem->id,
+            'unit_price' => 90.00,
+            'total_price' => 900.00,
+            'is_within_abc' => true,
+        ]);
+
+        $this->aoqService->calculateWinnersAndTies($this->pr, $group);
+
+        \App\Models\AoqGeneration::create([
+            'aoq_reference_number' => 'AOQ-0126-0001',
+            'purchase_request_id' => $this->pr->id,
+            'pr_item_group_id' => $group->id,
+            'generated_by' => $this->bacUser->id,
+            'document_hash' => 'hash',
+            'exported_data_snapshot' => [],
+            'file_path' => 'aoq_documents/test.docx',
+            'file_format' => 'docx',
+            'total_items' => 1,
+            'total_suppliers' => 1,
+        ]);
+
+        $validation = $this->aoqService->canGenerateAoqForGroup($group->fresh());
+
+        $this->assertTrue($validation['can_generate'], 'Should be able to regenerate AOQ when group has AOQ but no PO');
+        $this->assertEmpty($validation['errors']);
+    }
+
+    /** @test */
+    public function it_replaces_existing_aoq_when_regenerating_for_group()
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+
+        $this->pr->update(['status' => 'bac_evaluation']);
+
+        $group = \App\Models\PrItemGroup::create([
+            'purchase_request_id' => $this->pr->id,
+            'group_code' => 'G1',
+            'group_name' => 'Group 1',
+            'display_order' => 1,
+        ]);
+
+        $this->prItem->update(['pr_item_group_id' => $group->id]);
+
+        $quotation = Quotation::create([
+            'quotation_number' => 'QUO-G1-001',
+            'purchase_request_id' => $this->pr->id,
+            'pr_item_group_id' => $group->id,
+            'supplier_id' => $this->suppliers[0]->id,
+            'quotation_date' => now(),
+            'validity_date' => now()->addDays(10),
+            'total_amount' => 900.00,
+            'bac_status' => 'pending_evaluation',
+        ]);
+
+        QuotationItem::create([
+            'quotation_id' => $quotation->id,
+            'purchase_request_item_id' => $this->prItem->id,
+            'unit_price' => 90.00,
+            'total_price' => 900.00,
+            'is_within_abc' => true,
+        ]);
+
+        $this->aoqService->calculateWinnersAndTies($this->pr, $group);
+
+        $signatoryData = [
+            'head_bac_secretariat' => ['name' => 'Test BAC Head'],
+            'ceo' => ['name' => 'Test CEO'],
+        ];
+
+        $first = $this->aoqService->generateAoqDocumentForGroup($group->fresh(), $this->bacUser, $signatoryData);
+        $firstId = $first->id;
+
+        $second = $this->aoqService->generateAoqDocumentForGroup($group->fresh(), $this->bacUser, $signatoryData);
+
+        $this->assertEquals($second->id, $group->fresh()->aoqGeneration->id, 'Group should have the new AOQ as current');
+        $this->assertSame(1, \App\Models\AoqGeneration::where('pr_item_group_id', $group->id)->count(), 'Group should have exactly one AOQ record');
+        $this->assertDatabaseMissing('aoq_generations', ['id' => $firstId]);
     }
 
     /**

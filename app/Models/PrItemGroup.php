@@ -163,6 +163,15 @@ class PrItemGroup extends Model
     }
 
     /**
+     * Determine if this group can regenerate its AOQ (e.g. winner changed or supplier withdrew).
+     * Allowed when the group has an AOQ but no Purchase Order yet.
+     */
+    public function canRegenerateAoq(): bool
+    {
+        return $this->computeStatus() === 'aoq_generated';
+    }
+
+    /**
      * Determine if this group can have a new PO created.
      * Allowed once an AOQ exists and the group has not yet been fully processed.
      */

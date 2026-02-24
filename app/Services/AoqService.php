@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AoqGeneration;
 use App\Models\AoqItemDecision;
+use App\Models\AoqSignatory;
 use App\Models\PrItemGroup;
 use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestItem;
@@ -555,7 +556,8 @@ class AoqService
         $purchaseRequest = $itemGroup->purchaseRequest;
 
         // Must be in a state that allows AOQ generation for this specific group
-        if (! $itemGroup->canCreateAoq()) {
+        // (first-time generation or regeneration when no PO exists yet)
+        if (! $itemGroup->canCreateAoq() && ! $itemGroup->canRegenerateAoq()) {
             $errors[] = 'This group already has an AOQ or Purchase Order created.';
         }
 
@@ -671,6 +673,16 @@ class AoqService
         $validation = $this->canGenerateAoqForGroup($itemGroup);
         if (! $validation['can_generate']) {
             throw new \Exception('Cannot generate AOQ: '.implode('; ', $validation['errors']));
+        }
+
+        // If regenerating: remove existing AOQ (file, signatories, record)
+        $existing = $itemGroup->aoqGeneration;
+        if ($existing) {
+            if (Storage::disk('local')->exists($existing->file_path)) {
+                Storage::disk('local')->delete($existing->file_path);
+            }
+            AoqSignatory::where('aoq_generation_id', $existing->id)->delete();
+            $existing->delete();
         }
 
         // Generate reference number
