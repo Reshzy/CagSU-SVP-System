@@ -173,11 +173,11 @@ class PrItemGroup extends Model
 
     /**
      * Determine if this group can have a new PO created.
-     * Allowed once an AOQ exists and the group has not yet been fully processed.
+     * Allowed only when the group has an AOQ and no Purchase Order has been created yet.
      */
     public function canCreatePo(): bool
     {
-        return in_array($this->computeStatus(), ['aoq_generated', 'po_created']);
+        return $this->computeStatus() === 'aoq_generated';
     }
 
     /**

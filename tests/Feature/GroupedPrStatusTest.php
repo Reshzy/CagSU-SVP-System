@@ -170,6 +170,14 @@ class GroupedPrStatusTest extends TestCase
         $this->assertFalse($this->group1->canCreatePo());
     }
 
+    /** @test */
+    public function group_with_pending_approval_po_cannot_create_new_po(): void
+    {
+        $this->makePo($this->group1, 'pending_approval');
+
+        $this->assertFalse($this->group1->canCreatePo());
+    }
+
     // -----------------------------------------------------------------------
     // PurchaseRequest::computeStatusFromGroups() tests
     // -----------------------------------------------------------------------

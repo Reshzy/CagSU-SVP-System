@@ -220,7 +220,7 @@
                                                     Edit
                                                 </a>
                                             </div>
-                                        @elseif($group->isReadyForPo() && in_array($purchaseRequest->status, ['bac_evaluation', 'bac_approved']))
+                                        @elseif($group->isReadyForPo() && in_array($purchaseRequest->status, ['bac_evaluation', 'bac_approved', 'partial_po_generation']))
                                             <a href="{{ route('supply.purchase-orders.preview', ['purchaseRequest' => $purchaseRequest, 'group' => $group->id]) }}" class="inline-flex items-center px-4 py-2 bg-cagsu-maroon text-white rounded-lg hover:bg-cagsu-orange transition text-sm font-medium">
                                                 Create PO →
                                             </a>
