@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\PurchaseRequest;
+use App\Models\Quotation;
 use App\Models\Supplier;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -25,7 +26,7 @@ class PurchaseOrderFactory extends Factory
             'purchase_request_id' => PurchaseRequest::factory(),
             'pr_item_group_id' => null,
             'supplier_id' => Supplier::factory(),
-            'quotation_id' => null,
+            'quotation_id' => Quotation::factory(),
             'tin' => fake()->optional()->numerify('###-###-###'),
             'supplier_name_override' => null,
             'funds_cluster' => fake()->randomElement(['01', '02', '03', '04']),

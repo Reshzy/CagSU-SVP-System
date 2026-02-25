@@ -3,6 +3,7 @@
 namespace App\Livewire\Supply;
 
 use App\Models\PurchaseOrder;
+use App\Models\Supplier;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -11,13 +12,29 @@ class PurchaseOrderTable extends Component
 {
     use WithPagination;
 
-    #[Url(as: 'q')]
-    public string $search = '';
+    #[Url(as: 'po')]
+    public string $poNumberSearch = '';
+
+    #[Url(as: 'supplier')]
+    public string $supplierFilter = '';
+
+    #[Url(as: 'pr')]
+    public string $prNumberFilter = '';
 
     #[Url]
     public string $statusFilter = '';
 
-    public function updatingSearch(): void
+    public function updatingPoNumberSearch(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingSupplierFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingPrNumberFilter(): void
     {
         $this->resetPage();
     }
@@ -27,22 +44,22 @@ class PurchaseOrderTable extends Component
         $this->resetPage();
     }
 
-    public function render()
+    public function render(): \Illuminate\View\View
     {
         $query = PurchaseOrder::query()
             ->with(['purchaseRequest', 'supplier'])
             ->latest('po_date');
 
-        if ($this->search) {
-            $query->where(function ($q) {
-                $q->where('po_number', 'like', "%{$this->search}%")
-                    ->orWhereHas('purchaseRequest', function ($q) {
-                        $q->where('pr_number', 'like', "%{$this->search}%");
-                    })
-                    ->orWhereHas('supplier', function ($q) {
-                        $q->where('business_name', 'like', "%{$this->search}%");
-                    });
-            });
+        if ($this->poNumberSearch) {
+            $query->where('po_number', 'like', "%{$this->poNumberSearch}%");
+        }
+
+        if ($this->supplierFilter) {
+            $query->where('supplier_id', $this->supplierFilter);
+        }
+
+        if ($this->prNumberFilter) {
+            $query->whereHas('purchaseRequest', fn ($q) => $q->where('pr_number', $this->prNumberFilter));
         }
 
         if ($this->statusFilter) {
@@ -63,9 +80,25 @@ class PurchaseOrderTable extends Component
             'cancelled' => 'Cancelled',
         ];
 
+        $suppliers = Supplier::query()
+            ->whereHas('purchaseOrders')
+            ->orderBy('business_name')
+            ->get(['id', 'business_name']);
+
+        $prNumbers = PurchaseOrder::query()
+            ->with('purchaseRequest:id,pr_number')
+            ->get()
+            ->pluck('purchaseRequest.pr_number')
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
+
         return view('livewire.supply.purchase-order-table', [
             'orders' => $orders,
             'statuses' => $statuses,
+            'suppliers' => $suppliers,
+            'prNumbers' => $prNumbers,
         ]);
     }
 }

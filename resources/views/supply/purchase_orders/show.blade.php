@@ -78,12 +78,30 @@
 							</select>
 							<x-primary-button>Apply</x-primary-button>
 						</form>
-						<a href="{{ route('supply.purchase-orders.index') }}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md">Back</a>
+						<a href="{{ route('supply.purchase-orders.index') }}" id="back-to-po-list" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md">Back</a>
 					</div>
 				</div>
 			</div>
 		</div>
 	</div>
 </x-app-layout>
+
+@push('scripts')
+<script>
+	document.addEventListener('DOMContentLoaded', function () {
+		var link = document.getElementById('back-to-po-list');
+		if (!link) return;
+		var saved = null;
+		try { saved = JSON.parse(localStorage.getItem('po_filters') || '{}'); } catch (e) { return; }
+		var base = link.getAttribute('href');
+		var params = new URLSearchParams();
+		if (saved.poNumberSearch) params.set('po', saved.poNumberSearch);
+		if (saved.supplierFilter) params.set('supplier', saved.supplierFilter);
+		if (saved.prNumberFilter) params.set('pr', saved.prNumberFilter);
+		if (saved.statusFilter) params.set('statusFilter', saved.statusFilter);
+		if (params.toString()) link.setAttribute('href', base + (base.indexOf('?') >= 0 ? '&' : '?') + params.toString());
+	});
+</script>
+@endpush
 
 

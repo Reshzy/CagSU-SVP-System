@@ -31,7 +31,7 @@ class PurchaseRequestFactory extends Factory
             'po_approved',
             'supplier_processing',
             'delivered',
-            'completed'
+            'completed',
         ];
 
         $procurementTypes = [
@@ -39,17 +39,17 @@ class PurchaseRequestFactory extends Factory
             'equipment',
             'infrastructure',
             'services',
-            'consulting_services'
+            'consulting_services',
         ];
 
         $procurementMethods = [
             'small_value_procurement',
             'public_bidding',
             'direct_contracting',
-            'negotiated_procurement'
+            'negotiated_procurement',
         ];
 
-        $priorities = ['low', 'medium', 'high', 'urgent'];
+        // Note: 'priority' column was removed in migration 2025_10_19_000003
 
         $purposes = [
             'Office supplies for daily operations',
@@ -61,7 +61,7 @@ class PurchaseRequestFactory extends Factory
             'Security equipment installation',
             'Training materials and resources',
             'Vehicle maintenance supplies',
-            'Communication equipment upgrade'
+            'Communication equipment upgrade',
         ];
 
         $justifications = [
@@ -74,7 +74,7 @@ class PurchaseRequestFactory extends Factory
             'Necessary for improved efficiency and service delivery',
             'Essential for maintaining quality standards',
             'Required for emergency preparedness',
-            'Needed for staff training and development'
+            'Needed for staff training and development',
         ];
 
         $fundingSources = [
@@ -83,7 +83,7 @@ class PurchaseRequestFactory extends Factory
             'Development Fund',
             'Maintenance Fund',
             'Equipment Fund',
-            'Training Fund'
+            'Training Fund',
         ];
 
         $estimatedTotal = $this->faker->randomFloat(2, 1000, 50000); // Max 50k for small value procurement
@@ -106,7 +106,7 @@ class PurchaseRequestFactory extends Factory
             $attempts++;
             if ($attempts > 10) {
                 // Fallback: add random suffix if we can't generate unique number
-                $prNumber = PurchaseRequest::generateNextPrNumber() . '-' . $this->faker->randomNumber(3);
+                $prNumber = PurchaseRequest::generateNextPrNumber().'-'.$this->faker->randomNumber(3);
                 break;
             }
         } while (PurchaseRequest::where('pr_number', $prNumber)->exists());
@@ -118,7 +118,6 @@ class PurchaseRequestFactory extends Factory
             'purpose' => $this->faker->randomElement($purposes),
             'justification' => $this->faker->randomElement($justifications),
             'date_needed' => $this->faker->dateTimeBetween('now', '+3 months'),
-            'priority' => $this->faker->randomElement($priorities),
             'estimated_total' => $estimatedTotal,
             'funding_source' => $this->faker->randomElement($fundingSources),
             'budget_code' => $this->faker->regexify('[A-Z]{2}[0-9]{4}'),
@@ -144,7 +143,7 @@ class PurchaseRequestFactory extends Factory
      */
     public function draft(): static
     {
-        return $this->state(fn(array $attributes) => [
+        return $this->state(fn (array $attributes) => [
             'status' => 'draft',
             'submitted_at' => null,
             'approved_at' => null,
@@ -159,7 +158,7 @@ class PurchaseRequestFactory extends Factory
      */
     public function submitted(): static
     {
-        return $this->state(fn(array $attributes) => [
+        return $this->state(fn (array $attributes) => [
             'status' => 'submitted',
             'submitted_at' => $this->faker->dateTimeBetween('-1 month', 'now'),
             'approved_at' => null,
@@ -176,7 +175,7 @@ class PurchaseRequestFactory extends Factory
         $approvedAt = $this->faker->dateTimeBetween($submittedAt, '-2 weeks');
         $completedAt = $this->faker->dateTimeBetween($approvedAt, 'now');
 
-        return $this->state(fn(array $attributes) => [
+        return $this->state(fn (array $attributes) => [
             'status' => 'completed',
             'submitted_at' => $submittedAt,
             'approved_at' => $approvedAt,
@@ -192,9 +191,7 @@ class PurchaseRequestFactory extends Factory
      */
     public function highPriority(): static
     {
-        return $this->state(fn(array $attributes) => [
-            'priority' => 'high',
-        ]);
+        return $this->state(fn (array $attributes) => []);
     }
 
     /**
@@ -202,8 +199,7 @@ class PurchaseRequestFactory extends Factory
      */
     public function urgent(): static
     {
-        return $this->state(fn(array $attributes) => [
-            'priority' => 'urgent',
+        return $this->state(fn (array $attributes) => [
             'date_needed' => $this->faker->dateTimeBetween('now', '+2 weeks'),
         ]);
     }
@@ -213,7 +209,7 @@ class PurchaseRequestFactory extends Factory
      */
     public function publicBidding(): static
     {
-        return $this->state(fn(array $attributes) => [
+        return $this->state(fn (array $attributes) => [
             'estimated_total' => $this->faker->randomFloat(2, 45000, 50000), // Close to 50k limit
             'procurement_method' => 'small_value_procurement', // Still small value since under 50k
         ]);
@@ -224,7 +220,7 @@ class PurchaseRequestFactory extends Factory
      */
     public function smallValue(): static
     {
-        return $this->state(fn(array $attributes) => [
+        return $this->state(fn (array $attributes) => [
             'estimated_total' => $this->faker->randomFloat(2, 1000, 49999),
             'procurement_method' => 'small_value_procurement',
         ]);
