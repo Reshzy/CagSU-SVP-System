@@ -2,7 +2,7 @@
 
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between gap-4">
             <h2 class="font-semibold text-2xl text-gray-800 leading-tight">{{ __('Review Purchase Requests') }}</h2>
             <div class="text-sm text-gray-600">
                 {{ $requests->total() }} {{ Str::plural('request', $requests->total()) }} found

@@ -123,7 +123,12 @@ class PurchaseOrderController extends Controller
 
     public function show(PurchaseOrder $purchaseOrder): View
     {
-        $purchaseOrder->load(['purchaseRequest', 'supplier', 'quotation']);
+        $purchaseOrder->load([
+            'purchaseRequest.items',
+            'supplier',
+            'quotation.quotationItems.purchaseRequestItem',
+            'items.purchaseRequestItem',
+        ]);
 
         return view('supply.purchase_orders.show', compact('purchaseOrder'));
     }

@@ -67,6 +67,23 @@ class PurchaseOrderExportService
             $sheet->setCellValue('C4', $purchaseOrder->supplier_name_override);
         }
 
+        // Financial fields
+        $sheet->setCellValue('D57', $purchaseOrder->funds_cluster ?? '');
+
+        if ($purchaseOrder->funds_available !== null) {
+            $sheet->setCellValue('D58', $purchaseOrder->funds_available);
+        }
+
+        $sheet->setCellValue('G57', $purchaseOrder->ors_burs_no ?? '');
+
+        if ($purchaseOrder->ors_burs_date) {
+            $sheet->setCellValue('G58', $purchaseOrder->ors_burs_date->format('F d, Y'));
+        }
+
+        if ($purchaseOrder->total_amount !== null) {
+            $sheet->setCellValue('G59', $purchaseOrder->total_amount);
+        }
+
         // Items table - Starting from row 14
         $startRow = 14;
         $items = $purchaseOrder->quotation
@@ -75,24 +92,38 @@ class PurchaseOrderExportService
 
         $rowIndex = $startRow;
         foreach ($items as $item) {
+            $prItem = $item->purchaseRequestItem ?? null;
+
             // Unit (Column C)
-            $unit = $item->unit_of_measure ?? ($item->purchaseRequestItem->unit_of_measure ?? 'pcs');
+            $unit = $item->unit_of_measure ?? ($prItem->unit_of_measure ?? 'pcs');
             $sheet->setCellValue('C'.$rowIndex, $unit);
 
             // Description (Column D)
-            $description = $item->item_name ?? ($item->purchaseRequestItem->item_name ?? '');
+            $description = $item->item_name ?? ($prItem->item_name ?? '');
             $sheet->setCellValue('D'.$rowIndex, $description);
 
             // Quantity (Column E)
-            $quantity = $item->quantity ?? ($item->quantity_requested ?? 0);
+            if ($purchaseOrder->quotation) {
+                $quantity = $prItem?->quantity_requested ?? 0;
+            } else {
+                $quantity = $item->quantity_requested ?? 0;
+            }
             $sheet->setCellValue('E'.$rowIndex, $quantity);
 
             // Unit Cost (Column F)
-            $unitCost = $item->unit_price ?? ($item->estimated_unit_cost ?? 0);
+            if ($purchaseOrder->quotation) {
+                $unitCost = $item->unit_price ?? ($prItem?->awarded_unit_price ?? $prItem?->estimated_unit_cost ?? 0);
+            } else {
+                $unitCost = $item->awarded_unit_price ?? $item->estimated_unit_cost ?? 0;
+            }
             $sheet->setCellValue('F'.$rowIndex, $unitCost);
 
             // Amount (Column G)
-            $amount = $item->total_price ?? ($item->estimated_total_cost ?? 0);
+            if ($purchaseOrder->quotation) {
+                $amount = $item->total_price ?? ($prItem?->awarded_total_price ?? $prItem?->estimated_total_cost ?? 0);
+            } else {
+                $amount = $item->awarded_total_price ?? $item->estimated_total_cost ?? 0;
+            }
             $sheet->setCellValue('G'.$rowIndex, $amount);
 
             $rowIndex++;
