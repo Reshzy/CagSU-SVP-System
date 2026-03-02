@@ -214,6 +214,27 @@ class SupplyPurchaseRequestTest extends TestCase
         $response->assertSee('PR-0126-0001');
     }
 
+    public function test_index_with_filter_params_returns_form_and_filter_fields(): void
+    {
+        $this->actingAs($this->supplyOfficer);
+
+        $response = $this->get(route('supply.purchase-requests.index', [
+            'search' => 'test',
+            'status' => 'submitted',
+            'department' => $this->department->id,
+            'date_from' => '2025-01-01',
+            'date_to' => '2025-12-31',
+        ]));
+
+        $response->assertStatus(200);
+        $response->assertSee('supply-pr-search-form', false);
+        $response->assertSee('name="search"', false);
+        $response->assertSee('name="status"', false);
+        $response->assertSee('name="department"', false);
+        $response->assertSee('name="date_from"', false);
+        $response->assertSee('name="date_to"', false);
+    }
+
     public function test_return_requires_remarks(): void
     {
         $pr = PurchaseRequest::factory()->create([

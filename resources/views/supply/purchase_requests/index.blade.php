@@ -14,9 +14,30 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             
             <!-- Search and Filters -->
-            <div class="bg-white rounded-lg shadow-sm mb-6" x-data="{ showFilters: false }">
+            <div class="bg-white rounded-lg shadow-sm mb-6" x-data="{
+                showFilters: false,
+                init() {
+                    try {
+                        const stored = localStorage.getItem('supply-pr-filters-open');
+                        if (stored !== null) {
+                            this.showFilters = stored === 'true';
+                            return;
+                        }
+                        const params = new URLSearchParams(window.location.search);
+                        const hasParams = ['search', 'status', 'department', 'date_from', 'date_to'].some(p => params.has(p) && params.get(p));
+                        this.showFilters = !!hasParams;
+                    } catch (e) {}
+                },
+                toggleFilters() {
+                    this.showFilters = !this.showFilters;
+                    try { localStorage.setItem('supply-pr-filters-open', this.showFilters); } catch (e) {}
+                },
+                submitForm() {
+                    this.$el.closest('form').submit();
+                }
+            }">
                 <div class="p-4">
-                    <form method="GET" action="{{ route('supply.purchase-requests.index') }}" class="space-y-4">
+                    <form id="supply-pr-search-form" method="GET" action="{{ route('supply.purchase-requests.index') }}" class="space-y-4">
                         
                         <!-- Search Bar -->
                         <div class="flex gap-3">
@@ -27,12 +48,13 @@
                                     value="{{ $searchTerm }}"
                                     placeholder="Search by PR #, purpose, or requester..." 
                                     class="w-full border-gray-300 rounded-lg focus:border-cagsu-maroon focus:ring-cagsu-maroon"
+                                    @input.debounce.400ms="submitForm()"
                                 />
                             </div>
                             <button type="submit" class="px-6 py-2 bg-cagsu-maroon text-white rounded-lg hover:bg-cagsu-orange transition">
                                 Search
                             </button>
-                            <button type="button" @click="showFilters = !showFilters" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
+                            <button type="button" @click="toggleFilters()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
                                 </svg>
@@ -46,7 +68,7 @@
                             <!-- Status Filter -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                                <select name="status" class="w-full border-gray-300 rounded-lg focus:border-cagsu-maroon focus:ring-cagsu-maroon">
+                                <select name="status" class="w-full border-gray-300 rounded-lg focus:border-cagsu-maroon focus:ring-cagsu-maroon" @change="submitForm()">
                                     <option value="">All Active</option>
                                     <option value="submitted" @selected($statusFilter==='submitted')>Submitted</option>
                                     <option value="supply_office_review" @selected($statusFilter==='supply_office_review')>In Review</option>
@@ -65,7 +87,7 @@
                             <!-- Department Filter -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                                <select name="department" class="w-full border-gray-300 rounded-lg focus:border-cagsu-maroon focus:ring-cagsu-maroon">
+                                <select name="department" class="w-full border-gray-300 rounded-lg focus:border-cagsu-maroon focus:ring-cagsu-maroon" @change="submitForm()">
                                     <option value="">All Departments</option>
                                     @foreach($departments as $dept)
                                         <option value="{{ $dept->id }}" @selected($departmentFilter == $dept->id)>{{ $dept->name }}</option>
@@ -76,13 +98,13 @@
                             <!-- Date From -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Date From</label>
-                                <input type="date" name="date_from" value="{{ $dateFrom?->format('Y-m-d') }}" class="w-full border-gray-300 rounded-lg focus:border-cagsu-maroon focus:ring-cagsu-maroon">
+                                <input type="date" name="date_from" value="{{ $dateFrom?->format('Y-m-d') }}" class="w-full border-gray-300 rounded-lg focus:border-cagsu-maroon focus:ring-cagsu-maroon" @change="submitForm()">
                             </div>
 
                             <!-- Date To -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Date To</label>
-                                <input type="date" name="date_to" value="{{ $dateTo?->format('Y-m-d') }}" class="w-full border-gray-300 rounded-lg focus:border-cagsu-maroon focus:ring-cagsu-maroon">
+                                <input type="date" name="date_to" value="{{ $dateTo?->format('Y-m-d') }}" class="w-full border-gray-300 rounded-lg focus:border-cagsu-maroon focus:ring-cagsu-maroon" @change="submitForm()">
                             </div>
 
                             <!-- Filter Actions -->
