@@ -6,6 +6,9 @@
             </h2>
             <div class="flex gap-2">
                 @if ($ppmp->status === 'draft' || $ppmp->items->count() === 0)
+                    <a href="{{ route('ppmp.import') }}" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                        Import PPMP
+                    </a>
                     <a href="{{ route('ppmp.create') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                         {{ $ppmp->items->count() > 0 ? 'Edit PPMP' : 'Create PPMP' }}
                     </a>

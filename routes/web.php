@@ -65,6 +65,8 @@ Route::middleware('auth')->group(function () {
     // PPMP Management (Department Users)
     Route::prefix('ppmp')->group(function () {
         Route::get('/', [PpmpController::class, 'index'])->name('ppmp.index');
+        Route::get('/import', [PpmpController::class, 'importForm'])->name('ppmp.import');
+        Route::post('/import', [PpmpController::class, 'processImport'])->name('ppmp.import.process');
         Route::get('/create', [PpmpController::class, 'create'])->name('ppmp.create');
         Route::post('/', [PpmpController::class, 'store'])->name('ppmp.store');
         Route::get('/{ppmp}/edit', [PpmpController::class, 'edit'])->name('ppmp.edit');

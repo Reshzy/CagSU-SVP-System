@@ -107,8 +107,17 @@
                             <div class="p-6">
                                 <div class="flex justify-between items-center mb-4">
                                     <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200">Select Items from PPMP</h3>
-                                    <div class="text-sm text-gray-600 dark:text-gray-400">
-                                        <span x-text="selectedCount"></span> items selected
+                                    <div class="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                                        <button
+                                            type="button"
+                                            @click="closeAllCategories"
+                                            class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-800"
+                                        >
+                                            Collapse all
+                                        </button>
+                                        <div>
+                                            <span x-text="selectedCount"></span> items selected
+                                        </div>
                                     </div>
                                 </div>
                                 
@@ -133,6 +142,14 @@
                                         } else {
                                             $mainCategories[$category] = $items;
                                         }
+                                    }
+                                    $allCategoriesForSearch = [];
+                                    foreach (array_merge($mainCategories, $part2Categories) as $catName => $items) {
+                                        $allCategoriesForSearch[] = [
+                                            'name' => $catName,
+                                            'itemNames' => $items->pluck('appItem.item_name')->toArray(),
+                                            'itemCodes' => $items->pluck('appItem.item_code')->toArray(),
+                                        ];
                                     }
                                 @endphp
 
@@ -636,6 +653,7 @@
                     justification: '{{ old('justification', $originalPr->justification) }}'
                 },
                 ppmpItemLimits: @json($categorizedItems->flatten(1)->values()),
+                allCategoriesForSearch: @json($allCategoriesForSearch),
 
                 init() {
                     // Load expanded state from localStorage
@@ -643,6 +661,29 @@
                     if (stored) {
                         this.expandedCategories = JSON.parse(stored);
                     }
+                    // When search query changes, auto-expand only matching categories and collapse others
+                    this.$watch('searchQuery', (value) => {
+                        const query = (value || '').toLowerCase().trim();
+                        if (!query) {
+                            this.closeAllCategories();
+                            return;
+                        }
+
+                        const matchingCategories = [];
+
+                        for (const cat of this.allCategoriesForSearch) {
+                            const nameMatch = (cat.name || '').toLowerCase().includes(query);
+                            const itemNameMatch = (cat.itemNames || []).some(n => n && String(n).toLowerCase().includes(query));
+                            const itemCodeMatch = (cat.itemCodes || []).some(code => code && String(code).toLowerCase().includes(query));
+
+                            if (nameMatch || itemNameMatch || itemCodeMatch) {
+                                matchingCategories.push(cat.name);
+                            }
+                        }
+
+                        this.expandedCategories = matchingCategories;
+                        localStorage.setItem('prExpandedCategories', JSON.stringify(this.expandedCategories));
+                    });
 
                     // Pre-populate with original PR items
                     @foreach($originalPr->items as $originalItem)
@@ -699,6 +740,11 @@
                         this.expandedCategories.push(category);
                     }
                     localStorage.setItem('prExpandedCategories', JSON.stringify(this.expandedCategories));
+                },
+
+                closeAllCategories() {
+                    this.expandedCategories = [];
+                    localStorage.setItem('prExpandedCategories', JSON.stringify([]));
                 },
 
                 addItem(itemId, itemData) {

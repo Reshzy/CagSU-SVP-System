@@ -9,8 +9,10 @@ use App\Services\PpmpBudgetValidator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class PpmpController extends Controller
 {
@@ -222,6 +224,76 @@ class PpmpController extends Controller
         return redirect()
             ->route('ppmp.index')
             ->with('success', 'PPMP validated successfully!');
+    }
+
+    /**
+     * Show the PPMP import form
+     */
+    public function importForm(): View|RedirectResponse
+    {
+        $user = Auth::user();
+
+        if (! $user->department_id) {
+            return redirect()->route('dashboard')
+                ->withErrors(['error' => 'You must be assigned to a department to import a PPMP.']);
+        }
+
+        return view('ppmp.import');
+    }
+
+    /**
+     * Process a PPMP CSV import
+     */
+    public function processImport(Request $request): RedirectResponse
+    {
+        $user = Auth::user();
+
+        if (! $user->department_id) {
+            return redirect()->route('dashboard')
+                ->withErrors(['error' => 'You must be assigned to a department to import a PPMP.']);
+        }
+
+        $validated = $request->validate([
+            'csv_file' => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
+            'fiscal_year' => ['required', 'integer', 'min:2020', 'max:2100'],
+        ]);
+
+        $file = $request->file('csv_file');
+        $fileName = 'ppmp_import_'.time().'.csv';
+        $filePath = $file->storeAs('imports', $fileName);
+        $fullPath = Storage::path($filePath);
+
+        try {
+            $exitCode = Artisan::call('ppmp:import-csv', [
+                'file' => $fullPath,
+                '--year' => $validated['fiscal_year'],
+                '--department' => $user->department_id,
+            ]);
+
+            $output = Artisan::output();
+
+            Storage::delete($filePath);
+
+            if ($exitCode === 0) {
+                return redirect()
+                    ->route('ppmp.index')
+                    ->with('success', 'PPMP imported successfully!')
+                    ->with('import_output', $output);
+            }
+
+            return back()
+                ->withInput()
+                ->withErrors(['csv_file' => 'Import failed. Please check the file format.'])
+                ->with('import_output', $output);
+        } catch (\Exception $e) {
+            if (Storage::exists($filePath)) {
+                Storage::delete($filePath);
+            }
+
+            return back()
+                ->withInput()
+                ->withErrors(['csv_file' => 'Import failed: '.$e->getMessage()]);
+        }
     }
 
     /**

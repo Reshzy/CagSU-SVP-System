@@ -49,8 +49,17 @@
                             <div class="p-6">
                                 <div class="flex justify-between items-center mb-4">
                                     <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200">Select Items from APP</h3>
-                                    <div class="text-sm text-gray-600 dark:text-gray-400">
-                                        <span x-text="selectedCount"></span> items selected
+                                    <div class="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                                        <button
+                                            type="button"
+                                            @click="closeAllCategories"
+                                            class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-800"
+                                        >
+                                            Collapse all
+                                        </button>
+                                        <div>
+                                            <span x-text="selectedCount"></span> items selected
+                                        </div>
                                     </div>
                                 </div>
                                 
@@ -65,6 +74,17 @@
                                 </div>
 
                                 <!-- Categories Accordion -->
+                                @php
+                                    $allCategoriesForSearch = [];
+                                    foreach ($categories as $category) {
+                                        $items = $appItems[$category] ?? collect();
+                                        $allCategoriesForSearch[] = [
+                                            'name' => $category,
+                                            'itemNames' => $items->pluck('item_name')->toArray(),
+                                            'itemCodes' => $items->pluck('item_code')->toArray(),
+                                        ];
+                                    }
+                                @endphp
                                 @foreach ($categories as $categoryIndex => $category)
                                     @php
                                         $categoryItems = $appItems[$category];
@@ -301,6 +321,7 @@
                 showPriceModal: false,
                 priceModalItem: { id: null, name: '', customPrice: null },
                 pendingQuantityUpdate: { quarter: null, value: null },
+                allCategoriesForSearch: @json($allCategoriesForSearch),
 
                 init() {
                     // Load existing items
@@ -324,6 +345,30 @@
                     if (stored) {
                         this.expandedCategories = JSON.parse(stored);
                     }
+
+                    // When search query changes, auto-expand only matching categories and collapse others
+                    this.$watch('searchQuery', (value) => {
+                        const query = (value || '').toLowerCase().trim();
+                        if (!query) {
+                            this.closeAllCategories();
+                            return;
+                        }
+
+                        const matchingCategories = [];
+
+                        for (const cat of this.allCategoriesForSearch) {
+                            const nameMatch = (cat.name || '').toLowerCase().includes(query);
+                            const itemNameMatch = (cat.itemNames || []).some(n => n && String(n).toLowerCase().includes(query));
+                            const itemCodeMatch = (cat.itemCodes || []).some(code => code && String(code).toLowerCase().includes(query));
+
+                            if (nameMatch || itemNameMatch || itemCodeMatch) {
+                                matchingCategories.push(cat.name);
+                            }
+                        }
+
+                        this.expandedCategories = matchingCategories;
+                        localStorage.setItem('ppmpExpandedCategories', JSON.stringify(this.expandedCategories));
+                    });
                 },
 
                 get selectedCount() {
@@ -350,6 +395,11 @@
                         this.expandedCategories.push(category);
                     }
                     localStorage.setItem('ppmpExpandedCategories', JSON.stringify(this.expandedCategories));
+                },
+
+                closeAllCategories() {
+                    this.expandedCategories = [];
+                    localStorage.setItem('ppmpExpandedCategories', JSON.stringify([]));
                 },
 
                 toggleItem(itemId, itemName, unitPrice, needsCustomPrice, isChecked) {
