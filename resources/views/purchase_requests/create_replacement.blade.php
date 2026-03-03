@@ -525,7 +525,7 @@
                                             <div class="flex items-center gap-2" x-show="item.isPriceEditable">
                                                 <label class="text-xs text-gray-600 dark:text-gray-400 w-16">Price:</label>
                                                 <div class="flex items-center flex-1">
-                                                    <span class="text-xs mr-1">₱</span>
+                                                    <span class="text-xs mr-1 text-gray-600 dark:text-gray-400">₱</span>
                                                     <input 
                                                         type="number" 
                                                         step="0.01" 
