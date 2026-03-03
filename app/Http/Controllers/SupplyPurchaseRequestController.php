@@ -3,12 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\PurchaseRequest;
+use App\Models\PurchaseRequestItem;
 use App\Notifications\PurchaseRequestStatusUpdated;
+use App\Services\PurchaseRequestExportService;
 use App\Services\WorkflowRouter;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class SupplyPurchaseRequestController extends Controller
 {
@@ -179,5 +184,137 @@ class SupplyPurchaseRequestController extends Controller
         };
 
         return back()->with('status', $message);
+    }
+
+    /**
+     * Create a lot from selected standalone items during Supply Office review.
+     */
+    public function storeLot(Request $request, PurchaseRequest $purchaseRequest): JsonResponse
+    {
+        abort_unless(in_array($purchaseRequest->status, ['submitted', 'supply_office_review']), 403, 'Lots can only be managed during Supply Office review.');
+
+        $validated = $request->validate([
+            'lot_name' => ['required', 'string', 'max:255'],
+            'item_ids' => ['required', 'array', 'min:2'],
+            'item_ids.*' => ['required', 'exists:purchase_request_items,id'],
+        ]);
+
+        $children = PurchaseRequestItem::whereIn('id', $validated['item_ids'])
+            ->where('purchase_request_id', $purchaseRequest->id)
+            ->where('is_lot', false)
+            ->whereNull('parent_lot_id')
+            ->get();
+
+        if ($children->count() < 2) {
+            return response()->json(['message' => 'At least 2 standalone items are required to create a lot.'], 422);
+        }
+
+        DB::transaction(function () use ($validated, $purchaseRequest, $children) {
+            $lotTotal = $children->sum(fn ($i) => $i->estimated_total_cost);
+
+            $lotItem = PurchaseRequestItem::create([
+                'purchase_request_id' => $purchaseRequest->id,
+                'item_name' => $validated['lot_name'],
+                'lot_name' => $validated['lot_name'],
+                'unit_of_measure' => 'lot',
+                'quantity_requested' => 1,
+                'estimated_unit_cost' => $lotTotal,
+                'estimated_total_cost' => $lotTotal,
+                'is_lot' => true,
+                'ppmp_quarter' => $children->first()->ppmp_quarter,
+                'item_category' => null,
+            ]);
+
+            $children->each(fn ($item) => $item->update(['parent_lot_id' => $lotItem->id]));
+
+            // Update PR total
+            $purchaseRequest->estimated_total = $purchaseRequest->items()
+                ->whereNull('parent_lot_id')
+                ->sum('estimated_total_cost');
+            $purchaseRequest->save();
+        });
+
+        return response()->json(['message' => 'Lot created successfully.']);
+    }
+
+    /**
+     * Update an existing lot (rename or reassign items).
+     */
+    public function updateLot(Request $request, PurchaseRequest $purchaseRequest, PurchaseRequestItem $lot): JsonResponse
+    {
+        abort_unless(in_array($purchaseRequest->status, ['submitted', 'supply_office_review']), 403);
+        abort_unless($lot->purchase_request_id === $purchaseRequest->id && $lot->is_lot, 404);
+
+        $validated = $request->validate([
+            'lot_name' => ['required', 'string', 'max:255'],
+            'item_ids' => ['required', 'array', 'min:2'],
+            'item_ids.*' => ['required', 'exists:purchase_request_items,id'],
+        ]);
+
+        DB::transaction(function () use ($validated, $purchaseRequest, $lot) {
+            // Detach all current children
+            PurchaseRequestItem::where('parent_lot_id', $lot->id)
+                ->update(['parent_lot_id' => null]);
+
+            // Assign new children (must be standalone items belonging to this PR)
+            $newChildren = PurchaseRequestItem::whereIn('id', $validated['item_ids'])
+                ->where('purchase_request_id', $purchaseRequest->id)
+                ->where('is_lot', false)
+                ->whereNull('parent_lot_id')
+                ->get();
+
+            $lotTotal = $newChildren->sum(fn ($i) => $i->estimated_total_cost);
+            $newChildren->each(fn ($item) => $item->update(['parent_lot_id' => $lot->id]));
+
+            $lot->update([
+                'item_name' => $validated['lot_name'],
+                'lot_name' => $validated['lot_name'],
+                'estimated_unit_cost' => $lotTotal,
+                'estimated_total_cost' => $lotTotal,
+            ]);
+
+            $purchaseRequest->estimated_total = $purchaseRequest->items()
+                ->whereNull('parent_lot_id')
+                ->sum('estimated_total_cost');
+            $purchaseRequest->save();
+        });
+
+        return response()->json(['message' => 'Lot updated successfully.']);
+    }
+
+    /**
+     * Ungroup a lot: detach children and delete the lot header.
+     */
+    public function destroyLot(PurchaseRequest $purchaseRequest, PurchaseRequestItem $lot): JsonResponse
+    {
+        abort_unless(in_array($purchaseRequest->status, ['submitted', 'supply_office_review']), 403);
+        abort_unless($lot->purchase_request_id === $purchaseRequest->id && $lot->is_lot, 404);
+
+        DB::transaction(function () use ($purchaseRequest, $lot) {
+            PurchaseRequestItem::where('parent_lot_id', $lot->id)
+                ->update(['parent_lot_id' => null]);
+
+            $lot->delete();
+
+            $purchaseRequest->estimated_total = $purchaseRequest->items()
+                ->whereNull('parent_lot_id')
+                ->sum('estimated_total_cost');
+            $purchaseRequest->save();
+        });
+
+        return response()->json(['message' => 'Lot removed. Items are now standalone.']);
+    }
+
+    /**
+     * Export PR as Excel file using the official template.
+     */
+    public function export(PurchaseRequest $purchaseRequest): BinaryFileResponse
+    {
+        $purchaseRequest->load(['requester', 'items.lotChildren']);
+
+        $exportService = new PurchaseRequestExportService;
+        $tempFile = $exportService->generateExcel($purchaseRequest);
+
+        return response()->download($tempFile, "PR-{$purchaseRequest->pr_number}.xlsx")->deleteFileAfterSend(true);
     }
 }

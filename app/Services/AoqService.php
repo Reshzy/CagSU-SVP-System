@@ -30,14 +30,14 @@ class AoqService
     {
         $results = [];
 
-        // Determine which items to process
+        // Determine which items to process (exclude lot header rows)
         if ($itemGroup) {
-            $items = $itemGroup->items;
+            $items = $itemGroup->items->filter(fn ($i) => ! $i->isLotHeader())->values();
             $quotations = $itemGroup->quotations()
                 ->with(['supplier', 'quotationItems.purchaseRequestItem'])
                 ->get();
         } else {
-            $items = $purchaseRequest->items;
+            $items = $purchaseRequest->items->filter(fn ($i) => ! $i->isLotHeader())->values();
             $quotations = $purchaseRequest->quotations()
                 ->with(['supplier', 'quotationItems.purchaseRequestItem'])
                 ->get();
@@ -497,10 +497,10 @@ class AoqService
             $errors[] = 'No quotations have been submitted yet.';
         }
 
-        // Must have all items with quotes (excluding failed items)
+        // Must have all items with quotes (excluding failed items and lot headers)
         foreach ($purchaseRequest->items as $item) {
-            if ($item->procurement_status === 'failed') {
-                continue; // Skip failed items
+            if ($item->isLotHeader() || $item->procurement_status === 'failed') {
+                continue;
             }
 
             $hasQuote = QuotationItem::where('purchase_request_item_id', $item->id)
@@ -516,7 +516,7 @@ class AoqService
         // Check for unresolved ties
         $unresolvedTies = [];
         foreach ($purchaseRequest->items as $item) {
-            if ($item->procurement_status === 'failed') {
+            if ($item->isLotHeader() || $item->procurement_status === 'failed') {
                 continue;
             }
 
@@ -567,10 +567,10 @@ class AoqService
             $errors[] = 'No quotations have been submitted for this group yet.';
         }
 
-        // Check each item in the group
+        // Check each item in the group (excluding lot headers)
         foreach ($itemGroup->items as $item) {
-            if ($item->procurement_status === 'failed') {
-                continue; // Skip failed items
+            if ($item->isLotHeader() || $item->procurement_status === 'failed') {
+                continue;
             }
 
             $hasQuote = QuotationItem::where('purchase_request_item_id', $item->id)
@@ -586,7 +586,7 @@ class AoqService
         // Check for unresolved ties in this group
         $unresolvedTies = [];
         foreach ($itemGroup->items as $item) {
-            if ($item->procurement_status === 'failed') {
+            if ($item->isLotHeader() || $item->procurement_status === 'failed') {
                 continue;
             }
 

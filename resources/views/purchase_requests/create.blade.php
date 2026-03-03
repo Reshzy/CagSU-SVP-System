@@ -439,7 +439,17 @@
                     <!-- Selected Items Summary -->
                     <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                         <div class="p-4">
-                            <h3 class="text-lg font-bold mb-4 text-gray-800 dark:text-gray-200">Selected Items</h3>
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200">Selected Items</h3>
+                                <button
+                                    type="button"
+                                    x-show="ungroupedCount >= 2"
+                                    @click="openLotModal"
+                                    class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-indigo-600 text-white rounded hover:bg-indigo-700">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                                    Create Lot
+                                </button>
+                            </div>
                             
                             <div class="mb-4 text-sm">
                                 <div class="flex justify-between mb-2 text-gray-600 dark:text-gray-400">
@@ -452,68 +462,117 @@
                                 </div>
                             </div>
 
-                            <div class="max-h-96 overflow-y-auto space-y-2" x-show="selectedCount > 0">
-                                <template x-for="item in selectedItems" :key="item.id">
-                                    <div class="bg-gray-50 dark:bg-gray-900 p-3 rounded text-sm border border-gray-200 dark:border-gray-700">
-                                        <div class="flex justify-between items-start mb-2">
-                                            <div class="flex-1">
-                                                <div class="font-semibold text-gray-800 dark:text-gray-200" x-text="item.name"></div>
-                                                <div class="text-xs text-gray-500" x-text="item.code"></div>
-                                            </div>
-                                            <button 
-                                                type="button"
-                                                @click="removeItem(item.id)"
-                                                class="text-red-500 hover:text-red-700 ml-2">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                        
-                                        <div class="space-y-2">
-                                            <div class="flex items-center gap-2" x-show="item.isPriceEditable">
-                                                <label class="text-xs text-gray-600 dark:text-gray-400 w-16">Price:</label>
-                                                <div class="flex items-center flex-1">
-                                                    <span class="text-xs mr-1 text-gray-600 dark:text-gray-400">₱</span>
-                                                    <input 
-                                                        type="number" 
-                                                        step="0.01" 
-                                                        min="0"
-                                                        :value="item.price"
-                                                        @input="updatePrice(item.id, $event.target.value)"
-                                                        class="w-full text-xs rounded border-gray-300"
-                                                    />
+                            <div class="max-h-[32rem] overflow-y-auto space-y-2" x-show="selectedCount > 0">
+                                <template x-for="item in displayItems" :key="item.id">
+                                    <div>
+                                        <!-- LOT header row -->
+                                        <template x-if="item.isLot">
+                                            <div class="bg-indigo-50 dark:bg-indigo-900 p-3 rounded text-sm border border-indigo-300 dark:border-indigo-600">
+                                                <div class="flex justify-between items-start mb-1">
+                                                    <div class="flex-1">
+                                                        <span class="inline-block text-xs font-bold bg-indigo-600 text-white px-1.5 py-0.5 rounded mr-1">LOT</span>
+                                                        <input
+                                                            type="text"
+                                                            :value="item.lotName"
+                                                            @input="updateLotName(item.id, $event.target.value)"
+                                                            class="text-xs font-semibold bg-transparent border-b border-indigo-400 focus:outline-none focus:border-indigo-600 text-gray-800 dark:text-gray-100 w-40"
+                                                            placeholder="Lot name..."
+                                                        />
+                                                    </div>
+                                                    <div class="flex items-center gap-1 ml-2">
+                                                        <button type="button" @click="editLot(item.id)" class="text-indigo-600 hover:text-indigo-800" title="Edit lot items">
+                                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                                        </button>
+                                                        <button type="button" @click="ungroupLot(item.id)" class="text-orange-500 hover:text-orange-700" title="Ungroup lot">
+                                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <!-- Lot children preview -->
+                                                <template x-for="child in getLotChildren(item.id)" :key="child.id">
+                                                    <div class="ml-3 mt-1 text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                                                        <span class="text-indigo-400">↳</span>
+                                                        <span x-text="child.quantity + ' ' + child.unit + ', ' + child.name"></span>
+                                                    </div>
+                                                </template>
+                                                <div class="flex items-center justify-between mt-2 pt-2 border-t border-indigo-200 dark:border-indigo-700">
+                                                    <span class="text-xs text-gray-500">1 lot · unit cost = total</span>
+                                                    <span class="text-xs font-semibold text-indigo-700 dark:text-indigo-300">₱<span x-text="formatNumber(item.price)"></span></span>
                                                 </div>
                                             </div>
-                                            
-                                            <div class="flex items-center gap-2" x-show="!item.isPriceEditable">
-                                                <label class="text-xs text-gray-600 dark:text-gray-400 w-16">Price:</label>
-                                                <span class="text-xs text-white">₱<span x-text="formatNumber(item.price)"></span></span>
-                                            </div>
+                                        </template>
 
-                                            <div class="flex items-center gap-2">
-                                                <label class="text-xs text-gray-600 dark:text-gray-400 w-16">Quantity:</label>
-                                                <div class="flex-1">
-                                                    <input 
-                                                        type="number" 
-                                                        min="1"
-                                                        :max="item.maxQuantity !== null && item.maxQuantity !== undefined ? item.maxQuantity : 999"
-                                                        :value="item.quantity"
-                                                        @input="updateQuantity(item.id, $event.target.value)"
-                                                        @blur="updateQuantity(item.id, $event.target.value)"
-                                                        class="w-20 text-xs rounded border-gray-300"
-                                                    />
-                                                    <span x-show="item.maxQuantity" class="text-xs text-gray-500 ml-1">
-                                                        / <span x-text="item.maxQuantity"></span> max
-                                                    </span>
+                                        <!-- Regular item row (not a lot child rendered separately) -->
+                                        <template x-if="!item.isLot && !item.parentLotId">
+                                            <div class="bg-gray-50 dark:bg-gray-900 p-3 rounded text-sm border border-gray-200 dark:border-gray-700">
+                                                <div class="flex justify-between items-start mb-2">
+                                                    <div class="flex-1 min-w-0">
+                                                        <div class="text-xs text-gray-400 dark:text-gray-500 mb-0.5" x-show="item.originalName && item.originalName !== item.name" x-text="'Original: ' + item.originalName"></div>
+                                                        <input
+                                                            type="text"
+                                                            :value="item.name"
+                                                            @input="updateName(item.id, $event.target.value)"
+                                                            class="w-full text-xs font-semibold bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-indigo-500 text-gray-800 dark:text-gray-200"
+                                                            placeholder="Item name..."
+                                                        />
+                                                        <div class="text-xs text-gray-500 mt-0.5" x-text="item.code"></div>
+                                                    </div>
+                                                    <button 
+                                                        type="button"
+                                                        @click="removeItem(item.id)"
+                                                        class="text-red-500 hover:text-red-700 ml-2 flex-shrink-0">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                                
+                                                <div class="space-y-2">
+                                                    <div class="flex items-center gap-2" x-show="item.isPriceEditable">
+                                                        <label class="text-xs text-gray-600 dark:text-gray-400 w-16">Price:</label>
+                                                        <div class="flex items-center flex-1">
+                                                            <span class="text-xs mr-1 text-gray-600 dark:text-gray-400">₱</span>
+                                                            <input 
+                                                                type="number" 
+                                                                step="0.01" 
+                                                                min="0"
+                                                                :value="item.price"
+                                                                @input="updatePrice(item.id, $event.target.value)"
+                                                                class="w-full text-xs rounded border-gray-300"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="flex items-center gap-2" x-show="!item.isPriceEditable">
+                                                        <label class="text-xs text-gray-600 dark:text-gray-400 w-16">Price:</label>
+                                                        <span class="text-xs text-white">₱<span x-text="formatNumber(item.price)"></span></span>
+                                                    </div>
+
+                                                    <div class="flex items-center gap-2">
+                                                        <label class="text-xs text-gray-600 dark:text-gray-400 w-16">Quantity:</label>
+                                                        <div class="flex-1">
+                                                            <input 
+                                                                type="number" 
+                                                                min="1"
+                                                                :max="item.maxQuantity !== null && item.maxQuantity !== undefined ? item.maxQuantity : 999"
+                                                                :value="item.quantity"
+                                                                @input="updateQuantity(item.id, $event.target.value)"
+                                                                @blur="updateQuantity(item.id, $event.target.value)"
+                                                                class="w-20 text-xs rounded border-gray-300"
+                                                            />
+                                                            <span x-show="item.maxQuantity" class="text-xs text-gray-500 ml-1">
+                                                                / <span x-text="item.maxQuantity"></span> max
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="flex items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                                        <label class="text-xs text-gray-600 dark:text-gray-400 w-16">Subtotal:</label>
+                                                        <span class="text-xs font-semibold text-white">₱<span x-text="formatNumber(item.price * item.quantity)"></span></span>
+                                                    </div>
                                                 </div>
                                             </div>
-
-                                            <div class="flex items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                                                <label class="text-xs text-gray-600 dark:text-gray-400 w-16">Subtotal:</label>
-                                                <span class="text-xs font-semibold text-white">₱<span x-text="formatNumber(item.price * item.quantity)"></span></span>
-                                            </div>
-                                        </div>
+                                        </template>
                                     </div>
                                 </template>
                             </div>
@@ -539,6 +598,66 @@
                         </div>
                     </div>
                     </div>{{-- end space-y-6 inner wrapper --}}
+                </div>
+            </div>
+        </div>
+
+        <!-- Create / Edit Lot Modal -->
+        <div x-show="showLotModal"
+             x-cloak
+             class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center"
+             @click.self="closeLotModal">
+            <div class="relative p-5 border w-[28rem] shadow-lg rounded-md bg-white dark:bg-gray-800 max-h-[90vh] overflow-y-auto">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100 mb-1" x-text="editingLotId ? 'Edit Lot' : 'Create Lot'"></h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Select items to bundle into one lot. The lot will have unit "lot", qty 1, and the combined total cost.</p>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Lot Name <span class="text-red-500">*</span></label>
+                    <input
+                        type="text"
+                        x-model="lotModal.name"
+                        placeholder="e.g. Painting Works"
+                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                        @keydown.enter.prevent=""
+                    />
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Items to Include</label>
+                    <div class="space-y-2 max-h-64 overflow-y-auto">
+                        <template x-for="item in lotCandidates" :key="item.id">
+                            <label class="flex items-start gap-2 p-2 rounded border cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700"
+                                   :class="lotModal.selectedIds.includes(item.id) ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-900' : 'border-gray-200 dark:border-gray-600'">
+                                <input
+                                    type="checkbox"
+                                    :value="item.id"
+                                    :checked="lotModal.selectedIds.includes(item.id)"
+                                    @change="toggleLotItem(item.id)"
+                                    class="mt-0.5 rounded border-gray-300 text-indigo-600"
+                                />
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-sm font-medium text-gray-800 dark:text-gray-200 truncate" x-text="item.name"></div>
+                                    <div class="text-xs text-gray-500" x-text="item.quantity + ' ' + item.unit + ' · ₱' + formatNumber(item.price * item.quantity)"></div>
+                                </div>
+                            </label>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 dark:bg-gray-700 rounded p-3 mb-4 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Items selected:</span>
+                        <span class="font-medium text-gray-800 dark:text-gray-200" x-text="lotModal.selectedIds.length"></span>
+                    </div>
+                    <div class="flex justify-between mt-1">
+                        <span class="text-gray-600 dark:text-gray-400">Combined total:</span>
+                        <span class="font-semibold text-indigo-700 dark:text-indigo-300">₱<span x-text="formatNumber(lotModalTotal)"></span></span>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 justify-end">
+                    <button type="button" @click="closeLotModal" class="px-4 py-2 bg-gray-500 hover:bg-gray-700 text-white font-bold rounded text-sm">Cancel</button>
+                    <button type="button" @click="saveLot" :disabled="lotModal.selectedIds.length < 2 || !lotModal.name.trim()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed" x-text="editingLotId ? 'Update Lot' : 'Create Lot'"></button>
                 </div>
             </div>
         </div>
@@ -597,6 +716,9 @@
                 selectedItems: [],
                 budgetAvailable: {{ $departmentBudget->getAvailableBudget() }},
                 showPriceModal: false,
+                showLotModal: false,
+                editingLotId: null,
+                lotModal: { name: '', selectedIds: [] },
                 priceModalItem: { id: null, name: '', customPrice: null, data: null },
                 prDetails: {
                     purpose: '{{ old('purpose', '') }}',
@@ -606,31 +728,25 @@
                 allCategoriesForSearch: @json($allCategoriesForSearch),
 
                 init() {
-                    // Load expanded state from localStorage
                     const stored = localStorage.getItem('prExpandedCategories');
                     if (stored) {
                         this.expandedCategories = JSON.parse(stored);
                     }
-                    // When search query changes, auto-expand only matching categories and collapse others
                     this.$watch('searchQuery', (value) => {
                         const query = (value || '').toLowerCase().trim();
                         if (!query) {
                             this.closeAllCategories();
                             return;
                         }
-
                         const matchingCategories = [];
-
                         for (const cat of this.allCategoriesForSearch) {
                             const nameMatch = (cat.name || '').toLowerCase().includes(query);
                             const itemNameMatch = (cat.itemNames || []).some(n => n && String(n).toLowerCase().includes(query));
                             const itemCodeMatch = (cat.itemCodes || []).some(code => code && String(code).toLowerCase().includes(query));
-
                             if (nameMatch || itemNameMatch || itemCodeMatch) {
                                 matchingCategories.push(cat.name);
                             }
                         }
-
                         this.expandedCategories = matchingCategories;
                         localStorage.setItem('prExpandedCategories', JSON.stringify(this.expandedCategories));
                     });
@@ -641,7 +757,10 @@
                 },
 
                 get prTotal() {
-                    return this.selectedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                    // Sum lot headers + standalone items (exclude lot children to avoid double-counting)
+                    return this.selectedItems
+                        .filter(i => !i.parentLotId)
+                        .reduce((sum, item) => sum + (item.price * item.quantity), 0);
                 },
 
                 get budgetRemaining() {
@@ -649,10 +768,42 @@
                 },
 
                 get canSubmit() {
-                    return this.selectedCount > 0 && 
-                           this.budgetRemaining >= 0 && 
+                    return this.selectedCount > 0 &&
+                           this.budgetRemaining >= 0 &&
                            this.prDetails.purpose.trim() !== '' &&
                            this.prDetails.justification.trim() !== '';
+                },
+
+                /** Items visible in sidebar: lot headers + standalone items (hide lot children from top-level list) */
+                get displayItems() {
+                    return this.selectedItems.filter(i => !i.parentLotId);
+                },
+
+                /** Count of items that can be selected for a new lot (standalone non-lot items) */
+                get ungroupedCount() {
+                    return this.selectedItems.filter(i => !i.isLot && !i.parentLotId).length;
+                },
+
+                /** Candidates shown in the lot modal */
+                get lotCandidates() {
+                    if (this.editingLotId) {
+                        // When editing, show ungrouped items + current lot children
+                        return this.selectedItems.filter(i =>
+                            (!i.isLot && !i.parentLotId) ||
+                            i.parentLotId === this.editingLotId
+                        );
+                    }
+                    return this.selectedItems.filter(i => !i.isLot && !i.parentLotId);
+                },
+
+                get lotModalTotal() {
+                    return this.selectedItems
+                        .filter(i => this.lotModal.selectedIds.includes(i.id))
+                        .reduce((sum, i) => sum + i.price * i.quantity, 0);
+                },
+
+                getLotChildren(lotId) {
+                    return this.selectedItems.filter(i => i.parentLotId === lotId);
                 },
 
                 isSelected(itemId) {
@@ -678,16 +829,12 @@
                     if (this.isSelected(itemId)) {
                         return;
                     }
-
-                    // Check if item is available for current quarter
                     const itemLimit = this.ppmpItemLimits.find(i => i.item && i.item.id === itemId);
                     if (!itemLimit || itemLimit.remainingQty <= 0) {
                         alert('This item is not available for the current quarter or has no remaining quantity.');
                         return;
                     }
-
                     if (itemData.isPriceEditable) {
-                        // Show modal for custom price
                         this.priceModalItem = {
                             id: itemId,
                             name: itemData.name,
@@ -696,18 +843,21 @@
                         };
                         this.showPriceModal = true;
                     } else {
-                        // Add directly with fixed price
                         this.selectedItems.push({
                             id: Date.now(),
                             ppmpItemId: itemId,
                             name: itemData.name,
+                            originalName: itemData.name,
                             code: itemData.code,
                             unit: itemData.unit,
                             price: itemData.price,
                             specs: itemData.specs,
                             quantity: 1,
                             maxQuantity: itemData.maxQuantity || itemLimit.remainingQty,
-                            isPriceEditable: false
+                            isPriceEditable: false,
+                            isLot: false,
+                            lotName: null,
+                            parentLotId: null,
                         });
                     }
                 },
@@ -718,23 +868,24 @@
                         alert('Please enter a valid price greater than 0');
                         return;
                     }
-
                     const data = this.priceModalItem.data;
                     const itemLimit = this.ppmpItemLimits.find(i => i.item && i.item.id === this.priceModalItem.id);
-                    
                     this.selectedItems.push({
                         id: Date.now(),
                         ppmpItemId: this.priceModalItem.id,
                         name: data.name,
+                        originalName: data.name,
                         code: data.code,
                         unit: data.unit,
                         price: price,
                         specs: data.specs,
                         quantity: 1,
                         maxQuantity: data.maxQuantity || (itemLimit ? itemLimit.remainingQty : 999),
-                        isPriceEditable: true
+                        isPriceEditable: true,
+                        isLot: false,
+                        lotName: null,
+                        parentLotId: null,
                     });
-
                     this.closePriceModal();
                 },
 
@@ -744,33 +895,49 @@
                 },
 
                 removeItem(itemId) {
-                    const index = this.selectedItems.findIndex(item => item.id === itemId);
-                    if (index > -1) {
-                        this.selectedItems.splice(index, 1);
+                    const item = this.selectedItems.find(i => i.id === itemId);
+                    if (!item) return;
+                    // If removing a lot, also remove its children
+                    if (item.isLot) {
+                        this.selectedItems = this.selectedItems.filter(i => i.id !== itemId && i.parentLotId !== itemId);
+                    } else {
+                        this.selectedItems = this.selectedItems.filter(i => i.id !== itemId);
+                    }
+                },
+
+                updateName(itemId, value) {
+                    const item = this.selectedItems.find(i => i.id === itemId);
+                    if (item) {
+                        item.name = value;
+                        // If this item is in a lot, refresh the lot price isn't needed (price unchanged)
+                    }
+                },
+
+                updateLotName(lotId, value) {
+                    const lot = this.selectedItems.find(i => i.id === lotId && i.isLot);
+                    if (lot) {
+                        lot.lotName = value;
+                        lot.name = value;
                     }
                 },
 
                 updateQuantity(itemId, value) {
                     const item = this.selectedItems.find(i => i.id === itemId);
                     if (!item) return;
-
                     let newQty = parseInt(value);
-                    
-                    // Ensure quantity is at least 1
                     if (isNaN(newQty) || newQty < 1) {
                         newQty = 1;
                     }
-                    
-                    // Validate against remaining PPMP quantity
-                    // Check if maxQuantity is defined (not null/undefined) and is a valid number
                     if (item.maxQuantity !== null && item.maxQuantity !== undefined && typeof item.maxQuantity === 'number' && newQty > item.maxQuantity) {
                         alert(`Cannot exceed remaining quantity (${item.maxQuantity} available for current quarter)`);
-                        // Reset to max quantity
                         item.quantity = item.maxQuantity;
                         return;
                     }
-                    
                     item.quantity = newQty;
+                    // Update parent lot price if this item is a lot child
+                    if (item.parentLotId) {
+                        this.recalculateLotPrice(item.parentLotId);
+                    }
                 },
 
                 updatePrice(itemId, value) {
@@ -779,16 +946,133 @@
                         const newPrice = parseFloat(value);
                         if (!isNaN(newPrice) && newPrice >= 0) {
                             item.price = newPrice;
+                            if (item.parentLotId) {
+                                this.recalculateLotPrice(item.parentLotId);
+                            }
                         }
                     }
+                },
+
+                recalculateLotPrice(lotId) {
+                    const lot = this.selectedItems.find(i => i.id === lotId);
+                    if (!lot) return;
+                    const total = this.selectedItems
+                        .filter(i => i.parentLotId === lotId)
+                        .reduce((sum, i) => sum + i.price * i.quantity, 0);
+                    lot.price = total;
+                    lot.estimated_unit_cost = total;
+                },
+
+                // --- Lot Modal ---
+
+                openLotModal() {
+                    this.editingLotId = null;
+                    this.lotModal = { name: '', selectedIds: [] };
+                    this.showLotModal = true;
+                },
+
+                editLot(lotId) {
+                    const lot = this.selectedItems.find(i => i.id === lotId && i.isLot);
+                    if (!lot) return;
+                    this.editingLotId = lotId;
+                    this.lotModal = {
+                        name: lot.lotName || '',
+                        selectedIds: this.selectedItems
+                            .filter(i => i.parentLotId === lotId)
+                            .map(i => i.id),
+                    };
+                    this.showLotModal = true;
+                },
+
+                closeLotModal() {
+                    this.showLotModal = false;
+                    this.editingLotId = null;
+                    this.lotModal = { name: '', selectedIds: [] };
+                },
+
+                toggleLotItem(itemId) {
+                    const idx = this.lotModal.selectedIds.indexOf(itemId);
+                    if (idx > -1) {
+                        this.lotModal.selectedIds.splice(idx, 1);
+                    } else {
+                        this.lotModal.selectedIds.push(itemId);
+                    }
+                },
+
+                saveLot() {
+                    if (this.lotModal.selectedIds.length < 2 || !this.lotModal.name.trim()) return;
+
+                    const lotName = this.lotModal.name.trim();
+                    const selectedIds = [...this.lotModal.selectedIds];
+
+                    if (this.editingLotId) {
+                        // Update existing lot
+                        const lot = this.selectedItems.find(i => i.id === this.editingLotId);
+                        if (lot) {
+                            lot.lotName = lotName;
+                            lot.name = lotName;
+                            // Unassign old children
+                            this.selectedItems.forEach(i => {
+                                if (i.parentLotId === this.editingLotId) {
+                                    i.parentLotId = null;
+                                }
+                            });
+                            // Assign new children
+                            selectedIds.forEach(id => {
+                                const child = this.selectedItems.find(i => i.id === id);
+                                if (child) child.parentLotId = this.editingLotId;
+                            });
+                            this.recalculateLotPrice(this.editingLotId);
+                        }
+                    } else {
+                        // Create new lot header
+                        const lotTotal = this.selectedItems
+                            .filter(i => selectedIds.includes(i.id))
+                            .reduce((sum, i) => sum + i.price * i.quantity, 0);
+
+                        const lotId = Date.now();
+                        this.selectedItems.push({
+                            id: lotId,
+                            ppmpItemId: null,
+                            name: lotName,
+                            originalName: lotName,
+                            lotName: lotName,
+                            code: null,
+                            unit: 'lot',
+                            price: lotTotal,
+                            specs: null,
+                            quantity: 1,
+                            maxQuantity: null,
+                            isPriceEditable: false,
+                            isLot: true,
+                            parentLotId: null,
+                        });
+
+                        // Assign children
+                        selectedIds.forEach(id => {
+                            const child = this.selectedItems.find(i => i.id === id);
+                            if (child) child.parentLotId = lotId;
+                        });
+                    }
+
+                    this.closeLotModal();
+                },
+
+                ungroupLot(lotId) {
+                    // Detach children first
+                    this.selectedItems.forEach(i => {
+                        if (i.parentLotId === lotId) {
+                            i.parentLotId = null;
+                        }
+                    });
+                    // Remove the lot header
+                    this.selectedItems = this.selectedItems.filter(i => i.id !== lotId);
                 },
 
                 categoryVisible(category, itemNames, itemCodes) {
                     if (!this.searchQuery) return true;
                     const query = this.searchQuery.toLowerCase();
-                    
                     if (category.toLowerCase().includes(query)) return true;
-                    
                     return itemNames.some(name => name.toLowerCase().includes(query)) ||
                            itemCodes.some(code => code.toLowerCase().includes(query));
                 },
@@ -802,7 +1086,6 @@
                 },
 
                 prepareSubmit(event) {
-                    // Validate before submit
                     if (!this.canSubmit) {
                         event.preventDefault();
                         if (this.selectedCount === 0) {
@@ -817,36 +1100,51 @@
                         return;
                     }
 
-                    // Validate all quantities against max limits
+                    // Validate non-lot item quantities
                     for (const item of this.selectedItems) {
+                        if (item.isLot || item.parentLotId) continue;
                         if (item.maxQuantity !== null && item.maxQuantity !== undefined && typeof item.maxQuantity === 'number' && item.quantity > item.maxQuantity) {
                             event.preventDefault();
                             alert(`Quantity for "${item.name}" (${item.quantity}) exceeds the maximum allowed quantity (${item.maxQuantity} available for current quarter).`);
-                            // Reset to max quantity
                             item.quantity = item.maxQuantity;
                             return;
                         }
                     }
 
-                    // Add hidden inputs for form submission
                     const form = event.target;
-                    
-                    // Remove old dynamic inputs
                     form.querySelectorAll('.dynamic-input').forEach(el => el.remove());
 
-                    // Add purpose and justification from Alpine.js state
                     this.addHiddenInput(form, 'purpose', this.prDetails.purpose);
                     this.addHiddenInput(form, 'justification', this.prDetails.justification);
 
-                    // Add selected items data
-                    this.selectedItems.forEach((item, index) => {
+                    // Build submission order: lots first (so they get lower indices for parent_lot_index),
+                    // then children referencing parent index, then standalone items.
+                    const submissionOrder = [];
+                    // Lots first
+                    this.selectedItems.filter(i => i.isLot).forEach(lot => {
+                        submissionOrder.push({ item: lot, parentIdx: null });
+                        this.selectedItems.filter(i => i.parentLotId === lot.id).forEach(child => {
+                            submissionOrder.push({ item: child, parentIdx: submissionOrder.findIndex(e => e.item.id === lot.id) });
+                        });
+                    });
+                    // Then standalone items
+                    this.selectedItems.filter(i => !i.isLot && !i.parentLotId).forEach(item => {
+                        submissionOrder.push({ item, parentIdx: null });
+                    });
+
+                    submissionOrder.forEach(({ item, parentIdx }, index) => {
                         this.addHiddenInput(form, `items[${index}][ppmp_item_id]`, item.ppmpItemId);
                         this.addHiddenInput(form, `items[${index}][item_code]`, item.code);
                         this.addHiddenInput(form, `items[${index}][item_name]`, item.name);
-                        this.addHiddenInput(form, `items[${index}][unit_of_measure]`, item.unit);
+                        this.addHiddenInput(form, `items[${index}][unit_of_measure]`, item.isLot ? 'lot' : item.unit);
                         this.addHiddenInput(form, `items[${index}][detailed_specifications]`, item.specs);
-                        this.addHiddenInput(form, `items[${index}][quantity_requested]`, item.quantity);
+                        this.addHiddenInput(form, `items[${index}][quantity_requested]`, item.isLot ? 1 : item.quantity);
                         this.addHiddenInput(form, `items[${index}][estimated_unit_cost]`, item.price);
+                        this.addHiddenInput(form, `items[${index}][is_lot]`, item.isLot ? '1' : '0');
+                        this.addHiddenInput(form, `items[${index}][lot_name]`, item.isLot ? item.lotName : '');
+                        if (parentIdx !== null) {
+                            this.addHiddenInput(form, `items[${index}][parent_lot_index]`, parentIdx);
+                        }
                     });
                 },
 

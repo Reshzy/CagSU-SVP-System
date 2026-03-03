@@ -2,8 +2,5 @@
     "agents": [
         "cursor"
     ],
-    "skills": [
-        "livewire-development",
-        "tailwindcss-development"
-    ]
+    "guidelines": true
 }

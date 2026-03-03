@@ -167,36 +167,65 @@
                         <div class="bg-gradient-to-r from-cagsu-maroon to-cagsu-orange px-6 py-4">
                             <h3 class="text-lg font-bold text-white">Requested Items</h3>
                         </div>
-                        <div class="p-6">
-                            <div class="space-y-4">
-                                @forelse($purchaseRequest->items as $item)
-                                <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                                    <div class="flex items-start justify-between">
-                                        <div class="flex-1">
-                                            <h4 class="font-semibold text-gray-900">{{ $item->item_name }}</h4>
-                                            @if($item->description)
-                                            <p class="text-sm text-gray-600 mt-1">{{ $item->description }}</p>
-                                            @endif
-                                            <div class="flex gap-4 mt-2">
-                                                <span class="text-sm text-gray-600">
-                                                    <span class="font-medium">Qty:</span> {{ $item->quantity_requested ?? 0 }} {{ $item->unit_of_measure }}
-                                                </span>
-                                                @if($item->estimated_unit_cost)
-                                                <span class="text-sm text-gray-600">
-                                                    <span class="font-medium">Unit Cost:</span> ₱{{ number_format($item->estimated_unit_cost, 2) }}
-                                                </span>
-                                                <span class="text-sm font-semibold text-gray-900">
-                                                    <span class="font-medium">Total:</span> ₱{{ number_format($item->estimated_total_cost ?? 0, 2) }}
-                                                </span>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Description</th>
+                                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
+                                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Cost</th>
+                                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Cost</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-100">
+                                    @forelse($purchaseRequest->items->load('lotChildren') as $item)
+                                        @if($item->isLotChild()) @continue @endif
+                                        @if($item->isLotHeader())
+                                        <tr class="bg-indigo-50">
+                                            <td class="px-4 py-3 font-bold text-indigo-700 uppercase">lot</td>
+                                            <td class="px-4 py-3 font-bold text-indigo-800 uppercase">{{ strtoupper($item->lot_name ?? $item->item_name) }}</td>
+                                            <td class="px-4 py-3 text-right text-gray-700">1</td>
+                                            <td class="px-4 py-3 text-right text-gray-700">₱{{ number_format($item->estimated_unit_cost, 2) }}</td>
+                                            <td class="px-4 py-3 text-right font-semibold text-indigo-700">₱{{ number_format($item->estimated_total_cost, 2) }}</td>
+                                        </tr>
+                                        @foreach($item->lotChildren as $child)
+                                        <tr class="bg-indigo-50/30">
+                                            <td class="px-4 py-2"></td>
+                                            <td class="px-4 py-2 text-gray-600 pl-8">
+                                                <span class="text-indigo-400 mr-1">↳</span>
+                                                {{ $child->quantity_requested }} {{ $child->unit_of_measure }}, {{ $child->item_name }}
+                                            </td>
+                                            <td class="px-4 py-2"></td>
+                                            <td class="px-4 py-2"></td>
+                                            <td class="px-4 py-2"></td>
+                                        </tr>
+                                        @endforeach
+                                        @else
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-4 py-3 text-gray-700">{{ $item->unit_of_measure }}</td>
+                                            <td class="px-4 py-3 font-medium text-gray-900">
+                                                {{ $item->item_name }}
+                                                @if($item->detailed_specifications)
+                                                <p class="text-xs text-gray-500 mt-0.5">{{ $item->detailed_specifications }}</p>
                                                 @endif
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                @empty
-                                <p class="text-center text-gray-500 py-8">No items added yet</p>
-                                @endforelse
-                            </div>
+                                            </td>
+                                            <td class="px-4 py-3 text-right text-gray-700">{{ number_format($item->quantity_requested ?? 0) }}</td>
+                                            <td class="px-4 py-3 text-right text-gray-700">₱{{ number_format($item->estimated_unit_cost ?? 0, 2) }}</td>
+                                            <td class="px-4 py-3 text-right font-semibold text-gray-900">₱{{ number_format($item->estimated_total_cost ?? 0, 2) }}</td>
+                                        </tr>
+                                        @endif
+                                    @empty
+                                    <tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">No items added yet</td></tr>
+                                    @endforelse
+                                </tbody>
+                                <tfoot class="bg-gray-50">
+                                    <tr>
+                                        <td colspan="4" class="px-4 py-3 text-right text-sm font-semibold text-gray-900">Total:</td>
+                                        <td class="px-4 py-3 text-right text-sm font-bold text-gray-900">₱{{ number_format($purchaseRequest->estimated_total, 2) }}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
                         </div>
                     </div>
 

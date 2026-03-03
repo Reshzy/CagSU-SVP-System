@@ -81,6 +81,14 @@ Route::middleware('auth')->group(function () {
         Route::get('/supply/purchase-requests/{purchaseRequest}', [SupplyPurchaseRequestController::class, 'show'])->name('supply.purchase-requests.show');
         Route::put('/supply/purchase-requests/{purchaseRequest}/status', [SupplyPurchaseRequestController::class, 'updateStatus'])->name('supply.purchase-requests.status');
 
+        // Lot management during Supply Office review
+        Route::post('/supply/purchase-requests/{purchaseRequest}/lots', [SupplyPurchaseRequestController::class, 'storeLot'])->name('supply.purchase-requests.lots.store');
+        Route::put('/supply/purchase-requests/{purchaseRequest}/lots/{lot}', [SupplyPurchaseRequestController::class, 'updateLot'])->name('supply.purchase-requests.lots.update');
+        Route::delete('/supply/purchase-requests/{purchaseRequest}/lots/{lot}', [SupplyPurchaseRequestController::class, 'destroyLot'])->name('supply.purchase-requests.lots.destroy');
+
+        // PR Export
+        Route::get('/supply/purchase-requests/{purchaseRequest}/export', [SupplyPurchaseRequestController::class, 'export'])->name('supply.purchase-requests.export');
+
         // Purchase Orders
         Route::get('/supply/purchase-orders', [PurchaseOrderController::class, 'index'])->name('supply.purchase-orders.index');
         Route::get('/supply/purchase-requests/{purchaseRequest}/purchase-orders/preview', [PurchaseOrderController::class, 'preview'])->name('supply.purchase-orders.preview');

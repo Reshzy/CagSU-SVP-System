@@ -382,30 +382,41 @@ class PurchaseRequestController extends Controller
         $quarterlyTracker = app(PpmpQuarterlyTracker::class);
         $currentQuarter = $quarterlyTracker->getQuarterFromDate();
 
-        foreach ($items as $itemData) {
-            $estimatedTotal = (float) $itemData['estimated_unit_cost'] * (int) $itemData['quantity_requested'];
+        /** @var array<int, \App\Models\PurchaseRequestItem> Maps submission index -> created model for lot parent resolution */
+        $createdByIndex = [];
 
-            // Determine item category from APP item
-            $itemCategory = null;
+        foreach ($items as $index => $itemData) {
+            $isLot = ! empty($itemData['is_lot']) && $itemData['is_lot'];
+            $quantity = $isLot ? 1 : (int) $itemData['quantity_requested'];
+            $estimatedTotal = (float) $itemData['estimated_unit_cost'] * $quantity;
+
             $prItemData = [
                 'purchase_request_id' => $purchaseRequest->id,
                 'ppmp_item_id' => $itemData['ppmp_item_id'] ?? null,
                 'item_code' => $itemData['item_code'] ?? null,
                 'item_name' => $itemData['item_name'] ?? null,
                 'detailed_specifications' => $itemData['detailed_specifications'] ?? null,
-                'unit_of_measure' => $itemData['unit_of_measure'] ?? null,
-                'quantity_requested' => $itemData['quantity_requested'],
+                'unit_of_measure' => $isLot ? 'lot' : ($itemData['unit_of_measure'] ?? null),
+                'quantity_requested' => $quantity,
                 'estimated_unit_cost' => $itemData['estimated_unit_cost'],
                 'estimated_total_cost' => $estimatedTotal,
                 'ppmp_quarter' => $currentQuarter,
+                'is_lot' => $isLot,
+                'lot_name' => $isLot ? ($itemData['lot_name'] ?? null) : null,
+                'parent_lot_id' => null,
             ];
 
-            if (! empty($itemData['ppmp_item_id'])) {
+            // Resolve parent lot reference
+            if (! empty($itemData['parent_lot_index']) && isset($createdByIndex[(int) $itemData['parent_lot_index']])) {
+                $prItemData['parent_lot_id'] = $createdByIndex[(int) $itemData['parent_lot_index']]->id;
+            }
+
+            // Determine item category from APP item (skip for lot headers)
+            $itemCategory = null;
+            if (! $isLot && ! empty($itemData['ppmp_item_id'])) {
                 $ppmpItem = PpmpItem::with('appItem')->find($itemData['ppmp_item_id']);
                 if ($ppmpItem && $ppmpItem->appItem) {
                     $itemCategory = $ppmpItem->appItem->category;
-
-                    // Store quarter tracking information
                     $prItemData['ppmp_planned_qty_for_quarter'] = $ppmpItem->getQuarterlyQuantity($currentQuarter);
                     $prItemData['ppmp_remaining_qty_at_creation'] = $ppmpItem->getRemainingQuantity($currentQuarter);
                 }
@@ -413,7 +424,7 @@ class PurchaseRequestController extends Controller
 
             $prItemData['item_category'] = $itemCategory;
 
-            PurchaseRequestItem::create($prItemData);
+            $createdByIndex[$index] = PurchaseRequestItem::create($prItemData);
         }
     }
 

@@ -59,6 +59,11 @@ class StorePurchaseRequestRequest extends FormRequest
             ],
             'items.*.estimated_unit_cost' => ['required', 'numeric', 'min:0'],
 
+            // Lot fields (optional)
+            'items.*.is_lot' => ['nullable', 'boolean'],
+            'items.*.lot_name' => ['nullable', 'string', 'max:255'],
+            'items.*.parent_lot_index' => ['nullable', 'integer', 'min:0'],
+
             // Attachments (optional)
             'attachments.*' => ['file', 'max:10240'],
         ];
@@ -152,6 +157,11 @@ class StorePurchaseRequestRequest extends FormRequest
 
         $itemIndex = $matches[1];
         $items = $this->input('items', []);
+
+        // Skip validation for lot child items (they are bundled under a lot header)
+        if (! empty($items[$itemIndex]['parent_lot_index'])) {
+            return;
+        }
 
         if (! isset($items[$itemIndex]['ppmp_item_id'])) {
             return; // Skip validation for custom items

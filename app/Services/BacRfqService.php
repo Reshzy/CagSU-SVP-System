@@ -105,7 +105,7 @@ class BacRfqService
             'purpose' => $this->purchaseRequest->purpose ?? 'N/A',
             'canvasser' => $signatories['canvassing_officer']['name'] ?? 'N/A',
             'deadline_date' => $this->calculateDeadlineDate($resolutionDate),
-            'items' => $itemGroup->items->toArray(),
+            'items' => $itemGroup->items->filter(fn ($i) => ! $i->isLotHeader())->values()->toArray(),
             'signatories' => $signatories,
         ];
     }
@@ -232,7 +232,7 @@ class BacRfqService
             'purpose' => $this->purchaseRequest->purpose ?? 'N/A',
             'canvasser' => $signatories['canvassing_officer']['name'] ?? 'N/A',
             'deadline_date' => $this->calculateDeadlineDate($resolutionDate),
-            'items' => $this->purchaseRequest->items->toArray(),
+            'items' => $this->purchaseRequest->items->filter(fn ($i) => ! $i->isLotHeader())->values()->toArray(),
             'signatories' => $signatories,
         ];
     }

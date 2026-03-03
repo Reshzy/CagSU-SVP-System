@@ -23,6 +23,7 @@ class PurchaseRequestItem extends Model
         'needed_by_date' => 'date',
         'is_available_locally' => 'boolean',
         'failed_at' => 'datetime',
+        'is_lot' => 'boolean',
     ];
 
     public function purchaseRequest(): BelongsTo
@@ -68,6 +69,38 @@ class PurchaseRequestItem extends Model
     public function replacementPr(): BelongsTo
     {
         return $this->belongsTo(PurchaseRequest::class, 'replacement_pr_id');
+    }
+
+    /**
+     * Get the lot children (items bundled under this lot header)
+     */
+    public function lotChildren(): HasMany
+    {
+        return $this->hasMany(PurchaseRequestItem::class, 'parent_lot_id');
+    }
+
+    /**
+     * Get the parent lot this item belongs to
+     */
+    public function parentLot(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseRequestItem::class, 'parent_lot_id');
+    }
+
+    /**
+     * Determine if this item is a lot header
+     */
+    public function isLotHeader(): bool
+    {
+        return (bool) $this->is_lot;
+    }
+
+    /**
+     * Determine if this item is a child item bundled inside a lot
+     */
+    public function isLotChild(): bool
+    {
+        return $this->parent_lot_id !== null;
     }
 
     /**
@@ -233,5 +266,30 @@ class PurchaseRequestItem extends Model
     {
         return $query->where('procurement_status', 'failed')
             ->whereNull('replacement_pr_id');
+    }
+
+    /**
+     * Scope to get lot header items
+     */
+    public function scopeLots($query)
+    {
+        return $query->where('is_lot', true);
+    }
+
+    /**
+     * Scope to get standalone items (not lot headers, not lot children)
+     */
+    public function scopeStandalone($query)
+    {
+        return $query->where('is_lot', false)->whereNull('parent_lot_id');
+    }
+
+    /**
+     * Scope to get items eligible for quotation (excludes lot header rows;
+     * lot children are quoted individually)
+     */
+    public function scopeQuotable($query)
+    {
+        return $query->where('is_lot', false);
     }
 }
