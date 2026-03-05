@@ -56,24 +56,24 @@ class PurchaseRequestExportService
         );
 
         // Purpose
-        $sheet->setCellValue('B43', $purchaseRequest->purpose ?? '');
+        $sheet->setCellValue('B58', $purchaseRequest->purpose ?? '');
 
         // Requester info
         $requester = $purchaseRequest->requester;
         if ($requester) {
-            $sheet->setCellValue('B51', strtoupper($requester->name));
-            $sheet->setCellValue('B52', $requester->position ?? $requester->designation ?? '');
+            $sheet->setCellValue('B66', strtoupper($requester->name));
+            $sheet->setCellValue('B67', $requester->position ?? $requester->designation ?? '');
         }
 
         // CEO signatory
         $ceo = PoSignatory::active()->position('ceo')->first();
         if ($ceo) {
-            $sheet->setCellValue('E51', $this->formatSignatoryName($ceo));
+            $sheet->setCellValue('E66', $this->formatSignatoryName($ceo));
         }
 
         // Fill items starting at row 11
         $startRow = 11;
-        $maxRow = 41;
+        $maxRow = 55;
         $row = $startRow;
         $stockNo = 1;
 
