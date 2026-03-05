@@ -95,7 +95,7 @@ class PurchaseRequestExportService
                 $row++;
                 $stockNo++;
 
-                // Lot child sub-rows: no stock no. (no unit), description as "qty unit, item_name"
+                // Lot child sub-rows: no stock no. (no unit), description only; leave E/F unset so cells stay blank and template total formula still evaluates (empty = 0)
                 foreach ($item->lotChildren as $child) {
                     if ($row > $maxRow) {
                         break;
@@ -103,8 +103,6 @@ class PurchaseRequestExportService
                     $sheet->setCellValue('A'.$row, '');
                     $sheet->setCellValue('B'.$row, '');
                     $sheet->setCellValue('C'.$row, $child->quantity_requested.' '.$child->unit_of_measure.', '.$child->item_name);
-                    $sheet->setCellValue('E'.$row, '');
-                    $sheet->setCellValue('F'.$row, '');
                     $row++;
                 }
                 // Blank row after each lot for readability
