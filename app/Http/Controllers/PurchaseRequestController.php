@@ -407,7 +407,7 @@ class PurchaseRequestController extends Controller
             ];
 
             // Resolve parent lot reference
-            if (! empty($itemData['parent_lot_index']) && isset($createdByIndex[(int) $itemData['parent_lot_index']])) {
+            if (isset($itemData['parent_lot_index']) && $itemData['parent_lot_index'] !== '' && isset($createdByIndex[(int) $itemData['parent_lot_index']])) {
                 $prItemData['parent_lot_id'] = $createdByIndex[(int) $itemData['parent_lot_index']]->id;
             }
 

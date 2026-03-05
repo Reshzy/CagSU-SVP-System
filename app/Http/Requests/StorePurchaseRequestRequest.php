@@ -159,7 +159,7 @@ class StorePurchaseRequestRequest extends FormRequest
         $items = $this->input('items', []);
 
         // Skip validation for lot child items (they are bundled under a lot header)
-        if (! empty($items[$itemIndex]['parent_lot_index'])) {
+        if (isset($items[$itemIndex]['parent_lot_index']) && $items[$itemIndex]['parent_lot_index'] !== '') {
             return;
         }
 
