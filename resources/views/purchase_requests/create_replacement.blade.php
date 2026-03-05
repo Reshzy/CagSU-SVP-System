@@ -429,7 +429,7 @@
                 </div>
 
                 <!-- Sticky Summary Sidebar -->
-                <div class="w-96 sticky top-4 self-start space-y-6">
+                <div class="w-96 sticky top-4 self-start max-h-[calc(100vh-1rem)] overflow-y-auto scrollbar-hide space-y-6">
                     <!-- PR Details Form -->
                     <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                         <div class="p-4">
@@ -767,8 +767,34 @@
                         localStorage.setItem('prExpandedCategories', JSON.stringify(this.expandedCategories));
                     });
 
-                    // Pre-populate with original PR items
-                    @foreach($originalPr->items as $originalItem)
+                    // Pre-populate with original PR items, preserving lot structure
+                    @php
+                        $originalLots = $originalPr->items->where('is_lot', true)->values();
+                        $originalLineItems = $originalPr->items->where('is_lot', false)->values();
+                    @endphp
+                    (function() {
+                        const idSeed = Date.now();
+                        const lotIdMap = {};
+                        @foreach($originalLots as $idx => $lot)
+                        lotIdMap[{{ $lot->id }}] = idSeed + {{ $idx }};
+                        this.selectedItems.push({
+                            id: lotIdMap[{{ $lot->id }}],
+                            ppmpItemId: null,
+                            name: '{{ addslashes($lot->lot_name ?? $lot->item_name) }}',
+                            originalName: '{{ addslashes($lot->lot_name ?? $lot->item_name) }}',
+                            code: null,
+                            unit: 'lot',
+                            price: {{ $lot->estimated_unit_cost }},
+                            specs: null,
+                            quantity: 1,
+                            maxQuantity: null,
+                            isPriceEditable: false,
+                            isLot: true,
+                            lotName: '{{ addslashes($lot->lot_name ?? $lot->item_name) }}',
+                            parentLotId: null,
+                        });
+                        @endforeach
+                        @foreach($originalLineItems as $idx => $originalItem)
                         @php
                             $itemLimit = null;
                             if ($originalItem->ppmp_item_id) {
@@ -777,7 +803,7 @@
                             $maxQty = $itemLimit ? $itemLimit['remainingQty'] : 999;
                         @endphp
                         this.selectedItems.push({
-                            id: Date.now() + {{ $loop->index }},
+                            id: idSeed + {{ $originalLots->count() + $idx }},
                             ppmpItemId: {{ $originalItem->ppmp_item_id ?? 'null' }},
                             name: '{{ addslashes($originalItem->item_name) }}',
                             originalName: '{{ addslashes($originalItem->item_name) }}',
@@ -790,9 +816,10 @@
                             isPriceEditable: {{ str_contains(strtoupper($originalItem->item_category ?? ''), 'SOFTWARE') || str_contains(strtoupper($originalItem->item_category ?? ''), 'PART') ? 'true' : 'false' }},
                             isLot: false,
                             lotName: null,
-                            parentLotId: null,
+                            parentLotId: {{ $originalItem->parent_lot_id ? 'lotIdMap[' . $originalItem->parent_lot_id . ']' : 'null' }},
                         });
-                    @endforeach
+                        @endforeach
+                    }).call(this);
                 },
 
                 get selectedCount() {
@@ -1052,7 +1079,7 @@
 
                 addHiddenInput(form, name, value) {
                     const input = document.createElement('input');
-                    input.type = 'hidden'; input.name = name; input.value = value || ''; input.className = 'dynamic-input';
+                    input.type = 'hidden'; input.name = name; input.value = (value === undefined || value === null) ? '' : String(value); input.className = 'dynamic-input';
                     form.appendChild(input);
                 },
 

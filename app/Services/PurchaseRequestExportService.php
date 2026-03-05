@@ -75,6 +75,7 @@ class PurchaseRequestExportService
         $startRow = 11;
         $maxRow = 41;
         $row = $startRow;
+        $stockNo = 1;
 
         $items = $purchaseRequest->items->filter(fn ($i) => ! $i->isLotChild());
 
@@ -84,15 +85,17 @@ class PurchaseRequestExportService
             }
 
             if ($item->isLotHeader()) {
-                // Lot header row: unit=lot, description=LOT NAME (uppercase), qty=1, unit cost=total
-                $sheet->setCellValue('A'.$row, '');
+                // Lot header row: stock no. (has unit), unit=lot, description=LOT NAME (uppercase), qty=1, unit cost=total; bold only description cell
+                $sheet->setCellValue('A'.$row, $stockNo);
                 $sheet->setCellValue('B'.$row, 'lot');
                 $sheet->setCellValue('C'.$row, strtoupper($item->lot_name ?? $item->item_name));
                 $sheet->setCellValue('E'.$row, 1);
                 $sheet->setCellValue('F'.$row, $item->estimated_unit_cost);
+                $sheet->getStyle('C'.$row)->getFont()->setBold(true);
                 $row++;
+                $stockNo++;
 
-                // Lot child sub-rows: no unit/qty/cost, description as "qty unit, item_name"
+                // Lot child sub-rows: no stock no. (no unit), description as "qty unit, item_name"
                 foreach ($item->lotChildren as $child) {
                     if ($row > $maxRow) {
                         break;
@@ -104,13 +107,19 @@ class PurchaseRequestExportService
                     $sheet->setCellValue('F'.$row, '');
                     $row++;
                 }
+                // Blank row after each lot for readability
+                if ($row <= $maxRow) {
+                    $row++;
+                }
             } else {
-                $sheet->setCellValue('A'.$row, $item->item_code ?? '');
+                // Standalone item: stock no. (has unit)
+                $sheet->setCellValue('A'.$row, $stockNo);
                 $sheet->setCellValue('B'.$row, $item->unit_of_measure ?? '');
                 $sheet->setCellValue('C'.$row, $item->item_name ?? '');
                 $sheet->setCellValue('E'.$row, $item->quantity_requested ?? 0);
                 $sheet->setCellValue('F'.$row, $item->estimated_unit_cost ?? 0);
                 $row++;
+                $stockNo++;
             }
         }
     }
