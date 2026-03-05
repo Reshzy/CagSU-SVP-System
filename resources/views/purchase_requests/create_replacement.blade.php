@@ -602,8 +602,8 @@
                                                                 min="1"
                                                                 :max="item.maxQuantity !== null && item.maxQuantity !== undefined ? item.maxQuantity : 999"
                                                                 :value="item.quantity"
-                                                                @input="updateQuantity(item.id, $event.target.value)"
-                                                                @blur="updateQuantity(item.id, $event.target.value)"
+                                                                @input="updateQuantity(item.id, $event.target.value, $event)"
+                                                                @blur="updateQuantity(item.id, $event.target.value, $event)"
                                                                 class="w-20 text-xs rounded border-gray-300"
                                                             />
                                                             <span x-show="item.maxQuantity" class="text-xs text-gray-500 ml-1">
@@ -938,17 +938,78 @@
                     if (lot) { lot.lotName = value; lot.name = value; }
                 },
 
-                updateQuantity(itemId, value) {
+                updateQuantity(itemId, value, evt) {
                     const item = this.selectedItems.find(i => i.id === itemId);
                     if (!item) return;
+                    // #region agent log
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                    fetch('/_debug/log', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Debug-Session-Id': '0178e9',
+                            'X-CSRF-TOKEN': csrfToken || '',
+                        },
+                        body: JSON.stringify({
+                            sessionId: '0178e9',
+                            runId: 'pr-replacement-qty-debug',
+                            hypothesisId: 'H1',
+                            location: 'resources/views/purchase_requests/create_replacement.blade.php:updateQuantity',
+                            message: 'updateQuantity called',
+                            data: {
+                                itemId: itemId,
+                                rawValue: value,
+                                currentQuantity: item.quantity,
+                                maxQuantity: item.maxQuantity,
+                                eventType: evt?.type,
+                                targetValue: evt?.target?.value,
+                            },
+                            timestamp: Date.now(),
+                        }),
+                    }).catch(() => {});
+                    // #endregion agent log
                     let newQty = parseInt(value);
                     if (isNaN(newQty) || newQty < 1) newQty = 1;
                     if (item.maxQuantity !== null && item.maxQuantity !== undefined && typeof item.maxQuantity === 'number' && newQty > item.maxQuantity) {
-                        alert(`Cannot exceed remaining quantity (${item.maxQuantity} available for current quarter)`);
+                        // #region agent log
+                        fetch('/_debug/log', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Debug-Session-Id': '0178e9',
+                            'X-CSRF-TOKEN': csrfToken || '',
+                            },
+                            body: JSON.stringify({
+                                sessionId: '0178e9',
+                                runId: 'pr-replacement-qty-debug',
+                                hypothesisId: 'H2',
+                                location: 'resources/views/purchase_requests/create_replacement.blade.php:updateQuantity',
+                                message: 'quantity exceeds max',
+                                data: {
+                                    itemId: itemId,
+                                    rawValue: value,
+                                    newQty: newQty,
+                                    maxQuantity: item.maxQuantity,
+                                    eventType: evt?.type,
+                                    targetValue: evt?.target?.value,
+                                },
+                                timestamp: Date.now(),
+                            }),
+                        }).catch(() => {});
+                        // #endregion agent log
                         item.quantity = item.maxQuantity;
+                        if (evt?.target) {
+                            evt.target.value = String(item.maxQuantity);
+                        }
+                        if (evt?.type === 'input') {
+                            alert(`Cannot exceed remaining quantity (${item.maxQuantity} available for current quarter)`);
+                        }
                         return;
                     }
                     item.quantity = newQty;
+                    if (evt?.target) {
+                        evt.target.value = String(newQty);
+                    }
                     if (item.parentLotId) this.recalculateLotPrice(item.parentLotId);
                 },
 

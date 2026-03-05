@@ -45,6 +45,26 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+    // Local-only debug log ingest (same-origin, avoids CSP/mixed-content issues).
+    Route::post('/_debug/log', function (\Illuminate\Http\Request $request) {
+        if ($request->header('X-Debug-Session-Id') !== '0178e9') {
+            abort(403);
+        }
+
+        $payload = $request->input();
+        $payload['timestamp'] = $payload['timestamp'] ?? (int) round(microtime(true) * 1000);
+
+        \Illuminate\Support\Facades\Log::info('agent-debug', $payload);
+
+        @file_put_contents(
+            base_path('debug-0178e9.log'),
+            json_encode($payload, JSON_UNESCAPED_SLASHES).PHP_EOL,
+            FILE_APPEND
+        );
+
+        return response()->noContent();
+    })->name('debug.log');
+
     // Authenticated file access via controller (with authorization)
     Route::get('/files/{document}', [DocumentController::class, 'show'])->name('files.show');
 

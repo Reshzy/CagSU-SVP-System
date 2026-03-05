@@ -172,6 +172,75 @@ class PrReplacementGracePeriodTest extends TestCase
         Carbon::setTestNow();
     }
 
+    public function test_returned_pr_keeps_ppmp_reserved_and_replacement_can_reuse_quantity(): void
+    {
+        // Work in Q1
+        Carbon::setTestNow(Carbon::create(now()->year, 2, 1));
+
+        // Initial remaining quantity should match planned quantity
+        $this->assertEquals(100, $this->ppmpItem->fresh()->getRemainingQuantity(1));
+
+        // Attach an item to the returned PR that consumes part of the PPMP item
+        $this->returnedPr->items()->create([
+            'ppmp_item_id' => $this->ppmpItem->id,
+            'ppmp_quarter' => 1,
+            'ppmp_planned_qty_for_quarter' => 100,
+            'ppmp_remaining_qty_at_creation' => 100,
+            'item_code' => $this->appItem->item_code,
+            'item_name' => $this->appItem->item_name,
+            'detailed_specifications' => 'Original specs',
+            'unit_of_measure' => $this->appItem->unit_of_measure,
+            'quantity_requested' => 30,
+            'estimated_unit_cost' => 100,
+            'estimated_total_cost' => 3000,
+            'item_category' => $this->appItem->category,
+            'procurement_status' => 'pending',
+        ]);
+
+        $this->ppmpItem->refresh();
+
+        // Returned PR should still reserve quantity in PPMP
+        $this->assertEquals(70, $this->ppmpItem->getRemainingQuantity(1));
+
+        // For replacement calculations, the system should be able to re-use the 30 units
+        $this->assertEquals(
+            100,
+            $this->ppmpItem->getRemainingQuantity(1, $this->returnedPr->id)
+        );
+
+        // Create a replacement PR that re-uses the same 30 units
+        $response = $this->actingAs($this->requester)->post(
+            route('purchase-requests.replacement.store', $this->returnedPr),
+            [
+                'purpose' => 'Replacement for returned PR',
+                'justification' => 'Fixing items',
+                'items' => [
+                    [
+                        'ppmp_item_id' => $this->ppmpItem->id,
+                        'item_code' => $this->appItem->item_code,
+                        'item_name' => $this->appItem->item_name,
+                        'detailed_specifications' => 'Updated specs',
+                        'unit_of_measure' => $this->appItem->unit_of_measure,
+                        'quantity_requested' => 30,
+                        'estimated_unit_cost' => 100,
+                    ],
+                ],
+            ]
+        );
+
+        $response->assertRedirect(route('purchase-requests.index'));
+
+        // Original PR should be archived by the replacement workflow
+        $this->returnedPr->refresh();
+        $this->assertTrue($this->returnedPr->is_archived);
+
+        // Only the replacement PR should now reserve quantity in PPMP
+        $this->ppmpItem->refresh();
+        $this->assertEquals(70, $this->ppmpItem->getRemainingQuantity(1));
+
+        Carbon::setTestNow();
+    }
+
     public function test_regular_prs_cannot_use_grace_period(): void
     {
         // Set config for 14 day grace period

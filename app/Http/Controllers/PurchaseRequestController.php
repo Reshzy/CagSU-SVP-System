@@ -124,10 +124,10 @@ class PurchaseRequestController extends Controller
             abort(403, 'Unauthorized to create replacement for this PR.');
         }
 
-        $data = $this->preparePrCreationDataForReplacement();
-
         // Load the original PR with items
         $originalPr->load(['items.ppmpItem', 'returnedBy']);
+
+        $data = $this->preparePrCreationDataForReplacement($originalPr);
 
         // Add original PR to the data
         $data['originalPr'] = $originalPr;
@@ -138,7 +138,7 @@ class PurchaseRequestController extends Controller
     /**
      * Prepare data for replacement PR creation with grace period support
      */
-    protected function preparePrCreationDataForReplacement(): array
+    protected function preparePrCreationDataForReplacement(PurchaseRequest $originalPr): array
     {
         $user = Auth::user();
         $fiscalYear = date('Y');
@@ -164,6 +164,18 @@ class PurchaseRequestController extends Controller
         $gracePeriodInfo = $quarterlyTracker->getGracePeriodInfo();
         $availableQuarters = $quarterlyTracker->getAvailableQuartersForReplacement();
 
+        // Build a lookup of quantities used in the original (returned) PR by PPMP item and quarter
+        $originalUsageByPpmpAndQuarter = [];
+        foreach ($originalPr->items as $originalItem) {
+            if (! $originalItem->ppmp_item_id || ! $originalItem->ppmp_quarter) {
+                continue;
+            }
+
+            $originalUsageByPpmpAndQuarter[$originalItem->ppmp_item_id][$originalItem->ppmp_quarter] =
+                ($originalUsageByPpmpAndQuarter[$originalItem->ppmp_item_id][$originalItem->ppmp_quarter] ?? 0)
+                + $originalItem->quantity_requested;
+        }
+
         // Quarter labels
         $quarterLabels = [
             1 => 'January to March',
@@ -182,8 +194,8 @@ class PurchaseRequestController extends Controller
             });
 
         // Categorize items with quarter status - include grace period quarters
-        $categorizedItems = $ppmpItems->map(function ($items) use ($currentQuarter, $availableQuarters) {
-            return $items->map(function ($item) use ($currentQuarter, $availableQuarters) {
+        $categorizedItems = $ppmpItems->map(function ($items) use ($currentQuarter, $availableQuarters, $originalPr, $originalUsageByPpmpAndQuarter) {
+            return $items->map(function ($item) use ($currentQuarter, $availableQuarters, $originalPr, $originalUsageByPpmpAndQuarter) {
                 $quarterStatus = $item->getQuarterStatus($currentQuarter);
                 $remainingQty = 0;
                 $currentQuarterQty = 0;
@@ -192,7 +204,15 @@ class PurchaseRequestController extends Controller
                 // Check if item is available in any of the available quarters (current + grace period)
                 foreach ($availableQuarters as $quarter) {
                     if ($item->hasQuantityForQuarter($quarter)) {
-                        $qtyInQuarter = $item->getRemainingQuantity($quarter);
+                        // Remaining for all PRs except the original returned PR
+                        $remainingExcludingOriginal = $item->getRemainingQuantity($quarter, $originalPr->id);
+
+                        // Quantity already reserved in the original returned PR for this PPMP item and quarter
+                        $originalQtyForQuarter = $originalUsageByPpmpAndQuarter[$item->id][$quarter] ?? 0;
+
+                        // Effective available quantity for replacement = remaining for others + original PR quantity
+                        $qtyInQuarter = $remainingExcludingOriginal + $originalQtyForQuarter;
+
                         if ($qtyInQuarter > 0) {
                             $remainingQty += $qtyInQuarter;
                             $currentQuarterQty += $item->getQuarterlyQuantity($quarter);

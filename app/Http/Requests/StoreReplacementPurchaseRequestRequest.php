@@ -90,12 +90,33 @@ class StoreReplacementPurchaseRequestRequest extends StorePurchaseRequestRequest
         $currentQuarter = $quarterlyTracker->getQuarterFromDate();
         $availableQuarters = $quarterlyTracker->getAvailableQuartersForReplacement();
 
-        // Check if item has quantity allocated for any available quarter (current or grace period)
+        // Check if item has quantity allocated for any available quarter (current or grace period),
+        // allowing the replacement PR to re-use the original returned PR's reserved quantity.
+        $originalPr = $this->route('originalPr');
+
         $itemAvailable = false;
         $availableInQuarter = null;
 
         foreach ($availableQuarters as $quarter) {
-            if ($ppmpItem->hasQuantityForQuarter($quarter) && $ppmpItem->getRemainingQuantity($quarter) > 0) {
+            if (! $ppmpItem->hasQuantityForQuarter($quarter)) {
+                continue;
+            }
+
+            // Remaining for all PRs except the original returned PR
+            $remainingExcludingOriginal = $ppmpItem->getRemainingQuantity($quarter, $originalPr?->id);
+
+            // Quantity already reserved in the original returned PR for this PPMP item and quarter
+            $originalQtyForQuarter = 0;
+            if ($originalPr instanceof PurchaseRequest) {
+                $originalQtyForQuarter = $originalPr->items()
+                    ->where('ppmp_item_id', $ppmpItem->id)
+                    ->where('ppmp_quarter', $quarter)
+                    ->sum('quantity_requested');
+            }
+
+            $effectiveAvailable = $remainingExcludingOriginal + $originalQtyForQuarter;
+
+            if ($effectiveAvailable > 0) {
                 $itemAvailable = true;
                 $availableInQuarter = $quarter;
                 break;
@@ -149,29 +170,38 @@ class StoreReplacementPurchaseRequestRequest extends StorePurchaseRequestRequest
         $quarterlyTracker = app(PpmpQuarterlyTracker::class);
         $availableQuarters = $quarterlyTracker->getAvailableQuartersForReplacement();
 
-        // Check remaining quantity in available quarters (current + grace period if applicable)
-        $totalRemainingQty = 0;
-        $quarterWithQuantity = null;
+        // Remaining quantity across available quarters (current + grace period if applicable),
+        // allowing the replacement PR to re-use the original returned PR's reserved quantity.
+        $originalPr = $this->route('originalPr');
+
+        $totalRemainingExcludingOriginal = 0;
+        $originalUsageAcrossQuarters = 0;
 
         foreach ($availableQuarters as $quarter) {
-            $remainingInQuarter = $ppmpItem->getRemainingQuantity($quarter);
+            $remainingInQuarter = $ppmpItem->getRemainingQuantity($quarter, $originalPr?->id);
             if ($remainingInQuarter > 0) {
-                $totalRemainingQty += $remainingInQuarter;
-                if ($quarterWithQuantity === null) {
-                    $quarterWithQuantity = $quarter;
-                }
+                $totalRemainingExcludingOriginal += $remainingInQuarter;
+            }
+
+            if ($originalPr instanceof PurchaseRequest) {
+                $originalUsageAcrossQuarters += $originalPr->items()
+                    ->where('ppmp_item_id', $ppmpItem->id)
+                    ->where('ppmp_quarter', $quarter)
+                    ->sum('quantity_requested');
             }
         }
 
-        if ($quantity > $totalRemainingQty) {
+        $totalAllowedQty = $totalRemainingExcludingOriginal + $originalUsageAcrossQuarters;
+
+        if ($quantity > $totalAllowedQty) {
             $currentQuarter = $quarterlyTracker->getQuarterFromDate();
             $quarterLabel = $quarterlyTracker->getQuarterLabel($currentQuarter);
             $gracePeriodInfo = $quarterlyTracker->getGracePeriodInfo();
 
             if ($gracePeriodInfo && $gracePeriodInfo['active']) {
-                $fail("Requested quantity ({$quantity}) for '{$ppmpItem->appItem->item_name}' exceeds remaining quantity ({$totalRemainingQty}) across current quarter and grace period.");
+                $fail("Requested quantity ({$quantity}) for '{$ppmpItem->appItem->item_name}' exceeds remaining quantity ({$totalAllowedQty}) across current quarter and grace period (including the original returned PR's reserved quantity).");
             } else {
-                $fail("Requested quantity ({$quantity}) for '{$ppmpItem->appItem->item_name}' exceeds remaining quantity ({$totalRemainingQty}) for Q{$currentQuarter} ({$quarterLabel}).");
+                $fail("Requested quantity ({$quantity}) for '{$ppmpItem->appItem->item_name}' exceeds remaining quantity ({$totalAllowedQty}) for Q{$currentQuarter} ({$quarterLabel}) (including the original returned PR's reserved quantity).");
             }
         }
     }

@@ -85,18 +85,44 @@ class PpmpItem extends Model
     /**
      * Get remaining quantity for a specific quarter (not yet in active PRs)
      */
-    public function getRemainingQuantity(?int $quarter = null): int
+    public function getRemainingQuantity(?int $quarter = null, ?int $excludePurchaseRequestId = null): int
     {
-        $plannedQty = $quarter ? $this->getQuarterlyQuantity($quarter) : $this->total_quantity;
+        if ($quarter !== null) {
+            return $this->getRemainingQuantityForQuarter($quarter, $excludePurchaseRequestId);
+        }
+
+        $plannedQty = $this->total_quantity;
 
         $usedQty = $this->purchaseRequestItems()
-            ->when($quarter, function ($query) use ($quarter) {
-                // Filter by ppmp_quarter column if quarter specified
-                $query->where('ppmp_quarter', $quarter);
+            ->when($excludePurchaseRequestId, function ($query) use ($excludePurchaseRequestId) {
+                $query->where('purchase_request_id', '!=', $excludePurchaseRequestId);
             })
             ->whereHas('purchaseRequest', function ($query) {
-                // Exclude items from returned, rejected, or cancelled PRs
-                $query->whereNotIn('status', ['returned_by_supply', 'rejected', 'cancelled']);
+                // Exclude items only from PRs that have been fully released
+                // Returned PRs still reserve quantity unless they are archived
+                $query->where('is_archived', false)
+                    ->whereNotIn('status', ['rejected', 'cancelled']);
+            })
+            ->sum('quantity_requested');
+
+        return max(0, $plannedQty - $usedQty);
+    }
+
+    /**
+     * Get remaining quantity for a specific quarter with optional PR exclusion.
+     */
+    protected function getRemainingQuantityForQuarter(int $quarter, ?int $excludePurchaseRequestId = null): int
+    {
+        $plannedQty = $this->getQuarterlyQuantity($quarter);
+
+        $usedQty = $this->purchaseRequestItems()
+            ->where('ppmp_quarter', $quarter)
+            ->when($excludePurchaseRequestId, function ($query) use ($excludePurchaseRequestId) {
+                $query->where('purchase_request_id', '!=', $excludePurchaseRequestId);
+            })
+            ->whereHas('purchaseRequest', function ($query) {
+                $query->where('is_archived', false)
+                    ->whereNotIn('status', ['rejected', 'cancelled']);
             })
             ->sum('quantity_requested');
 
