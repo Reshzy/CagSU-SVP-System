@@ -22,9 +22,19 @@ class PurchaseRequestExportService
         }
 
         $spreadsheet = IOFactory::load($templatePath);
-        $sheet = $spreadsheet->getActiveSheet();
+        $templateSheet = $spreadsheet->getActiveSheet();
 
-        $this->fillPrData($sheet, $purchaseRequest);
+        // Create the first working sheet as a clone of the template,
+        // then remove the original template sheet from the workbook so there
+        // are no duplicate sheet titles. Keep the detached template sheet
+        // instance for cloning additional pages later.
+        $firstSheet = clone $templateSheet;
+        $spreadsheet->removeSheetByIndex($spreadsheet->getIndex($templateSheet));
+        $firstSheet->setTitle($templateSheet->getTitle());
+        $spreadsheet->addSheet($firstSheet, 0);
+        $spreadsheet->setActiveSheetIndex(0);
+
+        $this->fillPrData($spreadsheet, $firstSheet, $templateSheet, $purchaseRequest);
 
         $tempDir = storage_path('app/temp');
         if (! file_exists($tempDir)) {
@@ -42,11 +52,132 @@ class PurchaseRequestExportService
     /**
      * Fill spreadsheet with PR data.
      */
-    protected function fillPrData($sheet, PurchaseRequest $purchaseRequest): void
+    protected function fillPrData($spreadsheet, $sheet, $templateSheet, PurchaseRequest $purchaseRequest): void
     {
         $purchaseRequest->loadMissing(['requester', 'items.lotChildren']);
 
-        // Header: PR number and date
+        // Fill header / metadata on the first page
+        $this->fillHeaderAndMetadata($sheet, $purchaseRequest);
+
+        // Items / lots are rendered starting at row 11 up to row 55 on each page
+        $startRow = 11;
+        $maxRow = 55;
+        $rowsPerPage = $maxRow - $startRow + 1;
+
+        // Build a flat list of display rows (lot headers, children, blanks, standalone items)
+        $items = $purchaseRequest->items->filter(fn ($i) => ! $i->isLotChild());
+
+        $displayRows = [];
+        $stockNo = 1;
+
+        foreach ($items as $item) {
+            if ($item->isLotHeader()) {
+                $displayRows[] = [
+                    'type' => 'lot_header',
+                    'item' => $item,
+                    'stock_no' => $stockNo,
+                ];
+                $stockNo++;
+
+                foreach ($item->lotChildren as $child) {
+                    $displayRows[] = [
+                        'type' => 'lot_child',
+                        'child' => $child,
+                    ];
+                }
+
+                // Blank row after each lot for readability
+                $displayRows[] = [
+                    'type' => 'blank',
+                ];
+            } else {
+                $displayRows[] = [
+                    'type' => 'standalone',
+                    'item' => $item,
+                    'stock_no' => $stockNo,
+                ];
+                $stockNo++;
+            }
+        }
+
+        $totalRows = count($displayRows);
+        if ($totalRows === 0) {
+            // No items; nothing to paginate, no page numbers needed.
+            $sheet->setCellValue('C56', '');
+
+            return;
+        }
+
+        $pageSheets = [$sheet];
+        $totalPages = (int) ceil($totalRows / $rowsPerPage);
+
+        // Render each page into its own sheet
+        for ($pageIndex = 0; $pageIndex < $totalPages; $pageIndex++) {
+            if ($pageIndex === 0) {
+                $pageSheet = $sheet;
+            } else {
+                $pageSheet = $this->cloneTemplateSheet($spreadsheet, $templateSheet, $pageIndex);
+                $this->fillHeaderAndMetadata($pageSheet, $purchaseRequest);
+                $pageSheets[] = $pageSheet;
+            }
+
+            $row = $startRow;
+            $startIndex = $pageIndex * $rowsPerPage;
+            $endIndex = min($startIndex + $rowsPerPage, $totalRows);
+
+            for ($i = $startIndex; $i < $endIndex; $i++, $row++) {
+                $rowDef = $displayRows[$i];
+
+                if ($rowDef['type'] === 'lot_header') {
+                    /** @var \App\Models\PurchaseRequestItem $lotItem */
+                    $lotItem = $rowDef['item'];
+                    $pageSheet->setCellValue('A'.$row, $rowDef['stock_no']);
+                    $pageSheet->setCellValue('B'.$row, 'lot');
+                    $pageSheet->setCellValue('C'.$row, strtoupper($lotItem->lot_name ?? $lotItem->item_name));
+                    $pageSheet->setCellValue('E'.$row, 1);
+                    $pageSheet->setCellValue('F'.$row, $lotItem->estimated_unit_cost);
+                    $pageSheet->getStyle('C'.$row)->getFont()->setBold(true);
+                } elseif ($rowDef['type'] === 'lot_child') {
+                    /** @var \App\Models\PurchaseRequestItem $child */
+                    $child = $rowDef['child'];
+                    $pageSheet->setCellValue('A'.$row, '');
+                    $pageSheet->setCellValue('B'.$row, '');
+                    $pageSheet->setCellValue('C'.$row, $child->quantity_requested.' '.$child->unit_of_measure.', '.$child->item_name);
+                } elseif ($rowDef['type'] === 'standalone') {
+                    /** @var \App\Models\PurchaseRequestItem $standalone */
+                    $standalone = $rowDef['item'];
+                    $pageSheet->setCellValue('A'.$row, $rowDef['stock_no']);
+                    $pageSheet->setCellValue('B'.$row, $standalone->unit_of_measure ?? '');
+                    $pageSheet->setCellValue('C'.$row, $standalone->item_name ?? '');
+                    $pageSheet->setCellValue('E'.$row, $standalone->quantity_requested ?? 0);
+                    $pageSheet->setCellValue('F'.$row, $standalone->estimated_unit_cost ?? 0);
+                } elseif ($rowDef['type'] === 'blank') {
+                    // Intentionally leave this row completely untouched so that
+                    // all cells (including the quantity / unit cost cells used
+                    // by the template's total-cost formula) remain truly empty.
+                    // This avoids Excel interpreting empty strings as text and
+                    // producing #VALUE! in the total column.
+                }
+            }
+        }
+
+        // Page numbering in C56: only when there are 2+ pages
+        if ($totalPages === 1) {
+            $sheet->setCellValue('C56', '');
+        } else {
+            foreach ($pageSheets as $index => $pageSheet) {
+                $pageNumber = $index + 1;
+                $pageSheet->setCellValue('C56', 'Page no. '.$pageNumber.' of '.$totalPages);
+            }
+        }
+    }
+
+    /**
+     * Write header / metadata cells (PR number, date, purpose, requester, CEO) to the given sheet.
+     */
+    protected function fillHeaderAndMetadata($sheet, PurchaseRequest $purchaseRequest): void
+    {
+        // PR number and date
         $sheet->setCellValue('D7', $purchaseRequest->pr_number ?? '');
         $sheet->setCellValue(
             'F7',
@@ -70,56 +201,18 @@ class PurchaseRequestExportService
         if ($ceo) {
             $sheet->setCellValue('E66', $this->formatSignatoryName($ceo));
         }
+    }
 
-        // Fill items starting at row 11
-        $startRow = 11;
-        $maxRow = 55;
-        $row = $startRow;
-        $stockNo = 1;
+    /**
+     * Clone the template sheet to create a new page sheet in the workbook.
+     */
+    protected function cloneTemplateSheet($spreadsheet, $templateSheet, int $pageIndex)
+    {
+        $newSheet = clone $templateSheet;
+        $newSheet->setTitle('PR Page '.($pageIndex + 1));
+        $spreadsheet->addSheet($newSheet);
 
-        $items = $purchaseRequest->items->filter(fn ($i) => ! $i->isLotChild());
-
-        foreach ($items as $item) {
-            if ($row > $maxRow) {
-                break;
-            }
-
-            if ($item->isLotHeader()) {
-                // Lot header row: stock no. (has unit), unit=lot, description=LOT NAME (uppercase), qty=1, unit cost=total; bold only description cell
-                $sheet->setCellValue('A'.$row, $stockNo);
-                $sheet->setCellValue('B'.$row, 'lot');
-                $sheet->setCellValue('C'.$row, strtoupper($item->lot_name ?? $item->item_name));
-                $sheet->setCellValue('E'.$row, 1);
-                $sheet->setCellValue('F'.$row, $item->estimated_unit_cost);
-                $sheet->getStyle('C'.$row)->getFont()->setBold(true);
-                $row++;
-                $stockNo++;
-
-                // Lot child sub-rows: no stock no. (no unit), description only; leave E/F unset so cells stay blank and template total formula still evaluates (empty = 0)
-                foreach ($item->lotChildren as $child) {
-                    if ($row > $maxRow) {
-                        break;
-                    }
-                    $sheet->setCellValue('A'.$row, '');
-                    $sheet->setCellValue('B'.$row, '');
-                    $sheet->setCellValue('C'.$row, $child->quantity_requested.' '.$child->unit_of_measure.', '.$child->item_name);
-                    $row++;
-                }
-                // Blank row after each lot for readability
-                if ($row <= $maxRow) {
-                    $row++;
-                }
-            } else {
-                // Standalone item: stock no. (has unit)
-                $sheet->setCellValue('A'.$row, $stockNo);
-                $sheet->setCellValue('B'.$row, $item->unit_of_measure ?? '');
-                $sheet->setCellValue('C'.$row, $item->item_name ?? '');
-                $sheet->setCellValue('E'.$row, $item->quantity_requested ?? 0);
-                $sheet->setCellValue('F'.$row, $item->estimated_unit_cost ?? 0);
-                $row++;
-                $stockNo++;
-            }
-        }
+        return $newSheet;
     }
 
     /**
