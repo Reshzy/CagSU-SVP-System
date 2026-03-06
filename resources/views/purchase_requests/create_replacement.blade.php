@@ -941,62 +941,9 @@
                 updateQuantity(itemId, value, evt) {
                     const item = this.selectedItems.find(i => i.id === itemId);
                     if (!item) return;
-                    // #region agent log
-                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-                    fetch('/_debug/log', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Debug-Session-Id': '0178e9',
-                            'X-CSRF-TOKEN': csrfToken || '',
-                        },
-                        body: JSON.stringify({
-                            sessionId: '0178e9',
-                            runId: 'pr-replacement-qty-debug',
-                            hypothesisId: 'H1',
-                            location: 'resources/views/purchase_requests/create_replacement.blade.php:updateQuantity',
-                            message: 'updateQuantity called',
-                            data: {
-                                itemId: itemId,
-                                rawValue: value,
-                                currentQuantity: item.quantity,
-                                maxQuantity: item.maxQuantity,
-                                eventType: evt?.type,
-                                targetValue: evt?.target?.value,
-                            },
-                            timestamp: Date.now(),
-                        }),
-                    }).catch(() => {});
-                    // #endregion agent log
                     let newQty = parseInt(value);
                     if (isNaN(newQty) || newQty < 1) newQty = 1;
                     if (item.maxQuantity !== null && item.maxQuantity !== undefined && typeof item.maxQuantity === 'number' && newQty > item.maxQuantity) {
-                        // #region agent log
-                        fetch('/_debug/log', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-Debug-Session-Id': '0178e9',
-                            'X-CSRF-TOKEN': csrfToken || '',
-                            },
-                            body: JSON.stringify({
-                                sessionId: '0178e9',
-                                runId: 'pr-replacement-qty-debug',
-                                hypothesisId: 'H2',
-                                location: 'resources/views/purchase_requests/create_replacement.blade.php:updateQuantity',
-                                message: 'quantity exceeds max',
-                                data: {
-                                    itemId: itemId,
-                                    rawValue: value,
-                                    newQty: newQty,
-                                    maxQuantity: item.maxQuantity,
-                                    eventType: evt?.type,
-                                    targetValue: evt?.target?.value,
-                                },
-                                timestamp: Date.now(),
-                            }),
-                        }).catch(() => {});
-                        // #endregion agent log
                         item.quantity = item.maxQuantity;
                         if (evt?.target) {
                             evt.target.value = String(item.maxQuantity);
