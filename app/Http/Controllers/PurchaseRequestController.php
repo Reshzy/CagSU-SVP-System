@@ -13,11 +13,13 @@ use App\Models\PurchaseRequestItem;
 use App\Notifications\PurchaseRequestSubmitted;
 use App\Services\PpmpQuarterlyTracker;
 use App\Services\PurchaseRequestActivityLogger;
+use App\Services\PurchaseRequestExportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class PurchaseRequestController extends Controller
 {
@@ -60,6 +62,23 @@ class PurchaseRequestController extends Controller
         ]);
 
         return view('purchase_requests.show', compact('purchaseRequest'));
+    }
+
+    /**
+     * Export the purchase request as an Excel file for the requester.
+     */
+    public function export(PurchaseRequest $purchaseRequest): BinaryFileResponse
+    {
+        if ($purchaseRequest->requester_id !== Auth::id()) {
+            abort(403, 'Unauthorized access to export this purchase request.');
+        }
+
+        $purchaseRequest->load(['requester', 'items.lotChildren']);
+
+        $exportService = new PurchaseRequestExportService;
+        $tempFile = $exportService->generateExcel($purchaseRequest);
+
+        return response()->download($tempFile, "PR-{$purchaseRequest->pr_number}.xlsx")->deleteFileAfterSend(true);
     }
 
     public function create(Request $request): View

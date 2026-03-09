@@ -45,6 +45,9 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+    // Requester Purchase Request export (Excel)
+    Route::get('/purchase-requests/{purchaseRequest}/export', [PurchaseRequestController::class, 'export'])->name('purchase-requests.export');
+
     // Authenticated file access via controller (with authorization)
     Route::get('/files/{document}', [DocumentController::class, 'show'])->name('files.show');
 

@@ -230,14 +230,30 @@
                     </div>
 
                     <!-- Documents Card -->
-                    @if($purchaseRequest->documents->count() > 0)
                     <div class="bg-white rounded-lg shadow-sm overflow-hidden">
                         <div class="bg-gradient-to-r from-cagsu-maroon to-cagsu-orange px-6 py-4">
                             <h3 class="text-lg font-bold text-white">Attached Documents</h3>
                         </div>
-                        <div class="p-6">
+                        <div class="p-6 space-y-4">
+                            <div>
+                                <a href="{{ route('purchase-requests.export', $purchaseRequest) }}" class="flex items-center justify-between p-3 border border-emerald-200 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition">
+                                    <div class="flex items-center gap-3">
+                                        <svg class="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                        </svg>
+                                        <div>
+                                            <p class="font-medium text-gray-900">Export Purchase Request (Excel)</p>
+                                            <p class="text-xs text-gray-600">Download this PR using the official Excel template.</p>
+                                        </div>
+                                    </div>
+                                    <span class="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">
+                                        XLSX
+                                    </span>
+                                </a>
+                            </div>
+
                             <div class="space-y-3">
-                                @foreach($purchaseRequest->documents as $document)
+                                @forelse($purchaseRequest->documents as $document)
                                 <a href="{{ Storage::url($document->file_path) }}" target="_blank" class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
                                     <div class="flex items-center gap-3">
                                         <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -252,11 +268,12 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
                                     </svg>
                                 </a>
-                                @endforeach
+                                @empty
+                                <p class="text-sm text-gray-500">No attached documents yet.</p>
+                                @endforelse
                             </div>
                         </div>
                     </div>
-                    @endif
                 </div>
 
                 <!-- Right Column: Timeline -->
