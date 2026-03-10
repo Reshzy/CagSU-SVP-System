@@ -2,25 +2,34 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\BudgetEarmarkRequest;
 use App\Models\PurchaseRequest;
 use App\Models\WorkflowApproval;
 use App\Notifications\PurchaseRequestStatusUpdated;
+use App\Services\EarmarkExportService;
 use App\Services\WorkflowRouter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class BudgetEarmarkController extends Controller
 {
     public function index(Request $request): View
     {
-        $requests = PurchaseRequest::with(['requester', 'department'])
+        $pendingRequests = PurchaseRequest::with(['requester', 'department'])
             ->where('status', 'budget_office_review')
             ->latest()
-            ->paginate(15);
+            ->paginate(15, ['*'], 'pending_page');
 
-        return view('budget.purchase_requests.index', compact('requests'));
+        $earmarkedRequests = PurchaseRequest::with(['requester', 'department'])
+            ->whereNotNull('earmark_id')
+            ->whereNotIn('status', ['budget_office_review'])
+            ->latest()
+            ->paginate(15, ['*'], 'earmarked_page');
+
+        return view('budget.purchase_requests.index', compact('pendingRequests', 'earmarkedRequests'));
     }
 
     public function edit(PurchaseRequest $purchaseRequest): View
@@ -36,18 +45,11 @@ class BudgetEarmarkController extends Controller
         return view('budget.purchase_requests.edit', compact('purchaseRequest', 'ceoApproval'));
     }
 
-    public function update(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
+    public function update(BudgetEarmarkRequest $request, PurchaseRequest $purchaseRequest): RedirectResponse
     {
         abort_unless($purchaseRequest->status === 'budget_office_review', 403);
 
-        $validated = $request->validate([
-            'approved_budget_total' => ['required', 'numeric', 'min:0'],
-            'date_needed' => ['required', 'date'],
-            'funding_source' => ['nullable', 'string', 'max:255'],
-            'budget_code' => ['nullable', 'string', 'max:255'],
-            'procurement_type' => ['required', 'in:supplies_materials,equipment,infrastructure,services,consulting_services'],
-            'remarks' => ['required', 'string', 'min:1'],
-        ]);
+        $validated = $request->validated();
 
         // Additional validation to check remarks is not just whitespace
         if (empty(trim($validated['remarks']))) {
@@ -77,12 +79,16 @@ class BudgetEarmarkController extends Controller
             $purchaseRequest->earmark_id = PurchaseRequest::generateNextEarmarkId();
         }
 
-        // Update PR with approved budget, procurement details, and forward to CEO approval
+        // Update PR with approved budget, procurement details, earmark fields, and forward to CEO approval
         $purchaseRequest->estimated_total = (float) $validated['approved_budget_total'];
         $purchaseRequest->date_needed = $validated['date_needed'];
         $purchaseRequest->funding_source = $validated['funding_source'] ?? null;
         $purchaseRequest->budget_code = $validated['budget_code'] ?? null;
         $purchaseRequest->procurement_type = $validated['procurement_type'];
+        $purchaseRequest->legal_basis = $validated['legal_basis'] ?? null;
+        $purchaseRequest->earmark_programs_activities = $validated['earmark_programs_activities'] ?? null;
+        $purchaseRequest->earmark_responsibility_center = $validated['earmark_responsibility_center'] ?? null;
+        $purchaseRequest->earmark_date_to = $validated['earmark_date_to'] ?? null;
 
         if (! empty($validated['remarks'])) {
             $purchaseRequest->current_step_notes = $validated['remarks'];
@@ -145,6 +151,23 @@ class BudgetEarmarkController extends Controller
             $purchaseRequest->requester->notify(new PurchaseRequestStatusUpdated($purchaseRequest, $oldStatus, 'rejected'));
         }
 
-        return redirect()->route('budget.purchase-requests.index')->with('status', 'Purchase request has been rejected.');
+        return redirect()->route('budget.purchase-requests.index')->with('status', 'Purchase request has been deferred.');
+    }
+
+    /**
+     * Export the earmark document as an Excel file.
+     */
+    public function export(PurchaseRequest $purchaseRequest): BinaryFileResponse
+    {
+        abort_unless(! empty($purchaseRequest->earmark_id), 404);
+
+        $purchaseRequest->load(['requester', 'items', 'department']);
+
+        $exportService = new EarmarkExportService;
+        $tempFile = $exportService->generateExcel($purchaseRequest);
+
+        $filename = 'Earmark-'.$purchaseRequest->earmark_id.'.xlsx';
+
+        return response()->download($tempFile, $filename)->deleteFileAfterSend(true);
     }
 }
