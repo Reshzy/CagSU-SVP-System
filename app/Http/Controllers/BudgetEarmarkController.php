@@ -92,6 +92,28 @@ class BudgetEarmarkController extends Controller
         $purchaseRequest->earmark_responsibility_center = $validated['earmark_responsibility_center'] ?? null;
         $purchaseRequest->earmark_date_to = $validated['earmark_date_to'] ?? null;
 
+        // Normalize and save Object of Expenditures rows (drop fully empty rows)
+        if (isset($validated['earmark_object_expenditures']) && is_array($validated['earmark_object_expenditures'])) {
+            $normalized = [];
+            foreach ($validated['earmark_object_expenditures'] as $row) {
+                $code = isset($row['code']) ? trim((string) $row['code']) : '';
+                $description = isset($row['description']) ? trim((string) $row['description']) : '';
+                $amount = $row['amount'] ?? null;
+
+                if ($code === '' && $description === '' && ($amount === null || $amount === '')) {
+                    continue;
+                }
+
+                $normalized[] = [
+                    'code' => $code !== '' ? $code : null,
+                    'description' => $description !== '' ? $description : null,
+                    'amount' => $amount !== '' ? $amount : null,
+                ];
+            }
+
+            $purchaseRequest->earmark_object_expenditures = $normalized ?: null;
+        }
+
         if (! empty($validated['remarks'])) {
             $purchaseRequest->current_step_notes = $validated['remarks'];
         }
@@ -229,6 +251,10 @@ class BudgetEarmarkController extends Controller
             'earmark_date_to' => ['nullable', 'date'],
             'approved_budget_total' => ['nullable', 'numeric', 'min:0'],
             'remarks' => ['nullable', 'string', 'max:2000'],
+            'earmark_object_expenditures' => ['nullable', 'array'],
+            'earmark_object_expenditures.*.code' => ['nullable', 'string', 'max:50'],
+            'earmark_object_expenditures.*.description' => ['nullable', 'string', 'max:255'],
+            'earmark_object_expenditures.*.amount' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         /** @var array<string, string> $amendableFields */
@@ -261,6 +287,47 @@ class BudgetEarmarkController extends Controller
                 $oldValues[$inputKey] = $current;
                 $newValues[$inputKey] = $incoming;
                 $purchaseRequest->$modelKey = $incoming;
+            }
+        }
+
+        // Object of Expenditures (array diff)
+        if (array_key_exists('earmark_object_expenditures', $validated)) {
+            $currentArray = $purchaseRequest->earmark_object_expenditures ?? [];
+            $incomingArray = $validated['earmark_object_expenditures'] ?? [];
+
+            $normalize = static function ($rows): array {
+                if (! is_array($rows)) {
+                    return [];
+                }
+
+                $normalized = [];
+
+                foreach ($rows as $row) {
+                    $code = isset($row['code']) ? trim((string) $row['code']) : '';
+                    $description = isset($row['description']) ? trim((string) $row['description']) : '';
+                    $amount = $row['amount'] ?? null;
+
+                    if ($code === '' && $description === '' && ($amount === null || $amount === '')) {
+                        continue;
+                    }
+
+                    $normalized[] = [
+                        'code' => $code !== '' ? $code : null,
+                        'description' => $description !== '' ? $description : null,
+                        'amount' => $amount !== '' ? $amount : null,
+                    ];
+                }
+
+                return array_values($normalized);
+            };
+
+            $normalizedCurrent = $normalize($currentArray);
+            $normalizedIncoming = $normalize($incomingArray);
+
+            if (json_encode($normalizedCurrent) !== json_encode($normalizedIncoming)) {
+                $oldValues['earmark_object_expenditures'] = $normalizedCurrent;
+                $newValues['earmark_object_expenditures'] = $normalizedIncoming;
+                $purchaseRequest->earmark_object_expenditures = $normalizedIncoming ?: null;
             }
         }
 

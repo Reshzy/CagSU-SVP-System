@@ -7,6 +7,7 @@ use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestItem;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -132,6 +133,9 @@ class BudgetEarmarkExportTest extends TestCase
                 'earmark_programs_activities' => 'Administrative Support Program',
                 'earmark_responsibility_center' => 'Office of the Vice President for Administration',
                 'earmark_date_to' => now()->addMonths(3)->format('Y-m-d'),
+                'earmark_object_expenditures' => [
+                    ['code' => '(50213040-02)', 'description' => 'R & M School Buildings', 'amount' => 15000.00],
+                ],
             ]
         );
 
@@ -143,6 +147,8 @@ class BudgetEarmarkExportTest extends TestCase
         $this->assertEquals('Section 86 of RA 9184', $this->pendingPr->legal_basis);
         $this->assertEquals('Administrative Support Program', $this->pendingPr->earmark_programs_activities);
         $this->assertEquals('Office of the Vice President for Administration', $this->pendingPr->earmark_responsibility_center);
+        $this->assertIsArray($this->pendingPr->earmark_object_expenditures);
+        $this->assertCount(1, $this->pendingPr->earmark_object_expenditures);
     }
 
     public function test_earmark_approval_fails_without_required_remarks(): void
@@ -277,11 +283,22 @@ class BudgetEarmarkExportTest extends TestCase
 
     public function test_amendment_creates_activity_log_with_old_and_new_values(): void
     {
-        $this->earmarkedPr->update(['legal_basis' => 'Original Legal Basis']);
+        $this->earmarkedPr->update([
+            'legal_basis' => 'Original Legal Basis',
+            'earmark_object_expenditures' => [
+                ['code' => '(50213040-02)', 'description' => 'R & M School Buildings', 'amount' => 10000],
+            ],
+        ]);
 
         $this->actingAs($this->budgetOfficer)->patch(
             route('budget.purchase-requests.amend-earmark', $this->earmarkedPr),
-            ['legal_basis' => 'Amended Legal Basis']
+            [
+                'legal_basis' => 'Amended Legal Basis',
+                'earmark_object_expenditures' => [
+                    ['code' => '(50213040-02)', 'description' => 'R & M School Buildings', 'amount' => 12000],
+                    ['code' => '(50213040-03)', 'description' => 'Another Object', 'amount' => 3000],
+                ],
+            ]
         );
 
         $activity = $this->earmarkedPr->activities()->where('action', 'earmark_amended')->latest()->first();
@@ -289,6 +306,10 @@ class BudgetEarmarkExportTest extends TestCase
         $this->assertNotNull($activity);
         $this->assertEquals('Original Legal Basis', $activity->old_value['legal_basis']);
         $this->assertEquals('Amended Legal Basis', $activity->new_value['legal_basis']);
+        $this->assertArrayHasKey('earmark_object_expenditures', $activity->old_value);
+        $this->assertArrayHasKey('earmark_object_expenditures', $activity->new_value);
+        $this->assertCount(1, $activity->old_value['earmark_object_expenditures']);
+        $this->assertCount(2, $activity->new_value['earmark_object_expenditures']);
     }
 
     public function test_amendment_returns_no_changes_message_when_nothing_changed(): void
@@ -307,6 +328,39 @@ class BudgetEarmarkExportTest extends TestCase
             'purchase_request_id' => $this->earmarkedPr->id,
             'action' => 'earmark_amended',
         ]);
+    }
+
+    public function test_object_of_expenditures_written_to_excel_rows(): void
+    {
+        $templatePath = storage_path('app/templates/EarmarkTemplate.xlsx');
+
+        if (! file_exists($templatePath)) {
+            $this->markTestSkipped('Earmark template file not found, skipping export mapping test.');
+        }
+
+        $this->earmarkedPr->update([
+            'estimated_total' => 18000,
+            'earmark_object_expenditures' => [
+                ['code' => '(50213040-02)', 'description' => 'R & M School Buildings', 'amount' => 15000],
+                ['code' => '(50213040-03)', 'description' => 'Other Object', 'amount' => 3000],
+            ],
+        ]);
+
+        $response = $this->actingAs($this->budgetOfficer)->get(
+            route('budget.purchase-requests.export-earmark', $this->earmarkedPr)
+        );
+
+        $response->assertOk();
+
+        $binary = $response->baseResponse;
+        $file = $binary->getFile();
+        $spreadsheet = IOFactory::load($file->getRealPath());
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $this->assertSame('(50213040-02). R & M School Buildings', $sheet->getCell('A19')->getValue());
+        $this->assertSame('(50213040-03). Other Object', $sheet->getCell('A20')->getValue());
+        $this->assertEquals(15000, $sheet->getCell('C19')->getCalculatedValue());
+        $this->assertEquals(3000, $sheet->getCell('C20')->getCalculatedValue());
     }
 
     public function test_amendment_works_from_ceo_approval_status(): void

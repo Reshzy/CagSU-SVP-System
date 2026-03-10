@@ -81,21 +81,102 @@ class EarmarkExportService
             .($purchaseRequest->earmark_responsibility_center ?? '');
         $sheet->setCellValue('A17', $rcValue);
 
-        // B27: Date/Time Printed
-        $sheet->setCellValue('B27', $datePrinted->format('F j, Y g:i A'));
+        // A18:C18 header and A19+/C19+: Object of Expenditures table rows
+        $baseHeaderRow = 18;
+        $baseDataRow = 19;
+        $objectRowCount = $this->fillObjectOfExpendituresTable($sheet, $purchaseRequest, $baseHeaderRow, $baseDataRow);
 
-        // A19+/C19+: Object of Expenditures table rows
-        $this->fillItemsTable($sheet, $purchaseRequest);
+        $extraObjectRows = max(0, $objectRowCount - 1);
+
+        // Date/Time Printed (originally B27) shifts down with inserted object rows
+        $dateTimeRow = 27 + $extraObjectRows;
+        $sheet->setCellValue('B'.$dateTimeRow, $datePrinted->format('F j, Y g:i A'));
+
+        // PR items can be rendered in a separate section if needed, away from A19/C19
+        $itemsStartRow = $dateTimeRow + 2;
+        $this->fillItemsTable($sheet, $purchaseRequest, $itemsStartRow);
     }
 
     /**
-     * Fill the Object of Expenditures table starting at row 19.
-     * A column: item name (Object of Expenditures)
-     * C column: amount
+     * Fill the Object of Expenditures table starting at given base rows.
+     *
+     * A column: combined code + description, e.g. \"(50213040-02). R & M School Buildings\"
+     * C column: amount (per row). If all amounts are null and at least one row exists,
+     *           C19 will fall back to the approved budget total.
+     *
+     * @return int Number of object rows rendered.
      */
-    protected function fillItemsTable($sheet, PurchaseRequest $purchaseRequest): void
+    protected function fillObjectOfExpendituresTable($sheet, PurchaseRequest $purchaseRequest, int $baseHeaderRow, int $baseDataRow): int
     {
-        $row = 19;
+        $rows = $purchaseRequest->earmark_object_expenditures ?? [];
+
+        if (! is_array($rows) || count($rows) === 0) {
+            // No explicit rows; if we have an approved budget total, put it in C19 as a fallback.
+            if ($purchaseRequest->estimated_total !== null) {
+                $sheet->setCellValue('C'.$baseDataRow, $purchaseRequest->estimated_total);
+            }
+
+            return 0;
+        }
+
+        $rowCount = count($rows);
+        $extraRows = max(0, $rowCount - 1);
+
+        if ($extraRows > 0) {
+            // Insert new rows below the first data row to accommodate additional object rows
+            $sheet->insertNewRowBefore($baseDataRow + 1, $extraRows);
+
+            // Copy styles from the original row across the inserted block (A..C)
+            $sourceRange = 'A'.$baseDataRow.':C'.$baseDataRow;
+            $targetRange = 'A'.$baseDataRow.':C'.($baseDataRow + $extraRows);
+            $sheet->duplicateStyle($sheet->getStyle($sourceRange), $targetRange);
+        }
+
+        $hasAnyAmount = false;
+
+        foreach (array_values($rows) as $index => $row) {
+            $targetRow = $baseDataRow + $index;
+
+            $code = isset($row['code']) && $row['code'] !== null ? trim((string) $row['code']) : '';
+            $description = isset($row['description']) && $row['description'] !== null ? trim((string) $row['description']) : '';
+            $amount = $row['amount'] ?? null;
+
+            if ($code === '' && $description === '' && ($amount === null || $amount === '')) {
+                continue;
+            }
+
+            $label = '';
+            if ($code !== '') {
+                $label = $code;
+                if ($description !== '') {
+                    $label .= '. '.$description;
+                }
+            } else {
+                $label = $description;
+            }
+
+            $sheet->setCellValue('A'.$targetRow, $label);
+
+            if ($amount !== null && $amount !== '') {
+                $sheet->setCellValue('C'.$targetRow, (float) $amount);
+                $hasAnyAmount = true;
+            }
+        }
+
+        // If no per-row amounts were set but we do have a total, fall back to putting it on the first data row (C19).
+        if (! $hasAnyAmount && $purchaseRequest->estimated_total !== null) {
+            $sheet->setCellValue('C'.$baseDataRow, $purchaseRequest->estimated_total);
+        }
+
+        return $rowCount;
+    }
+
+    /**
+     * Fill PR items in a separate section of the sheet (for reference only).
+     */
+    protected function fillItemsTable($sheet, PurchaseRequest $purchaseRequest, int $startRow): void
+    {
+        $row = $startRow;
 
         foreach ($purchaseRequest->items as $item) {
             if ($item->parent_lot_id !== null) {

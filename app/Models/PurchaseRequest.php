@@ -18,6 +18,7 @@ class PurchaseRequest extends Model
     protected $casts = [
         'date_needed' => 'date',
         'earmark_date_to' => 'date',
+        'earmark_object_expenditures' => 'array',
         'estimated_total' => 'decimal:2',
         'status_updated_at' => 'datetime',
         'submitted_at' => 'datetime',

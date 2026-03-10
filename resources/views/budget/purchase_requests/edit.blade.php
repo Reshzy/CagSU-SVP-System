@@ -68,10 +68,96 @@
             </div>
             @endif
 
-            {{-- Items Table --}}
+            {{-- Object of Expenditures --}}
+            @php
+                $initialObjectExpenditures = old('earmark_object_expenditures', $purchaseRequest->earmark_object_expenditures ?? []);
+                if (! is_array($initialObjectExpenditures) || count($initialObjectExpenditures) === 0) {
+                    $initialObjectExpenditures = [['code' => null, 'description' => null, 'amount' => null]];
+                }
+            @endphp
+            <div
+                x-data="{
+                    rows: {{ json_encode(array_values($initialObjectExpenditures)) }},
+                    addRow() {
+                        this.rows.push({ code: null, description: null, amount: null });
+                    },
+                    removeRow(index) {
+                        if (this.rows.length > 1) {
+                            this.rows.splice(index, 1);
+                        }
+                    }
+                }"
+                class="bg-white dark:bg-gray-800 shadow-sm sm:rounded-lg overflow-hidden"
+            >
+                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-2">
+                    <div>
+                        <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">Object of Expenditures</h3>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            These rows map to A19–C19+ in the earmark template. Example: <span class="font-mono">(50213040-02). R &amp; M School Buildings</span>.
+                        </p>
+                    </div>
+                    <button type="button"
+                        @click="addRow()"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-md hover:bg-emerald-700 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        Add Row
+                    </button>
+                </div>
+                <div class="p-6 space-y-3">
+                    <template x-for="(row, index) in rows" :key="index">
+                        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
+                            <div class="md:col-span-3">
+                                <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                                    Code
+                                    <span class="font-normal text-[10px] text-gray-500 dark:text-gray-400">(e.g. (50213040-02))</span>
+                                </label>
+                                <input type="text"
+                                    class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-cagsu-maroon focus:ring-cagsu-maroon text-xs"
+                                    x-model="row.code"
+                                    :name="`earmark_object_expenditures[${index}][code]`"
+                                    placeholder="(50213040-02)">
+                            </div>
+                            <div class="md:col-span-7">
+                                <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                                    Description
+                                    <span class="font-normal text-[10px] text-gray-500 dark:text-gray-400">(e.g. R &amp; M School Buildings)</span>
+                                </label>
+                                <input type="text"
+                                    class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-cagsu-maroon focus:ring-cagsu-maroon text-xs"
+                                    x-model="row.description"
+                                    :name="`earmark_object_expenditures[${index}][description]`"
+                                    placeholder="R &amp; M School Buildings">
+                            </div>
+                            <div class="md:col-span-2 flex items-end gap-2">
+                                <div class="flex-1">
+                                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Amount (₱)</label>
+                                    <input type="number" step="0.01" min="0"
+                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-cagsu-maroon focus:ring-cagsu-maroon text-xs"
+                                        x-model="row.amount"
+                                        :name="`earmark_object_expenditures[${index}][amount]`">
+                                </div>
+                                <button type="button"
+                                    @click="removeRow(index)"
+                                    class="inline-flex items-center justify-center mt-5 px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40"
+                                    :disabled="rows.length === 1">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 12H6"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                    <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                        If no per-row amounts are set, the approved budget total will still be reflected in the template.
+                    </p>
+                </div>
+            </div>
+
+            {{-- PR Items (for reference only, not Object of Expenditures) --}}
             <div class="bg-white dark:bg-gray-800 shadow-sm sm:rounded-lg overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                    <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">Items (Object of Expenditures)</h3>
+                    <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">PR Items (Reference)</h3>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        These are the original PR items and lots, shown for context. The Object of Expenditures above is what prints to A19+ in the earmark template.
+                    </p>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">

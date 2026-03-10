@@ -33,6 +33,10 @@ class BudgetEarmarkRequest extends FormRequest
             'earmark_programs_activities' => ['nullable', 'string', 'max:1000'],
             'earmark_responsibility_center' => ['nullable', 'string', 'max:255'],
             'earmark_date_to' => ['nullable', 'date', 'after_or_equal:date_needed'],
+            'earmark_object_expenditures' => ['nullable', 'array'],
+            'earmark_object_expenditures.*.code' => ['nullable', 'string', 'max:50'],
+            'earmark_object_expenditures.*.description' => ['nullable', 'string', 'max:255'],
+            'earmark_object_expenditures.*.amount' => ['nullable', 'numeric', 'min:0'],
         ];
     }
 
