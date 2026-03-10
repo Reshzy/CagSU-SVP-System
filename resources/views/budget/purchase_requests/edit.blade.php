@@ -78,14 +78,45 @@
                             </tr>
                         </thead>
                         <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                            @foreach($purchaseRequest->items as $item)
-                            <tr>
-                                <td class="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">{{ $item->item_name }}</td>
-                                <td class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">{{ $item->unit_of_measure }}</td>
-                                <td class="px-4 py-2 text-sm text-right text-gray-900 dark:text-gray-100">{{ $item->quantity_requested }}</td>
-                                <td class="px-4 py-2 text-sm text-right text-gray-900 dark:text-gray-100">₱{{ number_format((float)$item->estimated_unit_cost, 2) }}</td>
-                                <td class="px-4 py-2 text-sm text-right font-medium text-gray-900 dark:text-gray-100">₱{{ number_format((float)($item->estimated_total_cost ?? $item->estimated_unit_cost * $item->quantity_requested), 2) }}</td>
-                            </tr>
+                            @foreach($purchaseRequest->items->load('lotChildren') as $item)
+                                @if($item->isLotChild()) @continue @endif
+
+                                @if($item->isLotHeader())
+                                    <tr class="bg-indigo-50 dark:bg-indigo-900/30">
+                                        <td class="px-4 py-2 text-sm font-semibold text-indigo-900 dark:text-indigo-100 uppercase">
+                                            {{ strtoupper($item->lot_name ?? $item->item_name) }}
+                                        </td>
+                                        <td class="px-4 py-2 text-sm font-semibold text-indigo-700 dark:text-indigo-200 uppercase">lot</td>
+                                        <td class="px-4 py-2 text-sm text-right text-indigo-900 dark:text-indigo-100">1</td>
+                                        <td class="px-4 py-2 text-sm text-right text-indigo-900 dark:text-indigo-100">
+                                            ₱{{ number_format((float)($item->estimated_unit_cost ?? 0), 2) }}
+                                        </td>
+                                        <td class="px-4 py-2 text-sm text-right font-semibold text-indigo-900 dark:text-indigo-100">
+                                            ₱{{ number_format((float)($item->estimated_total_cost ?? 0), 2) }}
+                                        </td>
+                                    </tr>
+
+                                    @foreach($item->lotChildren as $child)
+                                        <tr class="bg-indigo-50/30 dark:bg-indigo-900/10">
+                                            <td class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 pl-8">
+                                                <span class="text-indigo-400 mr-1">↳</span>
+                                                {{ $child->quantity_requested }} {{ $child->unit_of_measure }}, {{ $child->item_name }}
+                                            </td>
+                                            <td class="px-4 py-2"></td>
+                                            <td class="px-4 py-2"></td>
+                                            <td class="px-4 py-2"></td>
+                                            <td class="px-4 py-2"></td>
+                                        </tr>
+                                    @endforeach
+                                @else
+                                    <tr>
+                                        <td class="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">{{ $item->item_name }}</td>
+                                        <td class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">{{ $item->unit_of_measure }}</td>
+                                        <td class="px-4 py-2 text-sm text-right text-gray-900 dark:text-gray-100">{{ $item->quantity_requested }}</td>
+                                        <td class="px-4 py-2 text-sm text-right text-gray-900 dark:text-gray-100">₱{{ number_format((float)$item->estimated_unit_cost, 2) }}</td>
+                                        <td class="px-4 py-2 text-sm text-right font-medium text-gray-900 dark:text-gray-100">₱{{ number_format((float)($item->estimated_total_cost ?? $item->estimated_unit_cost * $item->quantity_requested), 2) }}</td>
+                                    </tr>
+                                @endif
                             @endforeach
                         </tbody>
                     </table>
@@ -105,7 +136,7 @@
                     <div class="p-6 space-y-4">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <x-input-label for="date_needed" value="Date Needed" />
+                                <x-input-label for="date_needed" value="Current Date" />
                                 <x-text-input id="date_needed" name="date_needed" type="date" class="mt-1 block w-full bg-gray-100 dark:bg-gray-700"
                                     value="{{ now()->format('Y-m-d') }}" required readonly />
                                 <x-input-error :messages="$errors->get('date_needed')" class="mt-2" />

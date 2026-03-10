@@ -75,6 +75,31 @@ class BudgetEarmarkExportTest extends TestCase
 
     public function test_budget_officer_can_view_earmark_review_form(): void
     {
+        $lotHeader = PurchaseRequestItem::factory()->create([
+            'purchase_request_id' => $this->pendingPr->id,
+            'is_lot' => true,
+            'lot_name' => 'Office Supplies Lot',
+            'quantity_requested' => 1,
+            'estimated_unit_cost' => 100,
+            'estimated_total_cost' => 100,
+        ]);
+
+        $lotChild = PurchaseRequestItem::factory()->create([
+            'purchase_request_id' => $this->pendingPr->id,
+            'parent_lot_id' => $lotHeader->id,
+            'is_lot' => false,
+            'item_name' => 'Bond Paper A4',
+            'unit_of_measure' => 'reams',
+            'quantity_requested' => 2,
+        ]);
+
+        $standalone = PurchaseRequestItem::factory()->create([
+            'purchase_request_id' => $this->pendingPr->id,
+            'is_lot' => false,
+            'parent_lot_id' => null,
+            'item_name' => 'Stapler',
+        ]);
+
         $response = $this->actingAs($this->budgetOfficer)->get(
             route('budget.purchase-requests.edit', $this->pendingPr)
         );
@@ -85,6 +110,11 @@ class BudgetEarmarkExportTest extends TestCase
         $response->assertSee('Programs / Projects / Activities');
         $response->assertSee('Responsibility Center');
         $response->assertSee('Earmark Date To');
+
+        // Lot rendering
+        $response->assertSee(strtoupper($lotHeader->lot_name));
+        $response->assertSee($lotChild->item_name);
+        $response->assertSee($standalone->item_name);
     }
 
     public function test_budget_officer_can_approve_earmark_with_new_fields(): void
