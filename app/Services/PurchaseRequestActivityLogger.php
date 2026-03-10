@@ -512,6 +512,30 @@ class PurchaseRequestActivityLogger
     }
 
     /**
+     * Log an earmark amendment (post-approval field changes by Budget Office).
+     *
+     * @param  array<string, mixed>  $oldValues  Only the fields that changed (before)
+     * @param  array<string, mixed>  $newValues  Only the fields that changed (after)
+     */
+    public function logEarmarkAmended(
+        PurchaseRequest $purchaseRequest,
+        array $oldValues,
+        array $newValues,
+        ?int $userId = null
+    ): PurchaseRequestActivity {
+        $fieldCount = count($oldValues);
+        $description = "Earmark amended: {$fieldCount} field(s) updated";
+
+        return $this->log($purchaseRequest, [
+            'action' => 'earmark_amended',
+            'old_value' => $oldValues,
+            'new_value' => $newValues,
+            'description' => $description,
+            'user_id' => $userId ?? Auth::id(),
+        ]);
+    }
+
+    /**
      * Format a status change description.
      */
     protected function formatStatusChangeDescription(string $oldStatus, string $newStatus): string

@@ -164,6 +164,8 @@ Route::middleware('auth')->group(function () {
         Route::put('/budget/purchase-requests/{purchaseRequest}', [BudgetEarmarkController::class, 'update'])->name('budget.purchase-requests.update');
         Route::post('/budget/purchase-requests/{purchaseRequest}/reject', [BudgetEarmarkController::class, 'reject'])->name('budget.purchase-requests.reject');
         Route::get('/budget/purchase-requests/{purchaseRequest}/export-earmark', [BudgetEarmarkController::class, 'export'])->name('budget.purchase-requests.export-earmark');
+        Route::get('/budget/purchase-requests/{purchaseRequest}/amend', [BudgetEarmarkController::class, 'showAmend'])->name('budget.purchase-requests.amend');
+        Route::patch('/budget/purchase-requests/{purchaseRequest}/amend-earmark', [BudgetEarmarkController::class, 'amend'])->name('budget.purchase-requests.amend-earmark');
 
         // Department Budget Management
         Route::get('/budget/departments', [BudgetManagementController::class, 'index'])->name('budget.index');

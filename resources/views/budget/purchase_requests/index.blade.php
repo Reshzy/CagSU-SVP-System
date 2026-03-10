@@ -159,11 +159,18 @@
                                             </td>
                                             <td class="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100 font-medium">₱{{ number_format((float)$req->estimated_total, 2) }}</td>
                                             <td class="px-4 py-3 text-right">
-                                                <a href="{{ route('budget.purchase-requests.export-earmark', $req) }}"
-                                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                                                    Export
-                                                </a>
+                                                <div class="flex items-center justify-end gap-2">
+                                                    <a href="{{ route('budget.purchase-requests.amend', $req) }}"
+                                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-white text-sm font-medium rounded-md hover:bg-amber-600 transition-colors">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                                        Amend
+                                                    </a>
+                                                    <a href="{{ route('budget.purchase-requests.export-earmark', $req) }}"
+                                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                                        Export
+                                                    </a>
+                                                </div>
                                             </td>
                                         </tr>
                                         @empty

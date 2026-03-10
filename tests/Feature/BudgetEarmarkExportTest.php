@@ -196,10 +196,174 @@ class BudgetEarmarkExportTest extends TestCase
         $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     }
 
-    public function test_cannot_export_pr_without_earmark_id(): void
+    public function test_preview_export_on_budget_office_review_reserves_earmark_id(): void
     {
+        $templatePath = storage_path('app/templates/EarmarkTemplate.xlsx');
+
+        if (! file_exists($templatePath)) {
+            $this->markTestSkipped('Earmark template file not found, skipping export test.');
+        }
+
+        $this->assertNull($this->pendingPr->earmark_id);
+
         $response = $this->actingAs($this->budgetOfficer)->get(
             route('budget.purchase-requests.export-earmark', $this->pendingPr)
+        );
+
+        $response->assertOk();
+        $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+        $this->pendingPr->refresh();
+        $this->assertNotNull($this->pendingPr->earmark_id, 'earmark_id should be reserved on preview export');
+    }
+
+    public function test_cannot_export_pr_that_is_not_in_review_and_has_no_earmark_id(): void
+    {
+        $otherPr = PurchaseRequest::factory()->create([
+            'requester_id' => $this->requester->id,
+            'department_id' => $this->department->id,
+            'status' => 'submitted',
+            'earmark_id' => null,
+        ]);
+
+        $response = $this->actingAs($this->budgetOfficer)->get(
+            route('budget.purchase-requests.export-earmark', $otherPr)
+        );
+
+        $response->assertNotFound();
+    }
+
+    public function test_budget_officer_can_view_amend_page(): void
+    {
+        $response = $this->actingAs($this->budgetOfficer)->get(
+            route('budget.purchase-requests.amend', $this->earmarkedPr)
+        );
+
+        $response->assertOk();
+        $response->assertSee($this->earmarkedPr->earmark_id);
+        $response->assertSee('Amend Earmark');
+        $response->assertSee('Save Amendment');
+    }
+
+    public function test_amend_page_returns_404_without_earmark_id(): void
+    {
+        $response = $this->actingAs($this->budgetOfficer)->get(
+            route('budget.purchase-requests.amend', $this->pendingPr)
+        );
+
+        $response->assertNotFound();
+    }
+
+    public function test_budget_officer_can_amend_earmark_fields(): void
+    {
+        $response = $this->actingAs($this->budgetOfficer)->patch(
+            route('budget.purchase-requests.amend-earmark', $this->earmarkedPr),
+            [
+                'legal_basis' => 'Updated Legal Basis',
+                'funding_source' => 'Special Fund',
+                'earmark_programs_activities' => 'Updated Program',
+                'earmark_responsibility_center' => 'Updated RC',
+            ]
+        );
+
+        $response->assertRedirect();
+        $response->assertSessionHas('status');
+
+        $this->earmarkedPr->refresh();
+        $this->assertEquals('Updated Legal Basis', $this->earmarkedPr->legal_basis);
+        $this->assertEquals('Special Fund', $this->earmarkedPr->funding_source);
+        $this->assertEquals('Updated Program', $this->earmarkedPr->earmark_programs_activities);
+    }
+
+    public function test_amendment_creates_activity_log_with_old_and_new_values(): void
+    {
+        $this->earmarkedPr->update(['legal_basis' => 'Original Legal Basis']);
+
+        $this->actingAs($this->budgetOfficer)->patch(
+            route('budget.purchase-requests.amend-earmark', $this->earmarkedPr),
+            ['legal_basis' => 'Amended Legal Basis']
+        );
+
+        $activity = $this->earmarkedPr->activities()->where('action', 'earmark_amended')->latest()->first();
+
+        $this->assertNotNull($activity);
+        $this->assertEquals('Original Legal Basis', $activity->old_value['legal_basis']);
+        $this->assertEquals('Amended Legal Basis', $activity->new_value['legal_basis']);
+    }
+
+    public function test_amendment_returns_no_changes_message_when_nothing_changed(): void
+    {
+        $this->earmarkedPr->update(['legal_basis' => 'Same Value']);
+
+        $response = $this->actingAs($this->budgetOfficer)->patch(
+            route('budget.purchase-requests.amend-earmark', $this->earmarkedPr),
+            ['legal_basis' => 'Same Value']
+        );
+
+        $response->assertRedirect();
+        $response->assertSessionHas('status', 'No changes detected.');
+
+        $this->assertDatabaseMissing('purchase_request_activities', [
+            'purchase_request_id' => $this->earmarkedPr->id,
+            'action' => 'earmark_amended',
+        ]);
+    }
+
+    public function test_amendment_works_from_ceo_approval_status(): void
+    {
+        $pr = PurchaseRequest::factory()->create([
+            'requester_id' => $this->requester->id,
+            'department_id' => $this->department->id,
+            'status' => 'ceo_approval',
+            'earmark_id' => 'EM-03-0010',
+        ]);
+
+        $response = $this->actingAs($this->budgetOfficer)->patch(
+            route('budget.purchase-requests.amend-earmark', $pr),
+            ['legal_basis' => 'Amendment during CEO approval']
+        );
+
+        $response->assertRedirect();
+        $pr->refresh();
+        $this->assertEquals('Amendment during CEO approval', $pr->legal_basis);
+    }
+
+    public function test_amendment_works_from_bac_evaluation_status(): void
+    {
+        $pr = PurchaseRequest::factory()->create([
+            'requester_id' => $this->requester->id,
+            'department_id' => $this->department->id,
+            'status' => 'bac_evaluation',
+            'earmark_id' => 'EM-03-0011',
+        ]);
+
+        $response = $this->actingAs($this->budgetOfficer)->patch(
+            route('budget.purchase-requests.amend-earmark', $pr),
+            ['funding_source' => 'Amended Fund during BAC']
+        );
+
+        $response->assertRedirect();
+        $pr->refresh();
+        $this->assertEquals('Amended Fund during BAC', $pr->funding_source);
+    }
+
+    public function test_amendment_blocked_when_pr_still_in_budget_office_review(): void
+    {
+        $this->pendingPr->update(['earmark_id' => 'EM-03-0099']);
+
+        $response = $this->actingAs($this->budgetOfficer)->patch(
+            route('budget.purchase-requests.amend-earmark', $this->pendingPr),
+            ['legal_basis' => 'Should not work']
+        );
+
+        $response->assertForbidden();
+    }
+
+    public function test_amendment_returns_404_without_earmark_id(): void
+    {
+        $response = $this->actingAs($this->budgetOfficer)->patch(
+            route('budget.purchase-requests.amend-earmark', $this->pendingPr),
+            ['legal_basis' => 'Should not work']
         );
 
         $response->assertNotFound();

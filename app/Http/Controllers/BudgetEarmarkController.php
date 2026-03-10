@@ -7,10 +7,12 @@ use App\Models\PurchaseRequest;
 use App\Models\WorkflowApproval;
 use App\Notifications\PurchaseRequestStatusUpdated;
 use App\Services\EarmarkExportService;
+use App\Services\PurchaseRequestActivityLogger;
 use App\Services\WorkflowRouter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -156,10 +158,33 @@ class BudgetEarmarkController extends Controller
 
     /**
      * Export the earmark document as an Excel file.
+     * Works at any stage: budget_office_review (reserves earmark_id) or post-approval.
      */
     public function export(PurchaseRequest $purchaseRequest): BinaryFileResponse
     {
-        abort_unless(! empty($purchaseRequest->earmark_id), 404);
+        $isPreview = $purchaseRequest->status === 'budget_office_review';
+        $hasEarmarkId = ! empty($purchaseRequest->earmark_id);
+
+        abort_unless($isPreview || $hasEarmarkId, 404);
+
+        // Reserve the official earmark ID early if not yet assigned
+        if (empty($purchaseRequest->earmark_id)) {
+            DB::transaction(function () use ($purchaseRequest) {
+                $attempts = 0;
+                while ($attempts < 5) {
+                    try {
+                        $purchaseRequest->earmark_id = PurchaseRequest::generateNextEarmarkId();
+                        $purchaseRequest->save();
+                        break;
+                    } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+                        $attempts++;
+                        if ($attempts >= 5) {
+                            throw $e;
+                        }
+                    }
+                }
+            });
+        }
 
         $purchaseRequest->load(['requester', 'items', 'department']);
 
@@ -169,5 +194,92 @@ class BudgetEarmarkController extends Controller
         $filename = 'Earmark-'.$purchaseRequest->earmark_id.'.xlsx';
 
         return response()->download($tempFile, $filename)->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Show the earmark amendment form for post-approval editing.
+     */
+    public function showAmend(PurchaseRequest $purchaseRequest): View
+    {
+        abort_unless(! empty($purchaseRequest->earmark_id), 404);
+
+        $purchaseRequest->load(['items.lotChildren', 'requester', 'department', 'activities.user']);
+
+        $amendmentHistory = $purchaseRequest->activities()
+            ->where('action', 'earmark_amended')
+            ->orderByDesc('created_at')
+            ->get();
+
+        return view('budget.purchase_requests.amend', compact('purchaseRequest', 'amendmentHistory'));
+    }
+
+    /**
+     * Save an earmark amendment (post-approval, does not affect workflow or status).
+     */
+    public function amend(Request $request, PurchaseRequest $purchaseRequest): RedirectResponse
+    {
+        abort_unless(! empty($purchaseRequest->earmark_id), 404);
+        abort_if($purchaseRequest->status === 'budget_office_review', 403);
+
+        $validated = $request->validate([
+            'funding_source' => ['nullable', 'string', 'max:255'],
+            'legal_basis' => ['nullable', 'string', 'max:500'],
+            'earmark_programs_activities' => ['nullable', 'string', 'max:1000'],
+            'earmark_responsibility_center' => ['nullable', 'string', 'max:255'],
+            'earmark_date_to' => ['nullable', 'date'],
+            'approved_budget_total' => ['nullable', 'numeric', 'min:0'],
+            'remarks' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        /** @var array<string, string> $amendableFields */
+        $amendableFields = [
+            'funding_source' => 'funding_source',
+            'legal_basis' => 'legal_basis',
+            'earmark_programs_activities' => 'earmark_programs_activities',
+            'earmark_responsibility_center' => 'earmark_responsibility_center',
+            'earmark_date_to' => 'earmark_date_to',
+            'approved_budget_total' => 'estimated_total',
+        ];
+
+        $oldValues = [];
+        $newValues = [];
+
+        foreach ($amendableFields as $inputKey => $modelKey) {
+            if (! array_key_exists($inputKey, $validated)) {
+                continue;
+            }
+
+            $incoming = $validated[$inputKey];
+            $current = $purchaseRequest->$modelKey;
+
+            // Normalise dates to string for comparison
+            if ($current instanceof \Illuminate\Support\Carbon) {
+                $current = $current->toDateString();
+            }
+
+            if ((string) $current !== (string) $incoming) {
+                $oldValues[$inputKey] = $current;
+                $newValues[$inputKey] = $incoming;
+                $purchaseRequest->$modelKey = $incoming;
+            }
+        }
+
+        // Remarks go to current_step_notes if provided
+        if (! empty($validated['remarks'])) {
+            $oldValues['remarks'] = $purchaseRequest->current_step_notes;
+            $newValues['remarks'] = $validated['remarks'];
+            $purchaseRequest->current_step_notes = $validated['remarks'];
+        }
+
+        if (empty($oldValues)) {
+            return back()->with('status', 'No changes detected.');
+        }
+
+        $purchaseRequest->save();
+
+        $logger = new PurchaseRequestActivityLogger;
+        $logger->logEarmarkAmended($purchaseRequest, $oldValues, $newValues);
+
+        return back()->with('status', 'Earmark amended successfully. '.count($oldValues).' field(s) updated.');
     }
 }
