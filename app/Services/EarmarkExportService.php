@@ -91,10 +91,6 @@ class EarmarkExportService
         // Date/Time Printed (originally B27) shifts down with inserted object rows
         $dateTimeRow = 27 + $extraObjectRows;
         $sheet->setCellValue('B'.$dateTimeRow, $datePrinted->format('F j, Y g:i A'));
-
-        // PR items can be rendered in a separate section if needed, away from A19/C19
-        $itemsStartRow = $dateTimeRow + 2;
-        $this->fillItemsTable($sheet, $purchaseRequest, $itemsStartRow);
     }
 
     /**
@@ -169,24 +165,5 @@ class EarmarkExportService
         }
 
         return $rowCount;
-    }
-
-    /**
-     * Fill PR items in a separate section of the sheet (for reference only).
-     */
-    protected function fillItemsTable($sheet, PurchaseRequest $purchaseRequest, int $startRow): void
-    {
-        $row = $startRow;
-
-        foreach ($purchaseRequest->items as $item) {
-            if ($item->parent_lot_id !== null) {
-                continue;
-            }
-
-            $sheet->setCellValue('A'.$row, $item->item_name ?? '');
-            $sheet->setCellValue('C'.$row, $item->estimated_total_cost ?? ($item->estimated_unit_cost * $item->quantity_requested));
-
-            $row++;
-        }
     }
 }

@@ -9,8 +9,10 @@ use App\Notifications\PurchaseRequestStatusUpdated;
 use App\Services\EarmarkExportService;
 use App\Services\PurchaseRequestActivityLogger;
 use App\Services\WorkflowRouter;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -198,7 +200,7 @@ class BudgetEarmarkController extends Controller
                         $purchaseRequest->earmark_id = PurchaseRequest::generateNextEarmarkId();
                         $purchaseRequest->save();
                         break;
-                    } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+                    } catch (UniqueConstraintViolationException $e) {
                         $attempts++;
                         if ($attempts >= 5) {
                             throw $e;
@@ -230,7 +232,11 @@ class BudgetEarmarkController extends Controller
         $amendmentHistory = $purchaseRequest->activities()
             ->where('action', 'earmark_amended')
             ->orderByDesc('created_at')
-            ->get();
+            ->paginate(10);
+
+        if (request()->ajax()) {
+            return view('budget.purchase_requests.partials.amendment-history', compact('amendmentHistory'));
+        }
 
         return view('budget.purchase_requests.amend', compact('purchaseRequest', 'amendmentHistory'));
     }
@@ -249,7 +255,6 @@ class BudgetEarmarkController extends Controller
             'earmark_programs_activities' => ['nullable', 'string', 'max:1000'],
             'earmark_responsibility_center' => ['nullable', 'string', 'max:255'],
             'earmark_date_to' => ['nullable', 'date'],
-            'approved_budget_total' => ['nullable', 'numeric', 'min:0'],
             'remarks' => ['nullable', 'string', 'max:2000'],
             'earmark_object_expenditures' => ['nullable', 'array'],
             'earmark_object_expenditures.*.code' => ['nullable', 'string', 'max:50'],
@@ -264,7 +269,6 @@ class BudgetEarmarkController extends Controller
             'earmark_programs_activities' => 'earmark_programs_activities',
             'earmark_responsibility_center' => 'earmark_responsibility_center',
             'earmark_date_to' => 'earmark_date_to',
-            'approved_budget_total' => 'estimated_total',
         ];
 
         $oldValues = [];
@@ -279,7 +283,7 @@ class BudgetEarmarkController extends Controller
             $current = $purchaseRequest->$modelKey;
 
             // Normalise dates to string for comparison
-            if ($current instanceof \Illuminate\Support\Carbon) {
+            if ($current instanceof Carbon) {
                 $current = $current->toDateString();
             }
 
@@ -328,14 +332,29 @@ class BudgetEarmarkController extends Controller
                 $oldValues['earmark_object_expenditures'] = $normalizedCurrent;
                 $newValues['earmark_object_expenditures'] = $normalizedIncoming;
                 $purchaseRequest->earmark_object_expenditures = $normalizedIncoming ?: null;
+                // Sync approved budget total from OOE sum (derived from the table).
+                $sum = 0;
+                foreach ($normalizedIncoming as $row) {
+                    $amt = $row['amount'] ?? null;
+                    if ($amt !== null && $amt !== '') {
+                        $sum += (float) $amt;
+                    }
+                }
+                $purchaseRequest->estimated_total = $sum > 0 ? $sum : $purchaseRequest->estimated_total;
             }
         }
 
-        // Remarks go to current_step_notes if provided
-        if (! empty($validated['remarks'])) {
-            $oldValues['remarks'] = $purchaseRequest->current_step_notes;
-            $newValues['remarks'] = $validated['remarks'];
-            $purchaseRequest->current_step_notes = $validated['remarks'];
+        // Remarks: only log and update when the field was submitted and the value actually changed (trim-aware).
+        if (array_key_exists('remarks', $validated)) {
+            $currentNotes = $purchaseRequest->current_step_notes;
+            $incomingRemarks = $validated['remarks'] ?? null;
+            $incomingTrimmed = $incomingRemarks !== null ? trim((string) $incomingRemarks) : '';
+            $currentTrimmed = $currentNotes !== null ? trim((string) $currentNotes) : '';
+            if ($incomingTrimmed !== $currentTrimmed) {
+                $oldValues['remarks'] = $purchaseRequest->current_step_notes;
+                $newValues['remarks'] = $validated['remarks'] ?? null;
+                $purchaseRequest->current_step_notes = $validated['remarks'] ?? null;
+            }
         }
 
         if (empty($oldValues)) {

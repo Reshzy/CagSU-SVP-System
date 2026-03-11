@@ -193,18 +193,6 @@
                             @enderror
                         </div>
 
-                        {{-- Approved Budget Total --}}
-                        <div>
-                            <label for="approved_budget_total" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Approved Budget Total (₱)</label>
-                            <input type="number" id="approved_budget_total" name="approved_budget_total"
-                                value="{{ old('approved_budget_total', $purchaseRequest->estimated_total) }}"
-                                step="0.01" min="0"
-                                class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-cagsu-maroon focus:ring-cagsu-maroon sm:text-sm">
-                            @error('approved_budget_total')
-                                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
-                            @enderror
-                        </div>
-
                         {{-- Earmark Date To --}}
                         <div>
                             <label for="earmark_date_to" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Earmark Date To</label>
@@ -266,60 +254,39 @@
             </div>
 
             {{-- Amendment History --}}
-            @if($amendmentHistory->isNotEmpty())
-                <div class="bg-white dark:bg-gray-800 shadow-sm sm:rounded-lg overflow-hidden">
-                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                        <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">Amendment History</h3>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">All earmark changes, newest first</p>
-                    </div>
-                    <div class="divide-y divide-gray-100 dark:divide-gray-700">
-                        @foreach($amendmentHistory as $activity)
-                            <div class="px-6 py-4">
-                                <div class="flex items-start gap-4">
-                                    <div class="mt-0.5 flex-shrink-0 p-2 rounded-full text-amber-600 bg-amber-100 dark:bg-amber-900/40 dark:text-amber-400">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <div class="flex items-center justify-between gap-2 flex-wrap">
-                                            <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $activity->description }}</p>
-                                            <p class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ $activity->created_at->format('M d, Y g:i A') }}</p>
-                                        </div>
-                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">by {{ $activity->user?->name ?? 'System' }}</p>
-                                        @if(is_array($activity->new_value) && count($activity->new_value))
-                                            <div class="mt-2 space-y-1">
-                                                @foreach($activity->new_value as $field => $newVal)
-                                                    @php
-                                                        $oldVal = $activity->old_value[$field] ?? null;
-                                                        $label = ucwords(str_replace('_', ' ', $field));
-                                                        $displayOld = is_array($oldVal) ? json_encode($oldVal, JSON_UNESCAPED_UNICODE) : ($oldVal ?? '(empty)');
-                                                        $displayNew = is_array($newVal) ? json_encode($newVal, JSON_UNESCAPED_UNICODE) : ($newVal ?? '(empty)');
-                                                    @endphp
-                                                    <div class="flex items-start gap-2 text-xs">
-                                                        <span class="font-medium text-gray-600 dark:text-gray-400 min-w-0 shrink-0">{{ $label }}:</span>
-                                                        <span class="text-red-600 dark:text-red-400 line-through">{{ $displayOld }}</span>
-                                                        <svg class="w-3 h-3 text-gray-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
-                                                        <span class="text-green-600 dark:text-green-400">{{ $displayNew }}</span>
-                                                    </div>
-                                                @endforeach
-                                            </div>
-                                        @endif
-                                    </div>
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
+            <div
+                x-data="{
+                    loading: false,
+                    async go(url) {
+                        if (!url) { return; }
+                        this.loading = true;
+                        try {
+                            const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                            const html = await res.text();
+                            this.$refs.container.innerHTML = html;
+                            window.history.replaceState({}, '', url);
+                        } finally {
+                            this.loading = false;
+                        }
+                    },
+                    intercept(e) {
+                        const a = e.target.closest('a');
+                        if (!a) { return; }
+                        if (!a.closest('nav')) { return; }
+                        const href = a.getAttribute('href');
+                        if (!href) { return; }
+                        e.preventDefault();
+                        this.go(href);
+                    }
+                }"
+                @click="intercept($event)"
+                class="relative"
+            >
+                <div x-show="loading" class="absolute inset-0 bg-white/60 dark:bg-gray-800/60 backdrop-blur-[1px]"></div>
+                <div x-ref="container">
+                    @include('budget.purchase_requests.partials.amendment-history', ['amendmentHistory' => $amendmentHistory])
                 </div>
-            @else
-                <div class="bg-white dark:bg-gray-800 shadow-sm sm:rounded-lg overflow-hidden">
-                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                        <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">Amendment History</h3>
-                    </div>
-                    <div class="px-6 py-10 text-center">
-                        <svg class="mx-auto h-10 w-10 text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">No amendments yet for this earmark.</p>
-                    </div>
-                </div>
-            @endif
+            </div>
 
         </div>
     </div>
