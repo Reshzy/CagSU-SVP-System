@@ -68,6 +68,11 @@
             </div>
             @endif
 
+            {{-- Earmark Form --}}
+            <form method="POST" action="{{ route('budget.purchase-requests.update', $purchaseRequest) }}" class="space-y-6">
+                @csrf
+                @method('PUT')
+
             {{-- Object of Expenditures --}}
             @php
                 $initialObjectExpenditures = old('earmark_object_expenditures', $purchaseRequest->earmark_object_expenditures ?? []);
@@ -117,7 +122,7 @@
                                     :name="`earmark_object_expenditures[${index}][code]`"
                                     placeholder="(50213040-02)">
                             </div>
-                            <div class="md:col-span-7">
+                            <div class="md:col-span-6">
                                 <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                                     Description
                                     <span class="font-normal text-[10px] text-gray-500 dark:text-gray-400">(e.g. R &amp; M School Buildings)</span>
@@ -128,11 +133,11 @@
                                     :name="`earmark_object_expenditures[${index}][description]`"
                                     placeholder="R &amp; M School Buildings">
                             </div>
-                            <div class="md:col-span-2 flex items-end gap-2">
+                            <div class="md:col-span-3 flex items-end gap-2">
                                 <div class="flex-1">
                                     <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Amount (₱)</label>
                                     <input type="number" step="0.01" min="0"
-                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-cagsu-maroon focus:ring-cagsu-maroon text-xs"
+                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-cagsu-maroon focus:ring-cagsu-maroon text-sm"
                                         x-model="row.amount"
                                         :name="`earmark_object_expenditures[${index}][amount]`">
                                 </div>
@@ -217,9 +222,7 @@
             </div>
 
             {{-- Earmark Form --}}
-            <form method="POST" action="{{ route('budget.purchase-requests.update', $purchaseRequest) }}" class="space-y-6">
-                @csrf
-                @method('PUT')
+            <div class="space-y-6">
 
                 {{-- Section 1: Procurement Details --}}
                 <div class="bg-white dark:bg-gray-800 shadow-sm sm:rounded-lg overflow-hidden">
@@ -355,7 +358,7 @@
                         <x-primary-button>Approve &amp; Forward to CEO</x-primary-button>
                     </div>
                 </div>
-            </form>
+            </div>
 
             {{-- Deferral Form (Hidden by default) --}}
             <div id="deferral-section" class="hidden">

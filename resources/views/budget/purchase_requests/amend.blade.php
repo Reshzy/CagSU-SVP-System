@@ -2,7 +2,7 @@
 
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex items-center justify-between">
+        <div class="flex items-center gap-4 justify-between">
             <div>
                 <h2 class="font-semibold text-2xl text-gray-800 dark:text-gray-200 leading-tight">
                     Amend Earmark
@@ -142,14 +142,14 @@
                                         x-model="row.code"
                                         :name="`earmark_object_expenditures[${index}][code]`">
                                 </div>
-                                <div class="md:col-span-7">
+                                <div class="md:col-span-6">
                                     <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Description</label>
                                     <input type="text"
                                         class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-cagsu-maroon focus:ring-cagsu-maroon text-xs"
                                         x-model="row.description"
                                         :name="`earmark_object_expenditures[${index}][description]`">
                                 </div>
-                                <div class="md:col-span-2 flex items-end gap-2">
+                                <div class="md:col-span-3 flex items-end gap-2">
                                     <div class="flex-1">
                                         <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Amount (₱)</label>
                                         <input type="number" step="0.01" min="0"
@@ -291,12 +291,14 @@
                                                     @php
                                                         $oldVal = $activity->old_value[$field] ?? null;
                                                         $label = ucwords(str_replace('_', ' ', $field));
+                                                        $displayOld = is_array($oldVal) ? json_encode($oldVal, JSON_UNESCAPED_UNICODE) : ($oldVal ?? '(empty)');
+                                                        $displayNew = is_array($newVal) ? json_encode($newVal, JSON_UNESCAPED_UNICODE) : ($newVal ?? '(empty)');
                                                     @endphp
                                                     <div class="flex items-start gap-2 text-xs">
                                                         <span class="font-medium text-gray-600 dark:text-gray-400 min-w-0 shrink-0">{{ $label }}:</span>
-                                                        <span class="text-red-600 dark:text-red-400 line-through">{{ $oldVal ?? '(empty)' }}</span>
+                                                        <span class="text-red-600 dark:text-red-400 line-through">{{ $displayOld }}</span>
                                                         <svg class="w-3 h-3 text-gray-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
-                                                        <span class="text-green-600 dark:text-green-400">{{ $newVal ?? '(empty)' }}</span>
+                                                        <span class="text-green-600 dark:text-green-400">{{ $displayNew }}</span>
                                                     </div>
                                                 @endforeach
                                             </div>
