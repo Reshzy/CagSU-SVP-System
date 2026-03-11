@@ -3,8 +3,10 @@
 use App\Http\Controllers\AccountingDisbursementController;
 use App\Http\Controllers\Api\BudgetCheckController;
 use App\Http\Controllers\AppItemController;
+use App\Http\Controllers\BacItemGroupController;
 use App\Http\Controllers\BacMeetingController;
 use App\Http\Controllers\BacQuotationController;
+use App\Http\Controllers\BacSignatoryController;
 use App\Http\Controllers\BudgetEarmarkController;
 use App\Http\Controllers\BudgetManagementController;
 use App\Http\Controllers\CeoApprovalController;
@@ -12,14 +14,12 @@ use App\Http\Controllers\CeoDepartmentController;
 use App\Http\Controllers\CeoUserManagementController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\InventoryReceiptController;
+use App\Http\Controllers\PoSignatoryController;
 use App\Http\Controllers\PpmpController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\PurchaseRequestController;
 use App\Http\Controllers\ReportsController;
-use App\Http\Controllers\SupplierCommunicationController;
-use App\Http\Controllers\SupplierPOStatusController;
-use App\Http\Controllers\SupplierQuotationPublicController;
 use App\Http\Controllers\SupplierRegistrationController;
 use App\Http\Controllers\SupplyPurchaseRequestController;
 use Illuminate\Support\Facades\Route;
@@ -30,15 +30,6 @@ Route::get('/', function () {
 Route::get('/health', function () {
     return response()->json(['status' => 'ok', 'time' => now()->toIso8601String()]);
 })->name('health');
-
-// Public Supplier Registration
-Route::get('/suppliers/register', [SupplierRegistrationController::class, 'create'])->name('suppliers.register');
-Route::post('/suppliers/register', [SupplierRegistrationController::class, 'store'])->name('suppliers.register.store');
-Route::get('/suppliers/quotations/submit', [SupplierQuotationPublicController::class, 'create'])->name('suppliers.quotations.submit');
-Route::post('/suppliers/quotations/submit', [SupplierQuotationPublicController::class, 'store'])->name('suppliers.quotations.submit.store');
-Route::get('/suppliers/po-status', [SupplierPOStatusController::class, 'show'])->name('suppliers.po-status');
-Route::get('/suppliers/contact', [SupplierCommunicationController::class, 'create'])->name('suppliers.contact');
-Route::post('/suppliers/contact', [SupplierCommunicationController::class, 'store'])->name('suppliers.contact.store');
 
 Route::get('/dashboard', function () {
     return view('dashboard');
@@ -105,7 +96,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/supply/purchase-orders/{purchaseOrder}/export', [PurchaseOrderController::class, 'export'])->name('supply.purchase-orders.export');
 
         // PO Signatories Management
-        Route::resource('supply/po-signatories', \App\Http\Controllers\PoSignatoryController::class)
+        Route::resource('supply/po-signatories', PoSignatoryController::class)
             ->except(['show'])
             ->names('supply.po-signatories');
 
@@ -202,22 +193,22 @@ Route::middleware('auth')->group(function () {
 
     // BAC Signatory Management (Admin/BAC Chair only)
     Route::middleware('role:System Admin|BAC Chair')->prefix('bac/signatories')->name('bac.signatories.')->group(function () {
-        Route::get('/', [App\Http\Controllers\BacSignatoryController::class, 'index'])->name('index');
-        Route::get('/create', [App\Http\Controllers\BacSignatoryController::class, 'create'])->name('create');
-        Route::post('/', [App\Http\Controllers\BacSignatoryController::class, 'store'])->name('store');
-        Route::get('/{signatory}/edit', [App\Http\Controllers\BacSignatoryController::class, 'edit'])->name('edit');
-        Route::put('/{signatory}', [App\Http\Controllers\BacSignatoryController::class, 'update'])->name('update');
-        Route::delete('/{signatory}', [App\Http\Controllers\BacSignatoryController::class, 'destroy'])->name('destroy');
+        Route::get('/', [BacSignatoryController::class, 'index'])->name('index');
+        Route::get('/create', [BacSignatoryController::class, 'create'])->name('create');
+        Route::post('/', [BacSignatoryController::class, 'store'])->name('store');
+        Route::get('/{signatory}/edit', [BacSignatoryController::class, 'edit'])->name('edit');
+        Route::put('/{signatory}', [BacSignatoryController::class, 'update'])->name('update');
+        Route::delete('/{signatory}', [BacSignatoryController::class, 'destroy'])->name('destroy');
     });
 
     // BAC Quotations & Meetings
     Route::middleware('role:BAC Chair|BAC Members|BAC Secretariat')->group(function () {
         // BAC Item Grouping
-        Route::get('/bac/item-groups/{purchaseRequest}/create', [\App\Http\Controllers\BacItemGroupController::class, 'create'])->name('bac.item-groups.create');
-        Route::post('/bac/item-groups/{purchaseRequest}', [\App\Http\Controllers\BacItemGroupController::class, 'store'])->name('bac.item-groups.store');
-        Route::get('/bac/item-groups/{purchaseRequest}/edit', [\App\Http\Controllers\BacItemGroupController::class, 'edit'])->name('bac.item-groups.edit');
-        Route::put('/bac/item-groups/{purchaseRequest}', [\App\Http\Controllers\BacItemGroupController::class, 'update'])->name('bac.item-groups.update');
-        Route::delete('/bac/item-groups/{purchaseRequest}', [\App\Http\Controllers\BacItemGroupController::class, 'destroy'])->name('bac.item-groups.destroy');
+        Route::get('/bac/item-groups/{purchaseRequest}/create', [BacItemGroupController::class, 'create'])->name('bac.item-groups.create');
+        Route::post('/bac/item-groups/{purchaseRequest}', [BacItemGroupController::class, 'store'])->name('bac.item-groups.store');
+        Route::get('/bac/item-groups/{purchaseRequest}/edit', [BacItemGroupController::class, 'edit'])->name('bac.item-groups.edit');
+        Route::put('/bac/item-groups/{purchaseRequest}', [BacItemGroupController::class, 'update'])->name('bac.item-groups.update');
+        Route::delete('/bac/item-groups/{purchaseRequest}', [BacItemGroupController::class, 'destroy'])->name('bac.item-groups.destroy');
 
         Route::get('/bac/quotations', [BacQuotationController::class, 'index'])->name('bac.quotations.index');
         Route::get('/bac/quotations/{purchaseRequest}/manage', [BacQuotationController::class, 'manage'])->name('bac.quotations.manage');
