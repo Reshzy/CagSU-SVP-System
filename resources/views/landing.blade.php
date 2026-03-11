@@ -59,8 +59,12 @@
 		<header class="sticky top-0 z-30 border-b border-black/5 bg-white/65 backdrop-blur-xl dark:border-white/10 dark:bg-[#07070a]/50">
 			<div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
 				<a href="{{ url('/') }}" class="group flex items-center gap-3">
-					<span class="grid h-10 w-10 place-items-center rounded-2xl border border-black/10 bg-white/70 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
-						<x-application-logo class="block h-8 w-auto" />
+					<span class="grid h-10 w-10 place-items-center">
+						<img
+							src="https://upload.wikimedia.org/wikipedia/commons/d/d1/Cagayan_State_University_Logo.png"
+							alt="Cagayan State University Logo"
+							class="block h-8 w-8 max-w-none max-h-none"
+						>
 					</span>
 					<div class="min-w-0">
 						<div class="truncate text-sm font-semibold tracking-wide text-gray-950 dark:text-white">CagSU SVP Portal</div>
