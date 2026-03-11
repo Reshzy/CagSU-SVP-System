@@ -55,7 +55,7 @@ class EarmarkExportService
         $datedValue = 'Dated: ';
         $datedValue .= $datePrinted->format('F j, Y');
         if ($purchaseRequest->earmark_date_to) {
-            $datedValue .= ' - '.$purchaseRequest->earmark_date_to->format('F j, Y');
+            $datedValue .= ' to '.$purchaseRequest->earmark_date_to->format('F j, Y');
         }
         $sheet->setCellValue('A7', $datedValue);
 
@@ -70,6 +70,26 @@ class EarmarkExportService
 
         // B13: Remarks
         $sheet->setCellValue('B13', $purchaseRequest->current_step_notes ?? '');
+
+        // B14: PR Info line (optional title + PR. NO. + PR created date)
+        $prTitle = isset($purchaseRequest->pr_title) ? trim((string) $purchaseRequest->pr_title) : '';
+        $createdAt = $purchaseRequest->created_at;
+        $createdAtFormatted = $createdAt ? $createdAt->format('m.d.Y') : '';
+
+        $formattedPrNo = $purchaseRequest->pr_number ?? '';
+        if ($createdAt && is_string($formattedPrNo) && preg_match('/^PR-(\d{2})(\d{2})-(\d{4})$/', $formattedPrNo, $m) === 1) {
+            $sequence = $m[3];
+            $formattedPrNo = 'PR.'.$createdAt->format('my').'.'.$sequence;
+        }
+
+        $prInfo = 'PR. NO. '.$formattedPrNo;
+        if ($createdAtFormatted !== '') {
+            $prInfo .= ' DATED: '.$createdAtFormatted;
+        }
+        if ($prTitle !== '') {
+            $prInfo = $prTitle.', '.$prInfo;
+        }
+        $sheet->setCellValue('B14', $prInfo);
 
         // A16: Programs / Projects / Activities (insert after existing prefix)
         $programsValue = 'Programs / Projects / Activities :    '
@@ -90,7 +110,7 @@ class EarmarkExportService
 
         // Date/Time Printed (originally B27) shifts down with inserted object rows
         $dateTimeRow = 27 + $extraObjectRows;
-        $sheet->setCellValue('B'.$dateTimeRow, $datePrinted->format('F j, Y g:i A'));
+        $sheet->setCellValue('B'.$dateTimeRow, $datePrinted->format('F j, Y'));
     }
 
     /**

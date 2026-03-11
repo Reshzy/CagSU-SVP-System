@@ -7,6 +7,7 @@ use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestItem;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -129,6 +130,7 @@ class BudgetEarmarkExportTest extends TestCase
                 'budget_code' => 'GF-2025',
                 'procurement_type' => 'supplies_materials',
                 'remarks' => 'Earmark approved for procurement of office supplies.',
+                'pr_title' => 'Office Supplies Earmark',
                 'legal_basis' => 'Section 86 of RA 9184',
                 'earmark_programs_activities' => 'Administrative Support Program',
                 'earmark_responsibility_center' => 'Office of the Vice President for Administration',
@@ -147,8 +149,50 @@ class BudgetEarmarkExportTest extends TestCase
         $this->assertEquals('Section 86 of RA 9184', $this->pendingPr->legal_basis);
         $this->assertEquals('Administrative Support Program', $this->pendingPr->earmark_programs_activities);
         $this->assertEquals('Office of the Vice President for Administration', $this->pendingPr->earmark_responsibility_center);
+        $this->assertEquals('Office Supplies Earmark', $this->pendingPr->pr_title);
         $this->assertIsArray($this->pendingPr->earmark_object_expenditures);
         $this->assertCount(1, $this->pendingPr->earmark_object_expenditures);
+    }
+
+    public function test_earmark_export_writes_dated_printed_and_pr_info_cells(): void
+    {
+        $templatePath = storage_path('app/templates/EarmarkTemplate.xlsx');
+
+        if (! file_exists($templatePath)) {
+            $this->markTestSkipped('Earmark template file not found, skipping export mapping test.');
+        }
+
+        $createdAt = Carbon::create(2025, 11, 26, 9, 30, 0);
+
+        $this->earmarkedPr->update([
+            'pr_title' => 'Vehicle Acquisition',
+            'pr_number' => 'PR-1125-0007',
+            'created_at' => $createdAt,
+            'earmark_date_to' => Carbon::create(2025, 12, 31),
+            'earmark_object_expenditures' => [
+                ['code' => '(50213040-02)', 'description' => 'R & M School Buildings', 'amount' => 15000.00],
+            ],
+        ]);
+
+        $response = $this->actingAs($this->budgetOfficer)->get(
+            route('budget.purchase-requests.export-earmark', $this->earmarkedPr)
+        );
+
+        $response->assertOk();
+
+        $binary = $response->baseResponse;
+        $file = $binary->getFile();
+        $spreadsheet = IOFactory::load($file->getRealPath());
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $a7 = (string) $sheet->getCell('A7')->getValue();
+        $this->assertStringContainsString('Dated: ', $a7);
+        $this->assertStringContainsString(' to December 31, 2025', $a7);
+
+        $this->assertSame('Vehicle Acquisition, PR. NO. PR.1125.0007 DATED: 11.26.2025', (string) $sheet->getCell('B14')->getValue());
+
+        // No extra object rows => date printed stays at B27, date only (no time)
+        $this->assertSame(now()->format('F j, Y'), (string) $sheet->getCell('B27')->getValue());
     }
 
     public function test_earmark_approval_fails_without_required_remarks(): void

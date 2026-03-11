@@ -89,6 +89,7 @@ class BudgetEarmarkController extends Controller
         $purchaseRequest->funding_source = $validated['funding_source'] ?? null;
         $purchaseRequest->budget_code = $validated['budget_code'] ?? null;
         $purchaseRequest->procurement_type = $validated['procurement_type'];
+        $purchaseRequest->pr_title = $validated['pr_title'] ?? null;
         $purchaseRequest->legal_basis = $validated['legal_basis'] ?? null;
         $purchaseRequest->earmark_programs_activities = $validated['earmark_programs_activities'] ?? null;
         $purchaseRequest->earmark_responsibility_center = $validated['earmark_responsibility_center'] ?? null;

@@ -29,6 +29,7 @@ class BudgetEarmarkRequest extends FormRequest
             'budget_code' => ['nullable', 'string', 'max:255'],
             'procurement_type' => ['required', 'in:supplies_materials,equipment,infrastructure,services,consulting_services'],
             'remarks' => ['required', 'string', 'min:1'],
+            'pr_title' => ['nullable', 'string', 'max:255'],
             'legal_basis' => ['nullable', 'string', 'max:500'],
             'earmark_programs_activities' => ['nullable', 'string', 'max:1000'],
             'earmark_responsibility_center' => ['nullable', 'string', 'max:255'],

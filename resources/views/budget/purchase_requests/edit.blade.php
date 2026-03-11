@@ -284,6 +284,20 @@
                     </div>
                     <div class="p-6 space-y-4">
                         <div>
+                            <x-input-label for="pr_title" value="PR Title (Optional)" />
+                            <x-text-input
+                                id="pr_title"
+                                name="pr_title"
+                                type="text"
+                                class="mt-1 block w-full"
+                                :value="old('pr_title', $purchaseRequest->pr_title)"
+                                placeholder="Optional title used in the earmark export"
+                            />
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Maps to cell B14 in the earmark template.</p>
+                            <x-input-error :messages="$errors->get('pr_title')" class="mt-2" />
+                        </div>
+
+                        <div>
                             <x-input-label for="legal_basis" value="Legal Basis" />
                             <x-text-input id="legal_basis" name="legal_basis" type="text" class="mt-1 block w-full"
                                 :value="old('legal_basis', $purchaseRequest->legal_basis)"
