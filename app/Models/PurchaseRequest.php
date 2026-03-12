@@ -436,4 +436,51 @@ class PurchaseRequest extends Model
     {
         return in_array($this->getEffectiveStatus(), ['bac_evaluation', 'partial_po_generation']);
     }
+
+    /**
+     * Get the display label for a fund cluster code.
+     */
+    public static function fundClusterLabel(?string $fundClusterCode): ?string
+    {
+        $code = $fundClusterCode !== null ? trim((string) $fundClusterCode) : '';
+
+        return match ($code) {
+            '01' => 'Regular Agency Fund',
+            '05' => 'Off-Budgetary Fund',
+            '06' => 'Income Generating Enterprise',
+            '07' => 'Trust Receipts',
+            default => null,
+        };
+    }
+
+    /**
+     * Build a normalized funding source display string from fund cluster + details.
+     *
+     * Examples:
+     * - "Regular Agency Fund (01)"
+     * - "Regular Agency Fund - General Fund - ... (01)"
+     *
+     * The fund cluster code is always appended once at the end.
+     */
+    public static function formatFundingSourceFromFundCluster(?string $fundClusterCode, ?string $fundDetails): ?string
+    {
+        $code = $fundClusterCode !== null ? trim((string) $fundClusterCode) : '';
+        $label = static::fundClusterLabel($code);
+
+        if ($label === null) {
+            return null;
+        }
+
+        $details = $fundDetails !== null ? trim((string) $fundDetails) : '';
+        if ($details !== '') {
+            $details = preg_replace('/\s*\(\s*\d{2}\s*\)\s*$/', '', $details) ?? $details;
+            $details = trim($details);
+        }
+
+        if ($details === '') {
+            return $label.' ('.$code.')';
+        }
+
+        return $label.' - '.$details.' ('.$code.')';
+    }
 }

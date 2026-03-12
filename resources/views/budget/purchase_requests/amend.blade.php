@@ -145,16 +145,109 @@
                         </div>
                         <div class="p-6 space-y-5">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        {{-- Fund / Funding Source --}}
-                        <div>
-                            <label for="funding_source" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Fund / Funding Source</label>
-                            <input type="text" id="funding_source" name="funding_source"
-                                value="{{ old('funding_source', $purchaseRequest->funding_source) }}"
+                        {{-- Fund Cluster --}}
+                        @php
+                            $initialFundClusterCode = old('fund_cluster_code', $purchaseRequest->fund_cluster_code);
+                            $initialFundDetails = old('fund_details', $purchaseRequest->fund_details);
+                        @endphp
+
+                        <div
+                            x-data="{
+                                fundClusterCode: @js($initialFundClusterCode),
+                                fundDetails: @js($initialFundDetails),
+                                fundClusters: [
+                                    { code: '01', label: 'Regular Agency Fund' },
+                                    { code: '05', label: 'Off-Budgetary Fund' },
+                                    { code: '06', label: 'Income Generating Enterprise' },
+                                    { code: '07', label: 'Trust Receipts' },
+                                ],
+                                fundDetailsOptions: {
+                                    '01': [
+                                        'General Fund - New General Appropriations - Specific Budget of National',
+                                    ],
+                                    '05': [],
+                                    '06': [],
+                                    '07': [],
+                                },
+                                get fundClusterLabel() {
+                                    const match = this.fundClusters.find(c => c.code === this.fundClusterCode);
+                                    return match ? match.label : '';
+                                },
+                                get availableDetails() {
+                                    return this.fundClusterCode ? (this.fundDetailsOptions[this.fundClusterCode] || []) : [];
+                                },
+                                normalizeDetails(details) {
+                                    const d = (details || '').toString().trim();
+                                    return d.replace(/\\s*\\(\\s*\\d{2}\\s*\\)\\s*$/, '').trim();
+                                },
+                                get preview() {
+                                    if (!this.fundClusterCode || !this.fundClusterLabel) {
+                                        return '';
+                                    }
+                                    const details = this.normalizeDetails(this.fundDetails);
+                                    if (!details) {
+                                        return `${this.fundClusterLabel} (${this.fundClusterCode})`;
+                                    }
+                                    return `${this.fundClusterLabel} - ${details} (${this.fundClusterCode})`;
+                                },
+                                onClusterChanged() {
+                                    if (!this.fundClusterCode) {
+                                        this.fundDetails = null;
+                                        return;
+                                    }
+                                    const options = this.availableDetails;
+                                    if (options.length === 0) {
+                                        this.fundDetails = null;
+                                        return;
+                                    }
+                                    if (this.fundDetails && options.includes(this.fundDetails)) {
+                                        return;
+                                    }
+                                    this.fundDetails = null;
+                                },
+                            }"
+                            x-init="onClusterChanged()"
+                            class="space-y-2"
+                        >
+                            <label for="fund_cluster_code" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Fund Cluster</label>
+                            <select
+                                id="fund_cluster_code"
+                                name="fund_cluster_code"
+                                x-model="fundClusterCode"
+                                @change="onClusterChanged()"
                                 class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-cagsu-maroon focus:ring-cagsu-maroon sm:text-sm"
-                                placeholder="e.g. General Fund">
-                            @error('funding_source')
+                            >
+                                <option value="">Select Fund Cluster</option>
+                                <template x-for="cluster in fundClusters" :key="cluster.code">
+                                    <option :value="cluster.code" x-text="`${cluster.label} (${cluster.code})`"></option>
+                                </template>
+                            </select>
+                            @error('fund_cluster_code')
                                 <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
                             @enderror
+
+                            <div class="pt-1">
+                                <label for="fund_details" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Fund Details (Optional)</label>
+                                <select
+                                    id="fund_details"
+                                    name="fund_details"
+                                    x-model="fundDetails"
+                                    :disabled="!fundClusterCode || availableDetails.length === 0"
+                                    class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-cagsu-maroon focus:ring-cagsu-maroon sm:text-sm disabled:opacity-60"
+                                >
+                                    <option value="" x-text="(!fundClusterCode ? 'Select a fund cluster first' : (availableDetails.length === 0 ? 'No details available for this cluster' : 'Select Fund Details'))"></option>
+                                    <template x-for="opt in availableDetails" :key="opt">
+                                        <option :value="opt" x-text="opt"></option>
+                                    </template>
+                                </select>
+                                @error('fund_details')
+                                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <p class="text-xs text-gray-500 dark:text-gray-400" x-show="preview">
+                                Will be saved as: <span class="font-medium text-gray-800 dark:text-gray-100" x-text="preview"></span>
+                            </p>
                         </div>
 
                         {{-- Legal Basis --}}

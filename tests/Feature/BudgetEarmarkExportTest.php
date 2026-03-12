@@ -126,7 +126,8 @@ class BudgetEarmarkExportTest extends TestCase
             [
                 'approved_budget_total' => 15000.00,
                 'date_needed' => now()->format('Y-m-d'),
-                'funding_source' => 'General Fund',
+                'fund_cluster_code' => '01',
+                'fund_details' => 'General Fund - New General Appropriations - Specific Budget of National',
                 'budget_code' => 'GF-2025',
                 'procurement_type' => 'supplies_materials',
                 'remarks' => 'Earmark approved for procurement of office supplies.',
@@ -146,6 +147,10 @@ class BudgetEarmarkExportTest extends TestCase
         $this->pendingPr->refresh();
         $this->assertNotNull($this->pendingPr->earmark_id);
         $this->assertEquals('ceo_approval', $this->pendingPr->status);
+        $this->assertEquals(
+            'Regular Agency Fund - General Fund - New General Appropriations - Specific Budget of National (01)',
+            $this->pendingPr->funding_source
+        );
         $this->assertEquals('Section 86 of RA 9184', $this->pendingPr->legal_basis);
         $this->assertEquals('Administrative Support Program', $this->pendingPr->earmark_programs_activities);
         $this->assertEquals('Office of the Vice President for Administration', $this->pendingPr->earmark_responsibility_center);
@@ -310,7 +315,7 @@ class BudgetEarmarkExportTest extends TestCase
             route('budget.purchase-requests.amend-earmark', $this->earmarkedPr),
             [
                 'legal_basis' => 'Updated Legal Basis',
-                'funding_source' => 'Special Fund',
+                'fund_cluster_code' => '05',
                 'earmark_programs_activities' => 'Updated Program',
                 'earmark_responsibility_center' => 'Updated RC',
             ]
@@ -321,7 +326,7 @@ class BudgetEarmarkExportTest extends TestCase
 
         $this->earmarkedPr->refresh();
         $this->assertEquals('Updated Legal Basis', $this->earmarkedPr->legal_basis);
-        $this->assertEquals('Special Fund', $this->earmarkedPr->funding_source);
+        $this->assertEquals('Off-Budgetary Fund (05)', $this->earmarkedPr->funding_source);
         $this->assertEquals('Updated Program', $this->earmarkedPr->earmark_programs_activities);
     }
 
@@ -437,12 +442,12 @@ class BudgetEarmarkExportTest extends TestCase
 
         $response = $this->actingAs($this->budgetOfficer)->patch(
             route('budget.purchase-requests.amend-earmark', $pr),
-            ['funding_source' => 'Amended Fund during BAC']
+            ['fund_cluster_code' => '06']
         );
 
         $response->assertRedirect();
         $pr->refresh();
-        $this->assertEquals('Amended Fund during BAC', $pr->funding_source);
+        $this->assertEquals('Income Generating Enterprise (06)', $pr->funding_source);
     }
 
     public function test_amendment_blocked_when_pr_still_in_budget_office_review(): void
