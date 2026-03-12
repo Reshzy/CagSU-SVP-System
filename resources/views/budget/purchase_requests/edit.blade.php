@@ -26,39 +26,7 @@
         <div class="max-w-5xl mx-auto sm:px-6 lg:px-8 space-y-6">
 
             {{-- PR Summary Card --}}
-            <div class="bg-white dark:bg-gray-800 shadow-sm sm:rounded-lg overflow-hidden">
-                <div class="bg-gradient-to-r from-cagsu-maroon to-cagsu-orange px-6 py-4">
-                    <h3 class="text-base font-bold text-white">Purchase Request Summary</h3>
-                </div>
-                <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                        <div class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Requester</div>
-                        <div class="font-semibold text-gray-900 dark:text-gray-100">{{ $purchaseRequest->requester?->name ?? 'N/A' }}</div>
-                    </div>
-                    <div>
-                        <div class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Department</div>
-                        <div class="font-semibold text-gray-900 dark:text-gray-100">{{ $purchaseRequest->department?->name ?? 'N/A' }}</div>
-                    </div>
-                    <div>
-                        <div class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Estimated Total</div>
-                        <div class="font-semibold text-gray-900 dark:text-gray-100">₱{{ number_format((float)$purchaseRequest->estimated_total, 2) }}</div>
-                    </div>
-                    <div class="md:col-span-3">
-                        <div class="flex items-center gap-2 mb-1">
-                            <div class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Purpose</div>
-                            <button type="button" id="copy-purpose-btn" class="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 transition-colors relative group">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                </svg>
-                                <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 text-xs text-white bg-gray-900 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                                    Copy to remarks
-                                </span>
-                            </button>
-                        </div>
-                        <div class="text-gray-900 dark:text-gray-100" id="purpose-text">{{ $purchaseRequest->purpose }}</div>
-                    </div>
-                </div>
-            </div>
+            @include('budget.purchase_requests.partials.summary')
 
             {{-- CEO Comments --}}
             @if($ceoApproval && $ceoApproval->comments)
@@ -137,7 +105,7 @@
                                 <div class="flex-1">
                                     <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Amount (₱)</label>
                                     <input type="number" step="0.01" min="0"
-                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-cagsu-maroon focus:ring-cagsu-maroon text-sm"
+                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-cagsu-maroon focus:ring-cagsu-maroon text-xs"
                                         x-model="row.amount"
                                         :name="`earmark_object_expenditures[${index}][amount]`">
                                 </div>
@@ -157,69 +125,7 @@
             </div>
 
             {{-- PR Items (for reference only, not Object of Expenditures) --}}
-            <div class="bg-white dark:bg-gray-800 shadow-sm sm:rounded-lg overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                    <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">PR Items (Reference)</h3>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        These are the original PR items and lots, shown for context. The Object of Expenditures above is what prints to A19+ in the earmark template.
-                    </p>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead class="bg-gray-50 dark:bg-gray-700/50">
-                            <tr>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Item</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Unit</th>
-                                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Qty</th>
-                                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Unit Cost</th>
-                                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                            @foreach($purchaseRequest->items->load('lotChildren') as $item)
-                                @if($item->isLotChild()) @continue @endif
-
-                                @if($item->isLotHeader())
-                                    <tr class="bg-indigo-50 dark:bg-indigo-900/30">
-                                        <td class="px-4 py-2 text-sm font-semibold text-indigo-900 dark:text-indigo-100 uppercase">
-                                            {{ strtoupper($item->lot_name ?? $item->item_name) }}
-                                        </td>
-                                        <td class="px-4 py-2 text-sm font-semibold text-indigo-700 dark:text-indigo-200 uppercase">lot</td>
-                                        <td class="px-4 py-2 text-sm text-right text-indigo-900 dark:text-indigo-100">1</td>
-                                        <td class="px-4 py-2 text-sm text-right text-indigo-900 dark:text-indigo-100">
-                                            ₱{{ number_format((float)($item->estimated_unit_cost ?? 0), 2) }}
-                                        </td>
-                                        <td class="px-4 py-2 text-sm text-right font-semibold text-indigo-900 dark:text-indigo-100">
-                                            ₱{{ number_format((float)($item->estimated_total_cost ?? 0), 2) }}
-                                        </td>
-                                    </tr>
-
-                                    @foreach($item->lotChildren as $child)
-                                        <tr class="bg-indigo-50/30 dark:bg-indigo-900/10">
-                                            <td class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 pl-8">
-                                                <span class="text-indigo-400 mr-1">↳</span>
-                                                {{ $child->quantity_requested }} {{ $child->unit_of_measure }}, {{ $child->item_name }}
-                                            </td>
-                                            <td class="px-4 py-2"></td>
-                                            <td class="px-4 py-2"></td>
-                                            <td class="px-4 py-2"></td>
-                                            <td class="px-4 py-2"></td>
-                                        </tr>
-                                    @endforeach
-                                @else
-                                    <tr>
-                                        <td class="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">{{ $item->item_name }}</td>
-                                        <td class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">{{ $item->unit_of_measure }}</td>
-                                        <td class="px-4 py-2 text-sm text-right text-gray-900 dark:text-gray-100">{{ $item->quantity_requested }}</td>
-                                        <td class="px-4 py-2 text-sm text-right text-gray-900 dark:text-gray-100">₱{{ number_format((float)$item->estimated_unit_cost, 2) }}</td>
-                                        <td class="px-4 py-2 text-sm text-right font-medium text-gray-900 dark:text-gray-100">₱{{ number_format((float)($item->estimated_total_cost ?? $item->estimated_unit_cost * $item->quantity_requested), 2) }}</td>
-                                    </tr>
-                                @endif
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            @include('budget.purchase_requests.partials.pr-items')
 
             {{-- Earmark Form --}}
             <div class="space-y-6">

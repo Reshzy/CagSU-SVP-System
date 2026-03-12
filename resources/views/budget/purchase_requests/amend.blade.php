@@ -28,7 +28,7 @@
     </x-slot>
 
     <div class="py-8">
-        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8 space-y-6">
+        <div class="max-w-5xl mx-auto sm:px-6 lg:px-8 space-y-6">
 
             @if(session('status'))
                 <div class="p-4 rounded-lg bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 text-green-800 dark:text-green-300 text-sm font-medium">
@@ -47,41 +47,10 @@
             @endif
 
             {{-- PR Summary --}}
-            <div class="bg-white dark:bg-gray-800 shadow-sm sm:rounded-lg overflow-hidden">
-                <div class="bg-gradient-to-r from-cagsu-maroon to-cagsu-orange px-6 py-4">
-                    <h3 class="text-base font-bold text-white">Purchase Request Summary</h3>
-                </div>
-                <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                        <div class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Requester</div>
-                        <div class="font-semibold text-gray-900 dark:text-gray-100">{{ $purchaseRequest->requester?->name ?? 'N/A' }}</div>
-                    </div>
-                    <div>
-                        <div class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Department</div>
-                        <div class="font-semibold text-gray-900 dark:text-gray-100">{{ $purchaseRequest->department?->name ?? 'N/A' }}</div>
-                    </div>
-                    <div>
-                        <div class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Current Status</div>
-                        <div>
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300">
-                                {{ ucwords(str_replace('_', ' ', $purchaseRequest->status)) }}
-                            </span>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Purpose</div>
-                        <div class="text-sm text-gray-700 dark:text-gray-300">{{ $purchaseRequest->purpose }}</div>
-                    </div>
-                    <div>
-                        <div class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Approved Budget</div>
-                        <div class="font-semibold text-gray-900 dark:text-gray-100">₱{{ number_format((float) $purchaseRequest->estimated_total, 2) }}</div>
-                    </div>
-                    <div>
-                        <div class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Earmark No.</div>
-                        <div class="font-mono font-semibold text-green-700 dark:text-green-400">{{ $purchaseRequest->earmark_id }}</div>
-                    </div>
-                </div>
-            </div>
+            @include('budget.purchase_requests.partials.summary')
+
+            {{-- PR Items (Reference) --}}
+            @include('budget.purchase_requests.partials.pr-items')
 
             {{-- Amendment Form --}}
             <div class="bg-white dark:bg-gray-800 shadow-sm sm:rounded-lg overflow-hidden">
@@ -168,6 +137,13 @@
                         </template>
                     </div>
 
+                    {{-- Earmark Details (mirrors Budget edit grouping) --}}
+                    <div class="bg-white dark:bg-gray-800 shadow-sm sm:rounded-lg overflow-hidden border-t border-gray-200 dark:border-gray-700">
+                        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                            <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">Earmark Details</h3>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">These fields map directly to the Earmark Template document.</p>
+                        </div>
+                        <div class="p-6 space-y-5">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                         {{-- Fund / Funding Source --}}
                         <div>
@@ -226,6 +202,8 @@
                         @error('earmark_responsibility_center')
                             <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
                         @enderror
+                    </div>
+                        </div>
                     </div>
 
                     {{-- Remarks --}}
@@ -291,3 +269,16 @@
         </div>
     </div>
 </x-app-layout>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const copyBtn = document.getElementById('copy-purpose-btn');
+        const purposeText = document.getElementById('purpose-text');
+        const remarksField = document.getElementById('remarks');
+        if (copyBtn && purposeText && remarksField) {
+            copyBtn.addEventListener('click', function () {
+                remarksField.value = purposeText.textContent.trim();
+                remarksField.focus();
+            });
+        }
+    });
+</script>
