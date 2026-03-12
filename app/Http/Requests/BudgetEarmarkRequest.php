@@ -27,7 +27,6 @@ class BudgetEarmarkRequest extends FormRequest
             'date_needed' => ['required', 'date'],
             'fund_cluster_code' => ['nullable', 'string', 'in:01,05,06,07', 'required_with:fund_details'],
             'fund_details' => ['nullable', 'string', 'max:255'],
-            'budget_code' => ['nullable', 'string', 'max:255'],
             'procurement_type' => ['required', 'in:supplies_materials,equipment,infrastructure,services,consulting_services'],
             'remarks' => ['required', 'string', 'min:1'],
             'pr_title' => ['nullable', 'string', 'max:255'],

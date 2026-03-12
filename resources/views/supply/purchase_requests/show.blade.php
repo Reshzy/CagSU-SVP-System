@@ -86,12 +86,6 @@
                                     <label class="text-sm font-medium text-gray-600">Funding Source</label>
                                     <p class="text-gray-900">{{ $purchaseRequest->funding_source }}</p>
                                 </div>
-                                @if($purchaseRequest->budget_code)
-                                <div>
-                                    <label class="text-sm font-medium text-gray-600">Budget Code</label>
-                                    <p class="text-gray-900">{{ $purchaseRequest->budget_code }}</p>
-                                </div>
-                                @endif
                             </div>
                             @endif
                         </div>

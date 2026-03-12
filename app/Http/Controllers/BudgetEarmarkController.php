@@ -92,7 +92,6 @@ class BudgetEarmarkController extends Controller
             $purchaseRequest->fund_cluster_code,
             $purchaseRequest->fund_details
         );
-        $purchaseRequest->budget_code = $validated['budget_code'] ?? null;
         $purchaseRequest->procurement_type = $validated['procurement_type'];
         $purchaseRequest->pr_title = $validated['pr_title'] ?? null;
         $purchaseRequest->legal_basis = $validated['legal_basis'] ?? null;

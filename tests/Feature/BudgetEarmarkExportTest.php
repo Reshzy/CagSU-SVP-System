@@ -128,7 +128,6 @@ class BudgetEarmarkExportTest extends TestCase
                 'date_needed' => now()->format('Y-m-d'),
                 'fund_cluster_code' => '01',
                 'fund_details' => 'General Fund - New General Appropriations - Specific Budget of National',
-                'budget_code' => 'GF-2025',
                 'procurement_type' => 'supplies_materials',
                 'remarks' => 'Earmark approved for procurement of office supplies.',
                 'pr_title' => 'Office Supplies Earmark',

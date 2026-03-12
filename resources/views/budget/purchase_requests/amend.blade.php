@@ -195,15 +195,8 @@
                                         this.fundDetails = null;
                                         return;
                                     }
-                                    const options = this.availableDetails;
-                                    if (options.length === 0) {
-                                        this.fundDetails = null;
-                                        return;
-                                    }
-                                    if (this.fundDetails && options.includes(this.fundDetails)) {
-                                        return;
-                                    }
-                                    this.fundDetails = null;
+                                    // Custom fund details are allowed even when no preset options exist.
+                                    // Only clear details when the cluster is cleared.
                                 },
                             }"
                             x-init="$nextTick(() => onClusterChanged())"
@@ -231,20 +224,27 @@
                             <div class="pt-1">
                                 <label for="fund_details" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Fund Details (Optional)</label>
                                 <select
+                                    id="fund_details_select"
+                                    x-show="fundClusterCode && availableDetails.length > 0"
+                                    x-cloak
+                                    @change="fundDetails = $event.target.value"
+                                    class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-cagsu-maroon focus:ring-cagsu-maroon sm:text-sm"
+                                >
+                                    <option value="">Select Fund Details</option>
+                                    <template x-for="opt in availableDetails" :key="opt">
+                                        <option :value="opt" x-text="opt"></option>
+                                    </template>
+                                </select>
+
+                                <input
                                     id="fund_details"
                                     name="fund_details"
+                                    type="text"
                                     x-model="fundDetails"
-                                    :disabled="!fundClusterCode || availableDetails.length === 0"
+                                    :disabled="!fundClusterCode"
                                     class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-cagsu-maroon focus:ring-cagsu-maroon sm:text-sm disabled:opacity-60"
-                                >
-                                    <option value="" x-text="(!fundClusterCode ? 'Select a fund cluster first' : (availableDetails.length === 0 ? 'No details available for this cluster' : 'Select Fund Details'))"></option>
-                                    <option
-                                        value="General Fund - New General Appropriations - Specific Budget of National"
-                                        x-show="fundClusterCode === '01'"
-                                    >
-                                        General Fund - New General Appropriations - Specific Budget of National
-                                    </option>
-                                </select>
+                                    placeholder="Type custom fund details (optional)"
+                                />
                                 @error('fund_details')
                                     <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
                                 @enderror

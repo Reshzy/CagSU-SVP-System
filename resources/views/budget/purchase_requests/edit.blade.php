@@ -202,15 +202,8 @@
                                                 this.fundDetails = null;
                                                 return;
                                             }
-                                            const options = this.availableDetails;
-                                            if (options.length === 0) {
-                                                this.fundDetails = null;
-                                                return;
-                                            }
-                                            if (this.fundDetails && options.includes(this.fundDetails)) {
-                                                return;
-                                            }
-                                            this.fundDetails = null;
+                                            // Custom fund details are allowed even when no preset options exist.
+                                            // Only clear details when the cluster is cleared.
                                         },
                                     }"
                                     x-init="onClusterChanged()"
@@ -234,17 +227,27 @@
                                     <div class="pt-1">
                                         <x-input-label for="fund_details" value="Fund Details (Optional)" />
                                         <select
-                                            id="fund_details"
-                                            name="fund_details"
-                                            x-model="fundDetails"
-                                            :disabled="!fundClusterCode || availableDetails.length === 0"
-                                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-md disabled:opacity-60"
+                                            id="fund_details_select"
+                                            x-show="fundClusterCode && availableDetails.length > 0"
+                                            x-cloak
+                                            @change="fundDetails = $event.target.value"
+                                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-md"
                                         >
-                                            <option value="" x-text="(!fundClusterCode ? 'Select a fund cluster first' : (availableDetails.length === 0 ? 'No details available for this cluster' : 'Select Fund Details'))"></option>
+                                            <option value="">Select Fund Details</option>
                                             <template x-for="opt in availableDetails" :key="opt">
                                                 <option :value="opt" x-text="opt"></option>
                                             </template>
                                         </select>
+
+                                        <input
+                                            id="fund_details"
+                                            name="fund_details"
+                                            type="text"
+                                            class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 shadow-sm disabled:opacity-60"
+                                            x-model="fundDetails"
+                                            :disabled="!fundClusterCode"
+                                            placeholder="Type custom fund details (optional)"
+                                        />
                                         <x-input-error :messages="$errors->get('fund_details')" class="mt-2" />
                                     </div>
 
@@ -255,13 +258,6 @@
                             </div>
 
                             <div>
-                                <x-input-label for="budget_code" value="Budget Code" />
-                                <x-text-input id="budget_code" name="budget_code" type="text" class="mt-1 block w-full"
-                                    :value="old('budget_code', $purchaseRequest->budget_code)" />
-                                <x-input-error :messages="$errors->get('budget_code')" class="mt-2" />
-                            </div>
-
-                            <div class="md:col-span-2">
                                 <x-input-label for="procurement_type" value="Procurement Type" />
                                 <select id="procurement_type" name="procurement_type" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-md" required>
                                     <option value="">Select Type</option>
