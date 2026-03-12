@@ -206,7 +206,7 @@
                                     this.fundDetails = null;
                                 },
                             }"
-                            x-init="onClusterChanged()"
+                            x-init="$nextTick(() => onClusterChanged())"
                             class="space-y-2"
                         >
                             <label for="fund_cluster_code" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Fund Cluster</label>
@@ -216,11 +216,13 @@
                                 x-model="fundClusterCode"
                                 @change="onClusterChanged()"
                                 class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-cagsu-maroon focus:ring-cagsu-maroon sm:text-sm"
+                                style="margin-top: 0px"
                             >
                                 <option value="">Select Fund Cluster</option>
-                                <template x-for="cluster in fundClusters" :key="cluster.code">
-                                    <option :value="cluster.code" x-text="`${cluster.label} (${cluster.code})`"></option>
-                                </template>
+                                <option value="01">Regular Agency Fund (01)</option>
+                                <option value="05">Off-Budgetary Fund (05)</option>
+                                <option value="06">Income Generating Enterprise (06)</option>
+                                <option value="07">Trust Receipts (07)</option>
                             </select>
                             @error('fund_cluster_code')
                                 <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
@@ -236,9 +238,12 @@
                                     class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-cagsu-maroon focus:ring-cagsu-maroon sm:text-sm disabled:opacity-60"
                                 >
                                     <option value="" x-text="(!fundClusterCode ? 'Select a fund cluster first' : (availableDetails.length === 0 ? 'No details available for this cluster' : 'Select Fund Details'))"></option>
-                                    <template x-for="opt in availableDetails" :key="opt">
-                                        <option :value="opt" x-text="opt"></option>
-                                    </template>
+                                    <option
+                                        value="General Fund - New General Appropriations - Specific Budget of National"
+                                        x-show="fundClusterCode === '01'"
+                                    >
+                                        General Fund - New General Appropriations - Specific Budget of National
+                                    </option>
                                 </select>
                                 @error('fund_details')
                                     <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>

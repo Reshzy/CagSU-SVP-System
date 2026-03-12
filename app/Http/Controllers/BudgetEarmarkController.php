@@ -256,8 +256,8 @@ class BudgetEarmarkController extends Controller
         abort_if($purchaseRequest->status === 'budget_office_review', 403);
 
         $validated = $request->validate([
-            'fund_cluster_code' => ['nullable', 'string', 'in:01,05,06,07'],
-            'fund_details' => ['nullable', 'string', 'max:255'],
+            'fund_cluster_code' => ['sometimes', 'nullable', 'string', 'in:01,05,06,07'],
+            'fund_details' => ['sometimes', 'nullable', 'string', 'max:255'],
             'legal_basis' => ['nullable', 'string', 'max:500'],
             'earmark_programs_activities' => ['nullable', 'string', 'max:1000'],
             'earmark_responsibility_center' => ['nullable', 'string', 'max:255'],
