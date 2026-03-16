@@ -242,7 +242,7 @@
                                     type="text"
                                     x-model="fundDetails"
                                     :disabled="!fundClusterCode"
-                                    class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-cagsu-maroon focus:ring-cagsu-maroon sm:text-sm disabled:opacity-60"
+                                    class="mt-1 w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-cagsu-maroon focus:ring-cagsu-maroon sm:text-sm disabled:opacity-60"
                                     placeholder="Type custom fund details (optional)"
                                 />
                                 @error('fund_details')

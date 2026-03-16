@@ -58,7 +58,7 @@ This application is a Laravel application and its main Laravel ecosystems packag
 
 ## Artisan Commands
 
-- Run Artisan commands directly via the command line (e.g., `php artisan route:list`, `php artisan tinker --execute &quot;...&quot;`).
+- Run Artisan commands directly via the command line (e.g., `php artisan route:list`, `php artisan tinker --execute "..."`).
 - Use `php artisan list` to discover available commands and `php artisan [command] --help` to check parameters.
 
 ## URLs
@@ -69,7 +69,7 @@ This application is a Laravel application and its main Laravel ecosystems packag
 
 - Use the `database-query` tool when you only need to read from the database.
 - Use the `database-schema` tool to inspect table structure before writing migrations or models.
-- To execute PHP code for debugging, run `php artisan tinker --execute &quot;your code here&quot;` directly.
+- To execute PHP code for debugging, run `php artisan tinker --execute "your code here"` directly.
 - To read configuration values, read the config files directly or run `php artisan config:show [key]`.
 - To inspect routes, run `php artisan route:list` directly.
 - To check environment variables, read the `.env` file directly.
