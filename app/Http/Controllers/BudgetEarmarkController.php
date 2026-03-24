@@ -86,8 +86,12 @@ class BudgetEarmarkController extends Controller
         // Update PR with approved budget, procurement details, earmark fields, and forward to CEO approval
         $purchaseRequest->estimated_total = (float) $validated['approved_budget_total'];
         $purchaseRequest->date_needed = $validated['date_needed'];
-        $purchaseRequest->funding_source = $validated['funding_source'] ?? null;
-        $purchaseRequest->budget_code = $validated['budget_code'] ?? null;
+        $purchaseRequest->fund_cluster_code = $validated['fund_cluster_code'] ?? null;
+        $purchaseRequest->fund_details = $validated['fund_details'] ?? null;
+        $purchaseRequest->funding_source = PurchaseRequest::formatFundingSourceFromFundCluster(
+            $purchaseRequest->fund_cluster_code,
+            $purchaseRequest->fund_details
+        );
         $purchaseRequest->procurement_type = $validated['procurement_type'];
         $purchaseRequest->pr_title = $validated['pr_title'] ?? null;
         $purchaseRequest->legal_basis = $validated['legal_basis'] ?? null;
@@ -251,7 +255,8 @@ class BudgetEarmarkController extends Controller
         abort_if($purchaseRequest->status === 'budget_office_review', 403);
 
         $validated = $request->validate([
-            'funding_source' => ['nullable', 'string', 'max:255'],
+            'fund_cluster_code' => ['sometimes', 'nullable', 'string', 'in:01,05,06,07'],
+            'fund_details' => ['sometimes', 'nullable', 'string', 'max:255'],
             'legal_basis' => ['nullable', 'string', 'max:500'],
             'earmark_programs_activities' => ['nullable', 'string', 'max:1000'],
             'earmark_responsibility_center' => ['nullable', 'string', 'max:255'],
@@ -265,12 +270,15 @@ class BudgetEarmarkController extends Controller
 
         /** @var array<string, string> $amendableFields */
         $amendableFields = [
-            'funding_source' => 'funding_source',
+            'fund_cluster_code' => 'fund_cluster_code',
+            'fund_details' => 'fund_details',
             'legal_basis' => 'legal_basis',
             'earmark_programs_activities' => 'earmark_programs_activities',
             'earmark_responsibility_center' => 'earmark_responsibility_center',
             'earmark_date_to' => 'earmark_date_to',
         ];
+
+        $originalFundingSource = $purchaseRequest->funding_source;
 
         $oldValues = [];
         $newValues = [];
@@ -292,6 +300,20 @@ class BudgetEarmarkController extends Controller
                 $oldValues[$inputKey] = $current;
                 $newValues[$inputKey] = $incoming;
                 $purchaseRequest->$modelKey = $incoming;
+            }
+        }
+
+        // Recompute computed display string when cluster/details were submitted (even if unchanged, format stays normalized).
+        if (array_key_exists('fund_cluster_code', $validated) || array_key_exists('fund_details', $validated)) {
+            $computed = PurchaseRequest::formatFundingSourceFromFundCluster(
+                $purchaseRequest->fund_cluster_code,
+                $purchaseRequest->fund_details
+            );
+
+            if ((string) $originalFundingSource !== (string) $computed) {
+                $oldValues['funding_source'] = $originalFundingSource;
+                $newValues['funding_source'] = $computed;
+                $purchaseRequest->funding_source = $computed;
             }
         }
 

@@ -136,7 +136,7 @@
                                                                     class="item-checkbox rounded"
                                                                 />
                                                                 <span class="ml-2 text-sm">
-                                                                    <strong class="text-white">{{ $appItem->item_name }}</strong><br/>
+                                                                    <strong class="text-gray-700 dark:text-white">{{ $appItem->item_name }}</strong><br/>
                                                                     <span class="text-xs text-gray-500">{{ $appItem->item_code }}</span><br/>
                                                                     @if($appItem->unit_price > 0)
                                                                         <span class="text-xs text-gray-500">₱{{ number_format($appItem->unit_price, 2) }} / {{ $appItem->unit_of_measure }}</span>
@@ -225,7 +225,7 @@
                                 </div>
                                 <div class="flex justify-between mb-2">
                                     <span>Total Cost:</span>
-                                    <span class="font-semibold text-white">₱<span x-text="formatNumber(ppmpTotal)">0.00</span></span>
+                                    <span class="font-semibold text-gray-600 dark:text-white">₱<span x-text="formatNumber(ppmpTotal)">0.00</span></span>
                                 </div>
                             </div>
 

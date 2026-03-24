@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AoqGeneration;
 use App\Models\AoqItemDecision;
 use App\Models\AoqSignatory;
+use App\Models\BacSignatory;
 use App\Models\PrItemGroup;
 use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestItem;
@@ -330,7 +331,6 @@ class AoqService
                 'date_needed' => null,
                 'estimated_total' => $totalCost,
                 'funding_source' => $originalPr->funding_source,
-                'budget_code' => $originalPr->budget_code,
                 'procurement_type' => $originalPr->procurement_type,
                 'procurement_method' => null,
                 'status' => 'supply_office_review',
@@ -1304,7 +1304,7 @@ class AoqService
                     }
                 }
             } else {
-                $bacSignatories = \App\Models\BacSignatory::with('user')->active()->get();
+                $bacSignatories = BacSignatory::with('user')->active()->get();
                 foreach ($bacSignatories->take(5) as $signatory) {
                     $signatories[] = [
                         'name' => $signatory->full_name,
@@ -1347,8 +1347,8 @@ class AoqService
             $headBacName = $formatSignatoryName($signatoryData['head_bac_secretariat'] ?? null);
             $ceoName = $formatSignatoryName($signatoryData['ceo'] ?? null);
         } else {
-            $headBacSignatory = \App\Models\BacSignatory::with('user')->active()->where('position', 'head_bac_secretariat')->first();
-            $ceoUser = \App\Models\User::role('Executive Officer')->first();
+            $headBacSignatory = BacSignatory::with('user')->active()->where('position', 'head_bac_secretariat')->first();
+            $ceoUser = User::role('Executive Officer')->first();
             $headBacName = $headBacSignatory ? $headBacSignatory->full_name : 'N/A';
             $ceoName = $ceoUser ? $ceoUser->name : 'N/A';
         }
