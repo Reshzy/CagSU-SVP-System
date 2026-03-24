@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             RolePermissionSeeder::class,
             CollegeSeeder::class,
             ComprehensiveUserSeeder::class,
+            SupplierSeeder::class,
             // PurchaseRequestSeeder::class,
         ]);
     }

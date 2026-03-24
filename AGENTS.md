@@ -9,7 +9,7 @@ The Laravel Boost guidelines are specifically curated by Laravel maintainers for
 
 This application is a Laravel application and its main Laravel ecosystems package & versions are below. You are an expert with them all. Ensure you abide by these specific packages & versions.
 
-- php - 8.4.14
+- php - 8.5
 - laravel/framework (LARAVEL) - v12
 - laravel/prompts (PROMPTS) - v0
 - livewire/livewire (LIVEWIRE) - v4
@@ -58,7 +58,7 @@ This application is a Laravel application and its main Laravel ecosystems packag
 
 ## Artisan Commands
 
-- Run Artisan commands directly via the command line (e.g., `php artisan route:list`, `php artisan tinker --execute &quot;...&quot;`).
+- Run Artisan commands directly via the command line (e.g., `php artisan route:list`, `php artisan tinker --execute "..."`).
 - Use `php artisan list` to discover available commands and `php artisan [command] --help` to check parameters.
 
 ## URLs
@@ -69,7 +69,7 @@ This application is a Laravel application and its main Laravel ecosystems packag
 
 - Use the `database-query` tool when you only need to read from the database.
 - Use the `database-schema` tool to inspect table structure before writing migrations or models.
-- To execute PHP code for debugging, run `php artisan tinker --execute &quot;your code here&quot;` directly.
+- To execute PHP code for debugging, run `php artisan tinker --execute "your code here"` directly.
 - To read configuration values, read the config files directly or run `php artisan config:show [key]`.
 - To inspect routes, run `php artisan route:list` directly.
 - To check environment variables, read the `.env` file directly.
@@ -202,12 +202,12 @@ protected function isAccessible(User $user, ?string $path = null): bool
 
 ## Laravel 12 Structure
 
-- In Laravel 12, middleware are no longer registered in `app/Http/Kernel.php`.
+- In Laravel 12, middleware are no longer registered in `app\Http/Kernel.php`.
 - Middleware are configured declaratively in `bootstrap/app.php` using `Application::configure()->withMiddleware()`.
 - `bootstrap/app.php` is the file to register middleware, exceptions, and routing files.
 - `bootstrap/providers.php` contains application specific service providers.
-- The `app\Console\Kernel.php` file no longer exists; use `bootstrap/app.php` or `routes/console.php` for console configuration.
-- Console commands in `app/Console/Commands/` are automatically available and do not require manual registration.
+- The `app\Console/Kernel.php` file no longer exists; use `bootstrap/app.php` or `routes/console.php` for console configuration.
+- Console commands in `app\Console/Commands/` are automatically available and do not require manual registration.
 
 ## Database
 
@@ -222,10 +222,9 @@ protected function isAccessible(User $user, ?string $path = null): bool
 
 # Livewire
 
-- Livewire allows you to build dynamic, reactive interfaces using only PHP — no JavaScript required.
-- Instead of writing frontend code in JavaScript frameworks, you use Alpine.js to build the UI when client-side interactions are required.
-- State lives on the server; the UI reflects it. Validate and authorize in actions (they're like HTTP requests).
-- IMPORTANT: Activate `livewire-development` every time you're working with Livewire-related tasks.
+- Livewire allow to build dynamic, reactive interfaces in PHP without writing JavaScript.
+- You can use Alpine.js for client-side interactions instead of JavaScript frameworks.
+- Keep state server-side so the UI reflects it. Validate and authorize in actions as you would in HTTP requests.
 
 === pint/core rules ===
 
@@ -251,13 +250,5 @@ protected function isAccessible(User $user, ?string $path = null): bool
 - To run all tests: `php artisan test --compact`.
 - To run all tests in a file: `php artisan test --compact tests/Feature/ExampleTest.php`.
 - To filter on a particular test name: `php artisan test --compact --filter=testName` (recommended after making a change to a related file).
-
-=== tailwindcss/core rules ===
-
-# Tailwind CSS
-
-- Always use existing Tailwind conventions; check project patterns before adding new ones.
-- IMPORTANT: Always use `search-docs` tool for version-specific Tailwind CSS documentation and updated code examples. Never rely on training data.
-- IMPORTANT: Activate `tailwindcss-development` every time you're working with a Tailwind CSS or styling-related task.
 
 </laravel-boost-guidelines>
