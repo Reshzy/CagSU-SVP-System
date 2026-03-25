@@ -75,8 +75,28 @@
 
                                 <!-- Categories Accordion -->
                                 @php
-                                    $allCategoriesForSearch = [];
+                                    $constantPriceCategories = [];
+                                    $customPriceCategories = [];
+
                                     foreach ($categories as $category) {
+                                        $items = $appItems[$category] ?? collect();
+                                        $hasCustomPriceItem = $items->contains(
+                                            fn ($item) => ($item->unit_price ?? 0) <= 0
+                                        );
+
+                                        if ($hasCustomPriceItem) {
+                                            $customPriceCategories[] = $category;
+                                        } else {
+                                            $constantPriceCategories[] = $category;
+                                        }
+                                    }
+
+                                    $orderedCategories = [...$constantPriceCategories, ...$customPriceCategories];
+                                    $customCategoryLookup = array_fill_keys($customPriceCategories, true);
+                                    $renderedCustomCategoryHeader = false;
+
+                                    $allCategoriesForSearch = [];
+                                    foreach ($orderedCategories as $category) {
                                         $items = $appItems[$category] ?? collect();
                                         $allCategoriesForSearch[] = [
                                             'name' => $category,
@@ -85,10 +105,18 @@
                                         ];
                                     }
                                 @endphp
-                                @foreach ($categories as $categoryIndex => $category)
+                                @foreach ($orderedCategories as $categoryIndex => $category)
                                     @php
                                         $categoryItems = $appItems[$category];
                                     @endphp
+                                    @if (! $renderedCustomCategoryHeader && isset($customCategoryLookup[$category]))
+                                        <div class="mb-4 px-4 py-2 text-xs font-semibold uppercase tracking-wide bg-orange-50 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200 rounded-lg border border-orange-200 dark:border-orange-700">
+                                            Custom Price Categories
+                                        </div>
+                                        @php
+                                            $renderedCustomCategoryHeader = true;
+                                        @endphp
+                                    @endif
                                     <div class="mb-4 border border-gray-200 dark:border-gray-700 rounded-lg"
                                          x-show="categoryVisible('{{ $category }}', {{ json_encode($categoryItems->pluck('item_name')->toArray()) }}, {{ json_encode($categoryItems->pluck('item_code')->toArray()) }})">
                                         <!-- Category Header -->
