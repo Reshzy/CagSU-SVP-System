@@ -19,15 +19,15 @@
                     <div class="grid grid-cols-3 gap-4">
                         <div class="bg-blue-50 dark:bg-blue-900 p-4 rounded">
                             <div class="text-sm text-gray-600 dark:text-gray-400">Allocated Budget</div>
-                            <div class="text-2xl font-bold">₱{{ number_format($budgetStatus['allocated'], 2) }}</div>
+                            <div class="text-2xl text-gray-800 dark:text-white font-bold">₱{{ number_format($budgetStatus['allocated'], 2) }}</div>
                         </div>
                         <div class="bg-purple-50 dark:bg-purple-900 p-4 rounded">
                             <div class="text-sm text-gray-600 dark:text-gray-400">PPMP Total</div>
-                            <div class="text-2xl font-bold">₱{{ number_format($budgetStatus['planned'], 2) }}</div>
+                            <div class="text-2xl text-gray-800 dark:text-white font-bold">₱{{ number_format($budgetStatus['planned'], 2) }}</div>
                         </div>
                         <div class="bg-green-50 dark:bg-green-900 p-4 rounded">
                             <div class="text-sm text-gray-600 dark:text-gray-400">Remaining</div>
-                            <div class="text-2xl font-bold">₱{{ number_format($budgetStatus['remaining_after_ppmp'], 2) }}</div>
+                            <div class="text-2xl text-gray-800 dark:text-white font-bold">₱{{ number_format($budgetStatus['remaining_after_ppmp'], 2) }}</div>
                         </div>
                     </div>
                 </div>
@@ -54,13 +54,13 @@
                                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                     @foreach ($items as $item)
                                         <tr>
-                                            <td class="px-4 py-2 text-sm">{{ $item->appItem->item_name }}</td>
-                                            <td class="px-4 py-2 text-sm text-center">{{ $item->q1_quantity }}</td>
-                                            <td class="px-4 py-2 text-sm text-center">{{ $item->q2_quantity }}</td>
-                                            <td class="px-4 py-2 text-sm text-center">{{ $item->q3_quantity }}</td>
-                                            <td class="px-4 py-2 text-sm text-center">{{ $item->q4_quantity }}</td>
-                                            <td class="px-4 py-2 text-sm text-center font-semibold">{{ $item->total_quantity }}</td>
-                                            <td class="px-4 py-2 text-sm text-right">₱{{ number_format($item->estimated_total_cost, 2) }}</td>
+                                            <td class="px-4 py-2 text-sm text-gray-800 dark:text-white">{{ $item->appItem->item_name }}</td>
+                                            <td class="px-4 py-2 text-sm text-center text-gray-800 dark:text-white">{{ $item->q1_quantity }}</td>
+                                            <td class="px-4 py-2 text-sm text-center text-gray-800 dark:text-white">{{ $item->q2_quantity }}</td>
+                                            <td class="px-4 py-2 text-sm text-center text-gray-800 dark:text-white">{{ $item->q3_quantity }}</td>
+                                            <td class="px-4 py-2 text-sm text-center text-gray-800 dark:text-white">{{ $item->q4_quantity }}</td>
+                                            <td class="px-4 py-2 text-sm text-center font-semibold text-gray-800 dark:text-white">{{ $item->total_quantity }}</td>
+                                            <td class="px-4 py-2 text-sm text-right text-gray-800 dark:text-white">₱{{ number_format($item->estimated_total_cost, 2) }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
