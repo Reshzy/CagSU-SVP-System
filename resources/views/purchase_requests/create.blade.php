@@ -125,7 +125,7 @@
                                              @keydown.enter.prevent="toggleCategory('{{ $category }}')"
                                              @keydown.space.prevent="toggleCategory('{{ $category }}')">
                                             <div class="flex items-center gap-2">
-                                                <svg class="w-5 h-5 transition-transform duration-200 text-white" 
+                                                <svg class="w-5 h-5 transition-transform duration-200 text-gray-800 dark:text-white" 
                                                      :class="{'rotate-90': expandedCategories.includes('{{ $category }}')}"
                                                      fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>

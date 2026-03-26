@@ -141,19 +141,46 @@
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                    @foreach ($ppmp->items as $item)
+                                    @php
+                                        [$constantPriceItems, $customPriceItems] = $ppmp->items->partition(
+                                            fn ($item) => ($item->appItem->unit_price ?? 0) > 0
+                                        );
+                                    @endphp
+                                    @foreach ($constantPriceItems as $item)
                                         <tr>
                                             <td class="px-4 py-2 text-sm">
-                                                <div class="font-semibold">{{ $item->appItem->item_name }}</div>
+                                                <div class="font-semibold text-gray-800 dark:text-white">{{ $item->appItem->item_name }}</div>
                                                 <div class="text-xs text-gray-500">{{ $item->appItem->item_code }}</div>
                                             </td>
-                                            <td class="px-4 py-2 text-sm text-center">{{ $item->q1_quantity }}</td>
-                                            <td class="px-4 py-2 text-sm text-center">{{ $item->q2_quantity }}</td>
-                                            <td class="px-4 py-2 text-sm text-center">{{ $item->q3_quantity }}</td>
-                                            <td class="px-4 py-2 text-sm text-center">{{ $item->q4_quantity }}</td>
-                                            <td class="px-4 py-2 text-sm text-center font-semibold">{{ $item->total_quantity }}</td>
-                                            <td class="px-4 py-2 text-sm text-right">₱{{ number_format($item->estimated_unit_cost, 2) }}</td>
-                                            <td class="px-4 py-2 text-sm text-right font-semibold">₱{{ number_format($item->estimated_total_cost, 2) }}</td>
+                                            <td class="px-4 py-2 text-sm text-center text-gray-800 dark:text-white">{{ $item->q1_quantity }}</td>
+                                            <td class="px-4 py-2 text-sm text-center text-gray-800 dark:text-white">{{ $item->q2_quantity }}</td>
+                                            <td class="px-4 py-2 text-sm text-center text-gray-800 dark:text-white">{{ $item->q3_quantity }}</td>
+                                            <td class="px-4 py-2 text-sm text-center text-gray-800 dark:text-white">{{ $item->q4_quantity }}</td>
+                                            <td class="px-4 py-2 text-sm text-center text-gray-800 dark:text-white font-semibold">{{ $item->total_quantity }}</td>
+                                            <td class="px-4 py-2 text-sm text-right text-gray-800 dark:text-white">₱{{ number_format($item->estimated_unit_cost, 2) }}</td>
+                                            <td class="px-4 py-2 text-sm text-right text-gray-800 dark:text-white font-semibold">₱{{ number_format($item->estimated_total_cost, 2) }}</td>
+                                        </tr>
+                                    @endforeach
+                                    @if ($customPriceItems->isNotEmpty())
+                                        <tr>
+                                            <td colspan="8" class="px-4 py-2 text-xs font-semibold uppercase tracking-wide bg-orange-50 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200">
+                                                Custom Price Categories
+                                            </td>
+                                        </tr>
+                                    @endif
+                                    @foreach ($customPriceItems as $item)
+                                        <tr>
+                                            <td class="px-4 py-2 text-sm">
+                                                <div class="font-semibold text-gray-800 dark:text-white">{{ $item->appItem->item_name }}</div>
+                                                <div class="text-xs text-gray-500">{{ $item->appItem->item_code }}</div>
+                                            </td>
+                                            <td class="px-4 py-2 text-sm text-center text-gray-800 dark:text-white">{{ $item->q1_quantity }}</td>
+                                            <td class="px-4 py-2 text-sm text-center text-gray-800 dark:text-white">{{ $item->q2_quantity }}</td>
+                                            <td class="px-4 py-2 text-sm text-center text-gray-800 dark:text-white">{{ $item->q3_quantity }}</td>
+                                            <td class="px-4 py-2 text-sm text-center text-gray-800 dark:text-white">{{ $item->q4_quantity }}</td>
+                                            <td class="px-4 py-2 text-sm text-center text-gray-800 dark:text-white font-semibold">{{ $item->total_quantity }}</td>
+                                            <td class="px-4 py-2 text-sm text-right text-gray-800 dark:text-white">₱{{ number_format($item->estimated_unit_cost, 2) }}</td>
+                                            <td class="px-4 py-2 text-sm text-right text-gray-800 dark:text-white font-semibold">₱{{ number_format($item->estimated_total_cost, 2) }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
