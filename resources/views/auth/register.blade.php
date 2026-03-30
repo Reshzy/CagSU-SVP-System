@@ -17,6 +17,7 @@
             errors: @js($errors->keys()),
         })"
         x-init="init()"
+        @department-changed.window="form.department_id = $event.detail.value; validateField('department_id')"
         class="space-y-6"
     >
         <div class="text-center">
@@ -152,21 +153,7 @@
                 <div class="space-y-4">
                     <div>
                         <x-input-label for="department_id" :value="__('Department')" />
-                        <select
-                            id="department_id"
-                            name="department_id"
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cagsu-maroon focus:ring-cagsu-maroon dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:focus:border-cagsu-yellow dark:focus:ring-cagsu-yellow"
-                            required
-                            x-model="form.department_id"
-                            @change="validateField('department_id')"
-                        >
-                            <option value="">— Select department —</option>
-                            @isset($departments)
-                                @foreach($departments as $dept)
-                                    <option value="{{ $dept->id }}" @selected(old('department_id') == $dept->id)>{{ $dept->name }}</option>
-                                @endforeach
-                            @endisset
-                        </select>
+                        <livewire:auth.register-department-select :initial-department-id="(string) old('department_id')" />
                         <p class="mt-1 text-xs text-red-600" x-show="fieldMessage('department_id').type === 'error'" x-text="fieldMessage('department_id').text"></p>
                         <x-input-error :messages="$errors->get('department_id')" class="mt-2" />
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">

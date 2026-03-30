@@ -41,9 +41,38 @@ function registerWizard(config = {}) {
       this.step = this.resolveInitialStep(config.errors || []);
       this.maxStepReached = this.step;
 
+      this.syncDepartmentSelectFromState();
+
       this.$watch('form', () => {
         this.saveDraft();
       }, { deep: true });
+    },
+
+    syncDepartmentSelectFromState() {
+      const desiredValue = this.form.department_id;
+      if (!desiredValue) {
+        return;
+      }
+
+      let attempts = 0;
+      const maxAttempts = 10;
+
+      const trySync = () => {
+        attempts += 1;
+
+        const selectElement = document.getElementById('department_id');
+        if (selectElement) {
+          selectElement.value = desiredValue;
+          selectElement.dispatchEvent(new Event('change', { bubbles: true }));
+          return;
+        }
+
+        if (attempts < maxAttempts) {
+          window.setTimeout(trySync, 200);
+        }
+      };
+
+      window.setTimeout(trySync, 200);
     },
 
     get progressPercent() {
@@ -167,7 +196,7 @@ function registerWizard(config = {}) {
     },
 
     titleCaseWord(word) {
-      const segmentSeparators = ['-', '\''];
+      const segmentSeparators = ['-', "'"];
 
       let segments = [word];
       segmentSeparators.forEach((separator) => {
@@ -422,28 +451,33 @@ function registerWizard(config = {}) {
 }
 
 // Alpine is provided by Livewire on app layout; on guest/landing we start it here so dropdowns and collapse work.
-// Wait a short time after DOMContentLoaded to let Livewire scripts start loading
-document.addEventListener('DOMContentLoaded', function () {
-  setTimeout(function () {
-    if (typeof window.Livewire === 'undefined') {
-      // Only set up Alpine when Livewire is not present (guest/landing pages)
-      Alpine.plugin(collapse);
-      Alpine.data('registerWizard', registerWizard);
-      window.Alpine = Alpine;
-      Alpine.start();
-    } else {
-      // On Livewire pages, register the collapse plugin with Livewire's Alpine instance
-      if (window.Alpine && typeof window.Alpine.plugin === 'function') {
-        try {
-          window.Alpine.plugin(collapse);
-        } catch (e) {
-          // Plugin might already be registered, ignore error
-        }
+function registerWizardWithAlpine(alpineInstance) {
+  if (!alpineInstance || typeof alpineInstance.data !== 'function') {
+    return;
+  }
 
-        if (typeof window.Alpine.data === 'function') {
-          window.Alpine.data('registerWizard', registerWizard);
-        }
-      }
+  try {
+    if (typeof alpineInstance.plugin === 'function') {
+      alpineInstance.plugin(collapse);
     }
-  }, 50);
+  } catch (error) {
+    // ignore duplicate plugin registration
+  }
+
+  alpineInstance.data('registerWizard', registerWizard);
+  window.registerWizard = registerWizard;
+}
+
+document.addEventListener('alpine:init', function () {
+  registerWizardWithAlpine(window.Alpine);
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+  if (typeof window.Livewire === 'undefined') {
+    window.Alpine = Alpine;
+    registerWizardWithAlpine(window.Alpine);
+    window.Alpine.start();
+  } else if (window.Alpine) {
+    registerWizardWithAlpine(window.Alpine);
+  }
 });
