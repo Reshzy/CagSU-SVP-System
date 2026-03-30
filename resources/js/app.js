@@ -24,7 +24,19 @@ function registerWizard(config = {}) {
 
     init() {
       const oldValues = config.old || {};
-      const hasOldValues = Object.values(oldValues).some((value) => value);
+      const serverErrorKeys = Array.isArray(config.errors) ? config.errors : [];
+      const hasServerErrors = serverErrorKeys.length > 0;
+      const meaningfulOldKeys = [
+        'name',
+        'email',
+        'employee_id',
+        'phone',
+        'department_id',
+        'password',
+        'password_confirmation',
+      ];
+      const hasMeaningfulOldValues = meaningfulOldKeys.some((key) => Boolean(oldValues[key]));
+      const hasOldValues = hasServerErrors && (hasMeaningfulOldValues || Boolean(oldValues.position_id));
 
       if (hasOldValues) {
         this.form = { ...this.form, ...oldValues };
@@ -38,13 +50,13 @@ function registerWizard(config = {}) {
       }
 
       this.validateAll();
-      this.step = this.resolveInitialStep(config.errors || []);
+      this.step = this.resolveInitialStep(serverErrorKeys);
       this.maxStepReached = this.step;
 
       this.syncDepartmentSelectFromState();
 
       this.$watch('form', () => {
-        this.saveDraft();
+        this.queueDraftSave();
       }, { deep: true });
     },
 
@@ -382,6 +394,13 @@ function registerWizard(config = {}) {
       return `${this.idProofNames.slice(0, 2).join(', ')} (+${this.idProofNames.length - 2} more)`;
     },
 
+    queueDraftSave() {
+      window.clearTimeout(this.draftSaveTimer);
+      this.draftSaveTimer = window.setTimeout(() => {
+        this.saveDraft();
+      }, 400);
+    },
+
     saveDraft(showIndicator = true) {
       const payload = {
         name: this.form.name,
@@ -394,7 +413,13 @@ function registerWizard(config = {}) {
         password_confirmation: this.form.password_confirmation,
       };
 
-      window.localStorage.setItem(draftKey, JSON.stringify(payload));
+      let saveOk = false;
+      try {
+        window.localStorage.setItem(draftKey, JSON.stringify(payload));
+        saveOk = true;
+      } catch (e) {
+        saveOk = false;
+      }
 
       if (showIndicator) {
         this.savedMessageVisible = true;
