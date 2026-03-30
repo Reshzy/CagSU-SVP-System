@@ -20,6 +20,9 @@ class DepartmentRequestController extends Controller
             'name' => $request->validated('name'),
             'code' => strtoupper($request->validated('code')),
             'description' => $request->validated('description'),
+            'head_name' => $request->validated('head_name'),
+            'contact_email' => $request->validated('contact_email'),
+            'contact_phone' => $request->validated('contact_phone'),
             'requester_email' => $request->validated('requester_email'),
             'status' => 'pending',
         ]);

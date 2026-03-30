@@ -46,6 +46,9 @@ class DepartmentRequestTest extends TestCase
             'name' => 'College of Engineering',
             'code' => 'COE',
             'description' => 'Engineering faculty',
+            'head_name' => 'Dr. Maria Santos',
+            'contact_email' => 'dean.eng@cagsu.edu.ph',
+            'contact_phone' => '+639171234567',
             'requester_email' => 'eng.dean@cagsu.edu.ph',
         ])
             ->assertRedirect(route('register'))
@@ -54,6 +57,9 @@ class DepartmentRequestTest extends TestCase
         $this->assertDatabaseHas('department_requests', [
             'name' => 'College of Engineering',
             'code' => 'COE',
+            'head_name' => 'Dr. Maria Santos',
+            'contact_email' => 'dean.eng@cagsu.edu.ph',
+            'contact_phone' => '+639171234567',
             'requester_email' => 'eng.dean@cagsu.edu.ph',
             'status' => 'pending',
         ]);
@@ -64,6 +70,7 @@ class DepartmentRequestTest extends TestCase
         $this->post(route('register.request-department.store'), [
             'name' => 'College of Arts',
             'code' => 'coa',
+            'head_name' => 'Prof. Anne Reyes',
             'requester_email' => 'arts@cagsu.edu.ph',
         ])->assertRedirect(route('register'));
 
@@ -74,8 +81,18 @@ class DepartmentRequestTest extends TestCase
     {
         $this->post(route('register.request-department.store'), [
             'code' => 'ABC',
+            'head_name' => 'Prof. Test Head',
             'requester_email' => 'test@example.com',
         ])->assertSessionHasErrors('name');
+    }
+
+    public function test_department_request_requires_head_name(): void
+    {
+        $this->post(route('register.request-department.store'), [
+            'name' => 'Test Dept',
+            'code' => 'TST',
+            'requester_email' => 'test@example.com',
+        ])->assertSessionHasErrors('head_name');
     }
 
     public function test_department_request_requires_valid_email(): void
@@ -83,8 +100,26 @@ class DepartmentRequestTest extends TestCase
         $this->post(route('register.request-department.store'), [
             'name' => 'Test Dept',
             'code' => 'TDT',
+            'head_name' => 'Prof. Test Head',
             'requester_email' => 'not-an-email',
         ])->assertSessionHasErrors('requester_email');
+    }
+
+    public function test_department_request_accepts_optional_contact_fields(): void
+    {
+        $this->post(route('register.request-department.store'), [
+            'name' => 'College of Tourism',
+            'code' => 'COT',
+            'head_name' => 'Dr. Leila Abad',
+            'requester_email' => 'tourism@cagsu.edu.ph',
+        ])->assertRedirect(route('register'));
+
+        $this->assertDatabaseHas('department_requests', [
+            'code' => 'COT',
+            'head_name' => 'Dr. Leila Abad',
+            'contact_email' => null,
+            'contact_phone' => null,
+        ]);
     }
 
     public function test_department_request_code_must_be_alphanumeric(): void
@@ -92,6 +127,7 @@ class DepartmentRequestTest extends TestCase
         $this->post(route('register.request-department.store'), [
             'name' => 'Test Dept',
             'code' => 'TD-T',
+            'head_name' => 'Prof. Test Head',
             'requester_email' => 'test@example.com',
         ])->assertSessionHasErrors('code');
     }
@@ -103,6 +139,7 @@ class DepartmentRequestTest extends TestCase
         $this->post(route('register.request-department.store'), [
             'name' => 'New Dept',
             'code' => 'EXD',
+            'head_name' => 'Prof. Test Head',
             'requester_email' => 'test@example.com',
         ])->assertSessionHasErrors('code');
     }
@@ -114,6 +151,7 @@ class DepartmentRequestTest extends TestCase
         $this->post(route('register.request-department.store'), [
             'name' => 'Another Dept',
             'code' => 'DUP',
+            'head_name' => 'Prof. Test Head',
             'requester_email' => 'other@example.com',
         ])->assertSessionHasErrors('code');
     }
@@ -170,6 +208,9 @@ class DepartmentRequestTest extends TestCase
             'name' => 'College of Nursing',
             'code' => 'CON',
             'description' => 'Nursing faculty',
+            'head_name' => 'Dr. Elena Cruz',
+            'contact_email' => 'nursing.head@cagsu.edu.ph',
+            'contact_phone' => '+639185551111',
         ]);
 
         $this->actingAs($ceo)
@@ -186,6 +227,9 @@ class DepartmentRequestTest extends TestCase
         $this->assertDatabaseHas('departments', [
             'name' => 'College of Nursing',
             'code' => 'CON',
+            'head_name' => 'Dr. Elena Cruz',
+            'contact_email' => 'nursing.head@cagsu.edu.ph',
+            'contact_phone' => '+639185551111',
         ]);
     }
 

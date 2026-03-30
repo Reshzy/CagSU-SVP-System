@@ -57,6 +57,9 @@ class CeoDepartmentRequestController extends Controller
             'name' => $departmentRequest->name,
             'code' => strtoupper($departmentRequest->code),
             'description' => $departmentRequest->description,
+            'head_name' => $departmentRequest->head_name,
+            'contact_email' => $departmentRequest->contact_email,
+            'contact_phone' => $departmentRequest->contact_phone,
             'is_active' => true,
         ]);
 

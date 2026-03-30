@@ -56,6 +56,18 @@
                             <dd class="text-gray-900">{{ $departmentRequest->description ?: '—' }}</dd>
                         </div>
                         <div class="flex gap-4 py-3">
+                            <dt class="w-40 font-medium text-gray-600 shrink-0">Department Head</dt>
+                            <dd class="text-gray-900">{{ $departmentRequest->head_name ?: '—' }}</dd>
+                        </div>
+                        <div class="flex gap-4 py-3">
+                            <dt class="w-40 font-medium text-gray-600 shrink-0">Head Contact Email</dt>
+                            <dd class="text-gray-900">{{ $departmentRequest->contact_email ?: '—' }}</dd>
+                        </div>
+                        <div class="flex gap-4 py-3">
+                            <dt class="w-40 font-medium text-gray-600 shrink-0">Head Contact Phone</dt>
+                            <dd class="text-gray-900">{{ $departmentRequest->contact_phone ?: '—' }}</dd>
+                        </div>
+                        <div class="flex gap-4 py-3">
                             <dt class="w-40 font-medium text-gray-600 shrink-0">Requester Email</dt>
                             <dd class="text-gray-900">{{ $departmentRequest->requester_email ?: '—' }}</dd>
                         </div>
@@ -89,7 +101,7 @@
                                 @csrf
                                 <button
                                     type="submit"
-                                    onclick="return confirm('Approve and create the department \"{{ addslashes($departmentRequest->name) }}\"?')"
+                                    onclick='return confirm("Approve and create the department \"{{ addslashes($departmentRequest->name) }}\"?")'
                                     class="w-full rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                                 >
                                     Approve & Create Department
