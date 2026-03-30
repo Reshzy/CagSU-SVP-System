@@ -44,6 +44,7 @@
                             <x-input-error :messages="$errors->get('contact_phone')" class="mt-1" />
                         </div>
                         <div class="flex items-center gap-2">
+                            <input type="hidden" name="is_active" value="0" />
                             <input type="checkbox" id="is_active" name="is_active" value="1" class="rounded" @checked(old('is_active', $department->is_active)) />
                             <label for="is_active" class="text-sm">Active</label>
                         </div>
