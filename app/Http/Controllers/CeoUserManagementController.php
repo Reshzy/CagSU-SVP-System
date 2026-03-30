@@ -44,7 +44,7 @@ class CeoUserManagementController extends Controller
         $status = in_array($saved['status'], $allowedStatuses, true) ? $saved['status'] : null;
         $departmentId = $saved['department_id'] ?: null;
 
-        $query = User::query()->with('department')->orderByDesc('created_at');
+        $query = User::query()->with(['department', 'position'])->orderByDesc('created_at');
         if ($status) {
             $query->where('approval_status', $status);
         }
@@ -69,6 +69,8 @@ class CeoUserManagementController extends Controller
 
     public function show(User $user): View
     {
+        $user->load(['department', 'position', 'documents']);
+
         return view('ceo.users.show', compact('user'));
     }
 
