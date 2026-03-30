@@ -352,6 +352,16 @@ function registerWizard(config = {}) {
         return '';
       }
 
+      if (selectId === 'department_id') {
+        const desiredValue = this.form.department_id ? String(this.form.department_id) : '';
+        if (desiredValue && selectElement.value !== desiredValue) {
+          const matchingOption = Array.from(selectElement.options || []).find((opt) => opt.value === desiredValue);
+          if (matchingOption) {
+            selectElement.value = desiredValue;
+          }
+        }
+      }
+
       return selectElement.selectedOptions[0].textContent?.trim() || '';
     },
 
