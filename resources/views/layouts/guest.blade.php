@@ -17,8 +17,8 @@
     <body class="font-sans antialiased text-gray-900 dark:text-gray-100">
         <div class="min-h-screen bg-gov-light dark:bg-gray-900">
             <div class="relative isolate overflow-hidden">
-                <div class="absolute inset-0 bg-gradient-to-br from-cagsu-maroon via-cagsu-maroon to-cagsu-orange opacity-10 dark:opacity-20"></div>
-                <div class="absolute -top-24 left-1/2 h-72 w-[42rem] -translate-x-1/2 rounded-full bg-cagsu-yellow/30 blur-3xl dark:bg-cagsu-yellow/10"></div>
+                <div class="absolute inset-0 pointer-events-none bg-gradient-to-br from-cagsu-maroon via-cagsu-maroon to-cagsu-orange opacity-10 dark:opacity-20"></div>
+                <div class="absolute -top-24 left-1/2 pointer-events-none h-72 w-[42rem] -translate-x-1/2 rounded-full bg-cagsu-yellow/30 blur-3xl dark:bg-cagsu-yellow/10"></div>
                 <div class="mx-auto flex min-h-screen max-w-7xl items-center justify-center px-4 py-10 sm:px-6 lg:px-8">
                     <div class="w-full max-w-lg">
                         <a href="/" class="flex items-center justify-center">
