@@ -33,7 +33,10 @@ class RegistrationTest extends TestCase
             'password_confirmation' => 'password',
             'department_id' => $department->id,
             'position_id' => $position->id,
-            'id_proof' => UploadedFile::fake()->create('id.pdf', 500, 'application/pdf'),
+            'id_proof' => [
+                UploadedFile::fake()->image('id-front.jpg'),
+                UploadedFile::fake()->image('id-back.jpg'),
+            ],
         ]);
 
         $this->assertGuest();

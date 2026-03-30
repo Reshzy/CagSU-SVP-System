@@ -9,7 +9,7 @@ function registerWizard(config = {}) {
     step: 1,
     maxStepReached: 1,
     savedMessageVisible: false,
-    idProofName: '',
+    idProofNames: [],
     form: {
       name: '',
       email: '',
@@ -30,6 +30,11 @@ function registerWizard(config = {}) {
         this.form = { ...this.form, ...oldValues };
       } else {
         this.restoreDraft();
+      }
+
+      const defaults = config.defaults || {};
+      if (!this.form.position_id && defaults.position_id) {
+        this.form.position_id = String(defaults.position_id);
       }
 
       this.validateAll();
@@ -140,6 +145,75 @@ function registerWizard(config = {}) {
       }
     },
 
+    applyTitleCase(field) {
+      const value = this.form[field];
+      if (!value || typeof value !== 'string') {
+        return;
+      }
+
+      const titleCased = this.toTitleCase(value);
+      if (titleCased !== value) {
+        this.form[field] = titleCased;
+        this.validateField(field);
+      }
+    },
+
+    toTitleCase(value) {
+      return value
+        .trim()
+        .split(/\s+/)
+        .map((word) => this.titleCaseWord(word))
+        .join(' ');
+    },
+
+    titleCaseWord(word) {
+      const segmentSeparators = ['-', '\''];
+
+      let segments = [word];
+      segmentSeparators.forEach((separator) => {
+        segments = segments.flatMap((segment) => segment.split(separator).flatMap((part, index, all) => {
+          if (all.length === 1) {
+            return [segment];
+          }
+
+          const rejoined = [];
+          for (let i = 0; i < all.length; i += 1) {
+            rejoined.push(all[i]);
+            if (i < all.length - 1) {
+              rejoined.push(separator);
+            }
+          }
+          return rejoined;
+        }));
+      });
+
+      const rebuilt = [];
+      for (let i = 0; i < segments.length; i += 1) {
+        const segment = segments[i];
+        if (segment === '-' || segment === '\'') {
+          rebuilt.push(segment);
+          continue;
+        }
+
+        rebuilt.push(this.capitalizeToken(segment));
+      }
+
+      return rebuilt.join('');
+    },
+
+    capitalizeToken(token) {
+      const match = token.match(/^([A-Za-z])([A-Za-z]*)(\.)?$/);
+      if (!match) {
+        return token;
+      }
+
+      const first = match[1].toUpperCase();
+      const rest = (match[2] || '').toLowerCase();
+      const period = match[3] || '';
+
+      return `${first}${rest}${period}`;
+    },
+
     validateAll() {
       [
         'name',
@@ -191,7 +265,7 @@ function registerWizard(config = {}) {
         this.validateField('password');
         this.validateField('password_confirmation');
 
-        const hasFile = this.idProofName || document.getElementById('id_proof')?.files?.length;
+        const hasFile = this.idProofNames.length || document.getElementById('id_proof')?.files?.length;
 
         return this.errors.password === 'ok' && this.errors.password_confirmation === 'ok' && hasFile;
       }
@@ -253,8 +327,20 @@ function registerWizard(config = {}) {
     },
 
     handleIdProofChange(event) {
-      const file = event.target.files?.[0];
-      this.idProofName = file ? file.name : '';
+      const files = Array.from(event.target.files || []);
+      this.idProofNames = files.map((file) => file.name);
+    },
+
+    idProofNamesLabel() {
+      if (!this.idProofNames.length) {
+        return 'Not selected yet';
+      }
+
+      if (this.idProofNames.length <= 2) {
+        return this.idProofNames.join(', ');
+      }
+
+      return `${this.idProofNames.slice(0, 2).join(', ')} (+${this.idProofNames.length - 2} more)`;
     },
 
     saveDraft(showIndicator = true) {
@@ -312,7 +398,7 @@ function registerWizard(config = {}) {
         this.errors = {};
         this.step = 1;
         this.maxStepReached = 1;
-        this.idProofName = '';
+        this.idProofNames = [];
       }
     },
 

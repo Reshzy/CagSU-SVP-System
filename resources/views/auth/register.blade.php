@@ -7,9 +7,12 @@
                 'employee_id' => old('employee_id'),
                 'phone' => old('phone'),
                 'department_id' => old('department_id'),
-                'position_id' => old('position_id'),
+                'position_id' => old('position_id', $defaultPositionId ?? null),
                 'password' => old('password'),
                 'password_confirmation' => old('password_confirmation'),
+            ]),
+            defaults: @js([
+                'position_id' => $defaultPositionId ?? null,
             ]),
             errors: @js($errors->keys()),
         })"
@@ -82,6 +85,7 @@
                             autocomplete="name"
                             x-model.trim="form.name"
                             @input="validateField('name')"
+                            @blur="applyTitleCase('name')"
                         />
                         <p class="mt-1 text-xs text-red-600" x-show="fieldMessage('name').type === 'error'" x-text="fieldMessage('name').text"></p>
                         <p class="mt-1 text-xs text-emerald-600" x-show="fieldMessage('name').type === 'success'" x-text="fieldMessage('name').text"></p>
@@ -237,18 +241,20 @@
                     </div>
 
                     <div>
-                        <x-input-label for="id_proof" :value="__('University ID or Valid Government ID')" />
+                        <x-input-label for="id_proof" :value="__('University ID (Front & Back) or Valid Government ID')" />
                         <input
                             id="id_proof"
                             type="file"
-                            name="id_proof"
-                            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                            name="id_proof[]"
+                            accept="image/*"
+                            multiple
                             required
                             class="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm file:mr-3 file:rounded file:border-0 file:bg-cagsu-maroon file:px-3 file:py-1 file:text-xs file:font-semibold file:text-white hover:file:bg-cagsu-orange focus:outline-none focus:ring-2 focus:ring-cagsu-maroon focus:ring-offset-2 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
                             @change="handleIdProofChange($event)"
                         />
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Max 10 MB. Accepted formats: PDF, JPG, PNG, DOC, DOCX.</p>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Upload 2 images (front & back). Max 10 MB each.</p>
                         <x-input-error :messages="$errors->get('id_proof')" class="mt-2" />
+                        <x-input-error :messages="$errors->get('id_proof.*')" class="mt-2" />
                     </div>
                 </div>
             </section>
@@ -288,8 +294,8 @@
                         <dl class="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             <div><dt class="text-xs text-gray-500">Password</dt><dd>••••••••</dd></div>
                             <div>
-                                <dt class="text-xs text-gray-500">ID Proof</dt>
-                                <dd x-text="idProofName || 'Not selected yet'"></dd>
+                                <dt class="text-xs text-gray-500">ID Images</dt>
+                                <dd x-text="idProofNamesLabel()"></dd>
                             </div>
                         </dl>
                         <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">File uploads cannot be autosaved by the browser. Reattach your file if needed.</p>
