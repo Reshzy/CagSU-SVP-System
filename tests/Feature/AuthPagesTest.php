@@ -52,7 +52,9 @@ class AuthPagesTest extends TestCase
     {
         $this->get(route('register'))
             ->assertOk()
-            ->assertSee('Create an account');
+            ->assertSee('Create an account')
+            ->assertSee('Review')
+            ->assertSee('Clear saved data');
     }
 
     public function test_register_page_shows_login_link(): void
