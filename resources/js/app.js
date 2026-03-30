@@ -10,6 +10,7 @@ function registerWizard(config = {}) {
     maxStepReached: 1,
     savedMessageVisible: false,
     idProofNames: [],
+    attemptedReview: false,
     form: {
       name: '',
       email: '',
@@ -21,6 +22,16 @@ function registerWizard(config = {}) {
       password_confirmation: '',
     },
     errors: {},
+
+    hasIdProofSelected() {
+      if (this.idProofNames.length) {
+        return true;
+      }
+
+      const fileCount = document.getElementById('id_proof')?.files?.length || 0;
+
+      return fileCount > 0;
+    },
 
     init() {
       const oldValues = config.old || {};
@@ -306,7 +317,7 @@ function registerWizard(config = {}) {
         this.validateField('password');
         this.validateField('password_confirmation');
 
-        const hasFile = this.idProofNames.length || document.getElementById('id_proof')?.files?.length;
+        const hasFile = this.hasIdProofSelected();
 
         return this.errors.password === 'ok' && this.errors.password_confirmation === 'ok' && hasFile;
       }
@@ -315,7 +326,12 @@ function registerWizard(config = {}) {
     },
 
     nextStep() {
-      if (!this.validateStep(this.step)) {
+      const canProceed = this.validateStep(this.step);
+      if (!canProceed) {
+        if (this.step === 3 && !this.hasIdProofSelected()) {
+          this.attemptedReview = true;
+        }
+
         return;
       }
 
@@ -380,6 +396,10 @@ function registerWizard(config = {}) {
     handleIdProofChange(event) {
       const files = Array.from(event.target.files || []);
       this.idProofNames = files.map((file) => file.name);
+
+      if (this.idProofNames.length) {
+        this.attemptedReview = false;
+      }
     },
 
     idProofNamesLabel() {

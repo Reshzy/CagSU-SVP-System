@@ -240,6 +240,15 @@
                             @change="handleIdProofChange($event)"
                         />
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Upload 2 images (front & back). Max 10 MB each.</p>
+                        <p
+                            class="mt-1 text-xs font-medium text-red-600 dark:text-red-400"
+                            role="alert"
+                            aria-live="polite"
+                            x-cloak
+                            x-show="attemptedReview && !hasIdProofSelected()"
+                        >
+                            ID images are required to continue to Review.
+                        </p>
                         <x-input-error :messages="$errors->get('id_proof')" class="mt-2" />
                         <x-input-error :messages="$errors->get('id_proof.*')" class="mt-2" />
                     </div>
