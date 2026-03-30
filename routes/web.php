@@ -11,6 +11,7 @@ use App\Http\Controllers\BudgetEarmarkController;
 use App\Http\Controllers\BudgetManagementController;
 use App\Http\Controllers\CeoApprovalController;
 use App\Http\Controllers\CeoDepartmentController;
+use App\Http\Controllers\CeoDepartmentRequestController;
 use App\Http\Controllers\CeoUserManagementController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\InventoryReceiptController;
@@ -189,6 +190,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/ceo/departments', [CeoDepartmentController::class, 'store'])->name('ceo.departments.store');
         Route::get('/ceo/departments/{department}/edit', [CeoDepartmentController::class, 'edit'])->name('ceo.departments.edit');
         Route::put('/ceo/departments/{department}', [CeoDepartmentController::class, 'update'])->name('ceo.departments.update');
+
+        // CEO Department Request Review
+        Route::get('/ceo/department-requests', [CeoDepartmentRequestController::class, 'index'])->name('ceo.department-requests.index');
+        Route::get('/ceo/department-requests/{departmentRequest}', [CeoDepartmentRequestController::class, 'show'])->name('ceo.department-requests.show');
+        Route::post('/ceo/department-requests/{departmentRequest}/approve', [CeoDepartmentRequestController::class, 'approve'])->name('ceo.department-requests.approve');
+        Route::post('/ceo/department-requests/{departmentRequest}/reject', [CeoDepartmentRequestController::class, 'reject'])->name('ceo.department-requests.reject');
     });
 
     // BAC Signatory Management (Admin/BAC Chair only)

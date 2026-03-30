@@ -148,12 +148,72 @@
                         @endif
 
                         @if(auth()->user()->hasRole('Executive Officer'))
-                            <x-nav-link :href="route('ceo.purchase-requests.index')" :active="request()->routeIs('ceo.*')" class="text-gray-700 hover:text-cagsu-maroon">
-                                <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                                </svg>
-                                {{ __('CEO') }}
-                            </x-nav-link>
+                            @php
+                                $pendingDeptRequests = \App\Models\DepartmentRequest::where('status', 'pending')->count();
+                                $pendingUserApprovals = \App\Models\User::where('approval_status', 'pending')->count();
+                                $ceoBadgeTotal = $pendingDeptRequests + $pendingUserApprovals;
+                            @endphp
+                            <x-dropdown align="left" width="56">
+                                <x-slot name="trigger">
+                                    <button class="inline-flex items-center gap-1.5 px-3 py-2 text-sm leading-4 font-medium transition ease-in-out duration-150 {{ request()->routeIs('ceo.*') ? 'text-cagsu-maroon border-b-2 border-cagsu-maroon' : 'text-gray-700 hover:text-cagsu-maroon hover:border-b-2 hover:border-gray-300' }}">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                        </svg>
+                                        {{ __('CEO') }}
+                                        @if($ceoBadgeTotal > 0)
+                                            <span class="ml-0.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-cagsu-maroon px-1 text-[10px] font-bold text-white">
+                                                {{ $ceoBadgeTotal }}
+                                            </span>
+                                        @endif
+                                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                </x-slot>
+                                <x-slot name="content">
+                                    <x-dropdown-link :href="route('ceo.purchase-requests.index')" class="flex items-center gap-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        {{ __('Purchase Requests') }}
+                                    </x-dropdown-link>
+
+                                    <x-dropdown-link :href="route('ceo.users.index')" class="flex items-center justify-between gap-2">
+                                        <span class="flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            </svg>
+                                            {{ __('User Approvals') }}
+                                        </span>
+                                        @if($pendingUserApprovals > 0)
+                                            <span class="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-cagsu-yellow px-1.5 text-xs font-bold text-cagsu-maroon">
+                                                {{ $pendingUserApprovals }}
+                                            </span>
+                                        @endif
+                                    </x-dropdown-link>
+
+                                    <x-dropdown-link :href="route('ceo.department-requests.index')" class="flex items-center justify-between gap-2">
+                                        <span class="flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                            </svg>
+                                            {{ __('Department Requests') }}
+                                        </span>
+                                        @if($pendingDeptRequests > 0)
+                                            <span class="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-cagsu-yellow px-1.5 text-xs font-bold text-cagsu-maroon">
+                                                {{ $pendingDeptRequests }}
+                                            </span>
+                                        @endif
+                                    </x-dropdown-link>
+
+                                    <x-dropdown-link :href="route('ceo.departments.index')" class="flex items-center gap-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                                        </svg>
+                                        {{ __('Manage Departments') }}
+                                    </x-dropdown-link>
+                                </x-slot>
+                            </x-dropdown>
                         @endif
 
                         @if(auth()->user()->hasRole('Accounting Office'))
