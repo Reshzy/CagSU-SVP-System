@@ -102,6 +102,12 @@
                     @endif
                 </div>
 
+                @if($users->hasPages())
+                    <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+                        {{ $users->links() }}
+                    </div>
+                @endif
+
                 {{-- Flash --}}
                 @if(session('status'))
                     <div class="mx-6 mt-4 flex items-center gap-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 px-4 py-3 text-sm text-green-800 dark:text-green-300">
