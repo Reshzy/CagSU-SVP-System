@@ -1,4 +1,37 @@
-<div class="space-y-6">
+<div
+    x-data="{
+        prefsKey: 'ceo_users_table_prefs',
+        init() {
+            try {
+                const stored = JSON.parse(localStorage.getItem(this.prefsKey) || '{}');
+
+                if (stored.search && '{{ request('search') }}' === '') {
+                    $wire.set('search', stored.search);
+                }
+
+                if (Array.isArray(stored.visibleColumns) && stored.visibleColumns.length > 0 && typeof $wire !== 'undefined') {
+                    $wire.set('visibleColumns', stored.visibleColumns);
+                }
+            } catch (e) {}
+
+            this.$watch('$wire.search', value => {
+                this.savePrefs({ search: value });
+            });
+
+            this.$watch('$wire.visibleColumns', value => {
+                this.savePrefs({ visibleColumns: value });
+            });
+        },
+        savePrefs(partial) {
+            try {
+                const existing = JSON.parse(localStorage.getItem(this.prefsKey) || '{}');
+                const next = Object.assign({}, existing, partial);
+                localStorage.setItem(this.prefsKey, JSON.stringify(next));
+            } catch (e) {}
+        }
+    }"
+    class="space-y-6"
+>
     <div class="bg-white dark:bg-gray-800 shadow-sm rounded-xl border border-gray-200 dark:border-gray-700">
         <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
             <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Filter Users</h3>
@@ -65,6 +98,7 @@
                         <button
                             type="button"
                             wire:click="clearFilters"
+                            x-on:click="savePrefs({ search: '', visibleColumns: $wire.visibleColumns })"
                             class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
                         >
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -146,10 +180,43 @@
             ];
         @endphp
 
-        <div class="max-h-[70vh] overflow-auto">
+        <div
+            x-data="{
+                atTop: true,
+                atBottom: false,
+                isScrollable: false,
+                headerHeight: 0,
+                updateShadows(el) {
+                    this.atTop = el.scrollTop === 0;
+                    this.atBottom = Math.ceil(el.scrollTop + el.clientHeight) >= el.scrollHeight;
+                    this.isScrollable = el.scrollHeight > el.clientHeight + 1;
+                    this.headerHeight = this.$refs.ceoUsersHeader?.offsetHeight ?? 0;
+                }
+            }"
+            x-init="updateShadows($refs.ceoUsersScroll)"
+            @resize.window.debounce.50ms="updateShadows($refs.ceoUsersScroll)"
+            class="relative overflow-hidden"
+        >
+            <div
+                x-cloak
+                x-show="isScrollable && !atTop"
+                x-bind:style="`top: ${headerHeight}px`"
+                class="pointer-events-none absolute inset-x-0 h-4 bg-gradient-to-b from-gray-900/10 dark:from-black/40 to-transparent z-20"
+            ></div>
+            <div
+                x-cloak
+                x-show="isScrollable && !atBottom"
+                class="pointer-events-none absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-gray-900/10 dark:from-black/40 to-transparent z-20"
+            ></div>
+
+            <div
+                class="max-h-[70vh] overflow-auto overscroll-contain"
+                x-ref="ceoUsersScroll"
+                @scroll.debounce.50ms="updateShadows($el)"
+            >
             <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-700">
                 <thead class="bg-gray-50 dark:bg-gray-700/50">
-                    <tr>
+                    <tr x-ref="ceoUsersHeader">
                         <th class="sticky top-0 z-10 bg-gray-50 px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:bg-gray-700/50 dark:text-gray-400 uppercase tracking-wider">
                             <button type="button" wire:click="sortBy('name')" class="inline-flex items-center gap-2">
                                 <span>User</span>
@@ -289,6 +356,7 @@
                     @endforelse
                 </tbody>
             </table>
+            </div>
         </div>
 
         @if($users->hasPages())
