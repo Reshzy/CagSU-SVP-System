@@ -5,6 +5,7 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>CagSU SVP Portal</title>
+	<link rel="icon" type="image/x-icon" href="{{ asset('CSU_Modern2.ico') }}">
 	@if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
 	@vite(['resources/css/app.css', 'resources/js/app.js'])
 	@endif
