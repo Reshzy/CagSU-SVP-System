@@ -48,18 +48,32 @@
                     <span wire:loading.delay.short>Updating results...</span>
                 </div>
 
-                @if($search !== '' || $status !== '' || $departmentId !== '')
-                    <button
-                        type="button"
-                        wire:click="clearFilters"
-                        class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-                    >
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        Clear Filters
-                    </button>
-                @endif
+                <div class="flex items-center gap-3">
+                    <div class="flex flex-wrap items-center justify-end gap-2">
+                        @foreach($columnLabels as $columnKey => $columnLabel)
+                            <button
+                                type="button"
+                                wire:click="toggleColumn('{{ $columnKey }}')"
+                                class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition-colors {{ $this->isColumnVisible($columnKey) ? 'border-cagsu-maroon bg-cagsu-maroon/10 text-cagsu-maroon dark:border-cagsu-maroon dark:text-red-200' : 'border-gray-300 bg-white text-gray-600 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300' }}"
+                            >
+                                {{ $columnLabel }}
+                            </button>
+                        @endforeach
+                    </div>
+
+                    @if($search !== '' || $status !== '' || $departmentId !== '')
+                        <button
+                            type="button"
+                            wire:click="clearFilters"
+                            class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                        >
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Clear Filters
+                        </button>
+                    @endif
+                </div>
             </div>
         </div>
     </div>
@@ -125,16 +139,76 @@
             </div>
         @endif
 
-        <div class="overflow-x-auto">
+        @php
+            $sortIcons = [
+                'asc' => 'M5 15l7-7 7 7',
+                'desc' => 'M19 9l-7 7-7-7',
+            ];
+        @endphp
+
+        <div class="max-h-[70vh] overflow-auto">
             <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-700">
                 <thead class="bg-gray-50 dark:bg-gray-700/50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">User</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Department</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Employee ID</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Registered</th>
-                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Action</th>
+                        <th class="sticky top-0 z-10 bg-gray-50 px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:bg-gray-700/50 dark:text-gray-400 uppercase tracking-wider">
+                            <button type="button" wire:click="sortBy('name')" class="inline-flex items-center gap-2">
+                                <span>User</span>
+                                @if($sortField === 'name')
+                                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $sortIcons[$sortDirection] }}" />
+                                    </svg>
+                                @endif
+                            </button>
+                        </th>
+                        @if($this->isColumnVisible('department'))
+                            <th class="sticky top-0 z-10 bg-gray-50 px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:bg-gray-700/50 dark:text-gray-400 uppercase tracking-wider">
+                                <button type="button" wire:click="sortBy('department')" class="inline-flex items-center gap-2">
+                                    <span>Department</span>
+                                    @if($sortField === 'department')
+                                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $sortIcons[$sortDirection] }}" />
+                                        </svg>
+                                    @endif
+                                </button>
+                            </th>
+                        @endif
+                        @if($this->isColumnVisible('employee_id'))
+                            <th class="sticky top-0 z-10 bg-gray-50 px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:bg-gray-700/50 dark:text-gray-400 uppercase tracking-wider">
+                                <button type="button" wire:click="sortBy('employee_id')" class="inline-flex items-center gap-2">
+                                    <span>Employee ID</span>
+                                    @if($sortField === 'employee_id')
+                                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $sortIcons[$sortDirection] }}" />
+                                        </svg>
+                                    @endif
+                                </button>
+                            </th>
+                        @endif
+                        @if($this->isColumnVisible('status'))
+                            <th class="sticky top-0 z-10 bg-gray-50 px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:bg-gray-700/50 dark:text-gray-400 uppercase tracking-wider">
+                                <button type="button" wire:click="sortBy('approval_status')" class="inline-flex items-center gap-2">
+                                    <span>Status</span>
+                                    @if($sortField === 'approval_status')
+                                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $sortIcons[$sortDirection] }}" />
+                                        </svg>
+                                    @endif
+                                </button>
+                            </th>
+                        @endif
+                        @if($this->isColumnVisible('registered'))
+                            <th class="sticky top-0 z-10 bg-gray-50 px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:bg-gray-700/50 dark:text-gray-400 uppercase tracking-wider">
+                                <button type="button" wire:click="sortBy('created_at')" class="inline-flex items-center gap-2">
+                                    <span>Registered</span>
+                                    @if($sortField === 'created_at')
+                                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $sortIcons[$sortDirection] }}" />
+                                        </svg>
+                                    @endif
+                                </button>
+                            </th>
+                        @endif
+                        <th class="sticky top-0 z-10 bg-gray-50 px-6 py-3 text-right text-xs font-semibold text-gray-500 dark:bg-gray-700/50 dark:text-gray-400 uppercase tracking-wider">Action</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800">
@@ -151,32 +225,40 @@
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
-                                {{ optional($user->department)->name ?? '—' }}
-                            </td>
-                            <td class="px-6 py-4">
-                                @if($user->employee_id)
-                                    <span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-1.5 py-0.5 rounded">{{ $user->employee_id }}</span>
-                                @else
-                                    <span class="text-sm text-gray-400">—</span>
-                                @endif
-                            </td>
-                            <td class="px-6 py-4">
-                                @php
-                                    $badgeMap = [
-                                        'pending' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-                                        'approved' => 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-                                        'rejected' => 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-                                    ];
-                                    $badgeClass = $badgeMap[$user->approval_status] ?? 'bg-gray-100 text-gray-700';
-                                @endphp
-                                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $badgeClass }}">
-                                    {{ ucfirst($user->approval_status) }}
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                                <span title="{{ $user->created_at->format('M d, Y g:i A') }}">{{ $user->created_at->diffForHumans() }}</span>
-                            </td>
+                            @if($this->isColumnVisible('department'))
+                                <td class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                                    {{ optional($user->department)->name ?? '—' }}
+                                </td>
+                            @endif
+                            @if($this->isColumnVisible('employee_id'))
+                                <td class="px-6 py-4">
+                                    @if($user->employee_id)
+                                        <span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-1.5 py-0.5 rounded">{{ $user->employee_id }}</span>
+                                    @else
+                                        <span class="text-sm text-gray-400">—</span>
+                                    @endif
+                                </td>
+                            @endif
+                            @if($this->isColumnVisible('status'))
+                                <td class="px-6 py-4">
+                                    @php
+                                        $badgeMap = [
+                                            'pending' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+                                            'approved' => 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+                                            'rejected' => 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+                                        ];
+                                        $badgeClass = $badgeMap[$user->approval_status] ?? 'bg-gray-100 text-gray-700';
+                                    @endphp
+                                    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $badgeClass }}">
+                                        {{ ucfirst($user->approval_status) }}
+                                    </span>
+                                </td>
+                            @endif
+                            @if($this->isColumnVisible('registered'))
+                                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                    <span title="{{ $user->created_at->format('M d, Y g:i A') }}">{{ $user->created_at->diffForHumans() }}</span>
+                                </td>
+                            @endif
                             <td class="px-6 py-4 text-right">
                                 <a
                                     href="{{ route('ceo.users.show', $user) }}"
@@ -192,7 +274,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-6 py-16 text-center">
+                            <td colspan="{{ 2 + count($visibleColumns) }}" class="px-6 py-16 text-center">
                                 <div class="flex flex-col items-center gap-3">
                                     <div class="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700">
                                         <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

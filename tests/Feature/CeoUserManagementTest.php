@@ -138,4 +138,58 @@ class CeoUserManagementTest extends TestCase
             ->assertSet('page', 1)
             ->assertSee('Zeta Search Match');
     }
+
+    public function test_livewire_sort_by_name_toggles_direction(): void
+    {
+        $ceo = User::factory()->create([
+            'approval_status' => 'approved',
+            'is_active' => true,
+        ]);
+        $ceo->assignRole('Executive Officer');
+
+        $this->actingAs($ceo);
+
+        $component = Livewire::test(UsersTable::class)
+            ->assertSet('sortField', 'created_at')
+            ->assertSet('sortDirection', 'desc')
+            ->call('sortBy', 'name')
+            ->assertSet('sortField', 'name')
+            ->assertSet('sortDirection', 'asc');
+
+        $component
+            ->call('sortBy', 'name')
+            ->assertSet('sortDirection', 'desc');
+    }
+
+    public function test_livewire_toggle_column_hides_optional_column(): void
+    {
+        $ceo = User::factory()->create([
+            'approval_status' => 'approved',
+            'is_active' => true,
+        ]);
+        $ceo->assignRole('Executive Officer');
+
+        $this->actingAs($ceo);
+
+        Livewire::test(UsersTable::class)
+            ->assertSee('Department')
+            ->call('toggleColumn', 'department')
+            ->assertDontSee('Department');
+    }
+
+    public function test_livewire_ignores_invalid_sort_field(): void
+    {
+        $ceo = User::factory()->create([
+            'approval_status' => 'approved',
+            'is_active' => true,
+        ]);
+        $ceo->assignRole('Executive Officer');
+
+        $this->actingAs($ceo);
+
+        Livewire::test(UsersTable::class)
+            ->call('sortBy', 'not_a_real_field')
+            ->assertSet('sortField', 'created_at')
+            ->assertSet('sortDirection', 'desc');
+    }
 }
