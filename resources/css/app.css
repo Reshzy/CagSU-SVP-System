@@ -4,95 +4,217 @@
 
 /* Hide elements with x-cloak until Alpine has initialized (removes the attribute). */
 [x-cloak] {
-  display: none !important;
+    display: none !important;
 }
 
 /* Hide scrollbar visually while keeping scroll functionality. */
 .scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
 .scrollbar-hide::-webkit-scrollbar {
-  display: none;
+    display: none;
 }
 
 .register-step-panel {
-  contain: layout;
+    contain: layout;
+}
+
+.register-gap-pattern {
+    --register-pattern-size: 60px;
+    --register-pattern-light: rgba(255, 255, 255, 0.5);
+    --register-pattern-dark: rgba(156, 163, 175, 0.5);
+    --register-pattern-conic-primary: conic-gradient(
+        at 37.5% 87.5%,
+        #0000 75%,
+        var(--register-pattern-dark) 0
+    );
+    --register-pattern-conic-secondary: conic-gradient(
+        at 12.5% 62.5%,
+        #0000 75%,
+        var(--register-pattern-light) 0
+    );
+    background:
+        var(--register-pattern-conic-secondary)
+            calc(var(--register-pattern-size) / 4)
+            calc(var(--register-pattern-size) / 4),
+        var(--register-pattern-conic-secondary)
+            calc(5 * var(--register-pattern-size) / 4)
+            calc(5 * var(--register-pattern-size) / 4),
+        var(--register-pattern-conic-primary),
+        var(--register-pattern-conic-primary) var(--register-pattern-size)
+            var(--register-pattern-size),
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.18),
+            rgba(107, 114, 128, 0.14)
+        );
+    background-size: calc(2 * var(--register-pattern-size))
+        calc(2 * var(--register-pattern-size));
+    animation: register-gap-pattern-shift 2s linear infinite;
+    opacity: 0.5;
+}
+
+@keyframes register-gap-pattern-shift {
+    to {
+        background-position:
+            calc(var(--register-pattern-size) / 4)
+                calc(9 * var(--register-pattern-size) / 4),
+            calc(5 * var(--register-pattern-size) / 4)
+                calc(-3 * var(--register-pattern-size) / 4),
+            0 calc(2 * var(--register-pattern-size)),
+            var(--register-pattern-size) calc(-1 * var(--register-pattern-size)),
+            0 0;
+    }
+}
+
+.register-gap-pattern-security {
+  --register-security-size: 100px;
+  --register-security-c1: rgba(209, 213, 219, 0.5);
+  --register-security-c2: rgba(107, 114, 128, 0.5);
+  --register-security-s: calc(2 * var(--register-security-size)) calc(2 * var(--register-security-size));
+  --register-security-g: var(--register-security-s) conic-gradient(at 40% 40%, #0000 75%, var(--register-security-c1) 0);
+  --register-security-p: var(--register-security-s) conic-gradient(at 20% 20%, #0000 75%, var(--register-security-c2) 0);
+  background:
+    calc(0.9 * var(--register-security-size)) calc(0.9 * var(--register-security-size)) / var(--register-security-p),
+    calc(-0.1 * var(--register-security-size)) calc(-0.1 * var(--register-security-size)) / var(--register-security-p),
+    calc(0.7 * var(--register-security-size)) calc(0.7 * var(--register-security-size)) / var(--register-security-g),
+    calc(-0.3 * var(--register-security-size)) calc(-0.3 * var(--register-security-size)) / var(--register-security-g),
+    conic-gradient(from 90deg at 20% 20%, var(--register-security-c2) 25%, var(--register-security-c1) 0) 0 0 / var(--register-security-size) var(--register-security-size);
+  animation: register-gap-pattern-security-shift 3s infinite;
+  opacity: 0.5;
+}
+
+@keyframes register-gap-pattern-security-shift {
+  0% {
+    background-position:
+      calc(0.9 * var(--register-security-size)) calc(0.9 * var(--register-security-size)),
+      calc(-0.1 * var(--register-security-size)) calc(-0.1 * var(--register-security-size)),
+      calc(0.7 * var(--register-security-size)) calc(0.7 * var(--register-security-size)),
+      calc(-0.3 * var(--register-security-size)) calc(-0.3 * var(--register-security-size)),
+      0 0;
+  }
+
+  25% {
+    background-position:
+      calc(1.9 * var(--register-security-size)) calc(0.9 * var(--register-security-size)),
+      calc(-1.1 * var(--register-security-size)) calc(-0.1 * var(--register-security-size)),
+      calc(1.7 * var(--register-security-size)) calc(0.7 * var(--register-security-size)),
+      calc(-1.3 * var(--register-security-size)) calc(-0.3 * var(--register-security-size)),
+      0 0;
+  }
+
+  50% {
+    background-position:
+      calc(1.9 * var(--register-security-size)) calc(-0.1 * var(--register-security-size)),
+      calc(-1.1 * var(--register-security-size)) calc(0.9 * var(--register-security-size)),
+      calc(1.7 * var(--register-security-size)) calc(-0.3 * var(--register-security-size)),
+      calc(-1.3 * var(--register-security-size)) calc(0.7 * var(--register-security-size)),
+      0 0;
+  }
+
+  75% {
+    background-position:
+      calc(2.9 * var(--register-security-size)) calc(-0.1 * var(--register-security-size)),
+      calc(-2.1 * var(--register-security-size)) calc(0.9 * var(--register-security-size)),
+      calc(2.7 * var(--register-security-size)) calc(-0.3 * var(--register-security-size)),
+      calc(-2.3 * var(--register-security-size)) calc(0.7 * var(--register-security-size)),
+      0 0;
+  }
+
+  100% {
+    background-position:
+      calc(2.9 * var(--register-security-size)) calc(-1.1 * var(--register-security-size)),
+      calc(-2.1 * var(--register-security-size)) calc(1.9 * var(--register-security-size)),
+      calc(2.7 * var(--register-security-size)) calc(-1.3 * var(--register-security-size)),
+      calc(-2.3 * var(--register-security-size)) calc(1.7 * var(--register-security-size)),
+      0 0;
+  }
 }
 
 ::view-transition-old(register-step-panel),
 ::view-transition-new(register-step-panel) {
-  animation-duration: 220ms;
-  animation-timing-function: ease;
+    animation-duration: 220ms;
+    animation-timing-function: ease;
 }
 
 @keyframes register-step-forward-old {
-  from {
-    opacity: 1;
-    clip-path: inset(0 0 0 0);
-  }
+    from {
+        clip-path: inset(0 0 0 0);
+    }
 
-  to {
-    opacity: 0;
-    clip-path: inset(0 100% 0 0);
-  }
+    to {
+        clip-path: inset(0 100% 0 0);
+    }
 }
 
 @keyframes register-step-forward-new {
-  from {
-    opacity: 0;
-    clip-path: inset(0 0 0 100%);
-  }
+    from {
+        clip-path: inset(0 0 0 100%);
+    }
 
-  to {
-    opacity: 1;
-    clip-path: inset(0 0 0 0);
-  }
+    to {
+        clip-path: inset(0 0 0 0);
+    }
 }
 
 @keyframes register-step-backward-old {
-  from {
-    opacity: 1;
-    clip-path: inset(0 0 0 0);
-  }
+    from {
+        clip-path: inset(0 0 0 0);
+    }
 
-  to {
-    opacity: 0;
-    clip-path: inset(0 0 0 100%);
-  }
+    to {
+        clip-path: inset(0 0 0 100%);
+    }
 }
 
 @keyframes register-step-backward-new {
-  from {
-    opacity: 0;
-    clip-path: inset(0 100% 0 0);
-  }
+    from {
+        clip-path: inset(0 100% 0 0);
+    }
 
-  to {
-    opacity: 1;
-    clip-path: inset(0 0 0 0);
-  }
+    to {
+        clip-path: inset(0 0 0 0);
+    }
 }
 
-:root[data-register-step-direction="forward"]::view-transition-old(register-step-panel) {
-  animation-name: register-step-forward-old;
+:root[data-register-step-direction="forward"]::view-transition-old(
+        register-step-panel
+    ) {
+    animation-name: register-step-forward-old;
 }
 
-:root[data-register-step-direction="forward"]::view-transition-new(register-step-panel) {
-  animation-name: register-step-forward-new;
+:root[data-register-step-direction="forward"]::view-transition-new(
+        register-step-panel
+    ) {
+    animation-name: register-step-forward-new;
 }
 
-:root[data-register-step-direction="backward"]::view-transition-old(register-step-panel) {
-  animation-name: register-step-backward-old;
+:root[data-register-step-direction="backward"]::view-transition-old(
+        register-step-panel
+    ) {
+    animation-name: register-step-backward-old;
 }
 
-:root[data-register-step-direction="backward"]::view-transition-new(register-step-panel) {
-  animation-name: register-step-backward-new;
+:root[data-register-step-direction="backward"]::view-transition-new(
+        register-step-panel
+    ) {
+    animation-name: register-step-backward-new;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  ::view-transition-old(register-step-panel),
-  ::view-transition-new(register-step-panel) {
+    .register-gap-pattern {
+        animation-duration: 1ms;
+        animation-iteration-count: 1;
+    }
+
+  .register-gap-pattern-security {
     animation-duration: 1ms;
+    animation-iteration-count: 1;
   }
+
+    ::view-transition-old(register-step-panel),
+    ::view-transition-new(register-step-panel) {
+        animation-duration: 1ms;
+    }
 }

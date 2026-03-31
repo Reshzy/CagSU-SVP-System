@@ -149,7 +149,7 @@
                     </div>
                 </section>
 
-                <section x-cloak x-show="step === 2">
+                <section x-cloak x-show="step === 2" class="flex min-h-80 flex-col">
                     <h2 class="mb-3 text-xs font-semibold uppercase tracking-widest text-cagsu-maroon dark:text-cagsu-yellow">Department & Position</h2>
                     <div class="space-y-4">
                         <div>
@@ -187,9 +187,10 @@
                             <x-input-error :messages="$errors->get('position_id')" class="mt-2" />
                         </div>
                     </div>
+                    <div aria-hidden="true" class="register-gap-pattern mt-6 flex-1 rounded-xl border border-white/40 dark:border-white/10"></div>
                 </section>
 
-                <section x-cloak x-show="step === 3">
+                <section x-cloak x-show="step === 3" class="flex min-h-80 flex-col">
                     <h2 class="mb-3 text-xs font-semibold uppercase tracking-widest text-cagsu-maroon dark:text-cagsu-yellow">Password & Verification</h2>
                     <div class="space-y-4">
                         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -254,6 +255,7 @@
                             <x-input-error :messages="$errors->get('id_proof.*')" class="mt-2" />
                         </div>
                     </div>
+                    <div aria-hidden="true" class="register-gap-pattern-security mt-6 flex-1 rounded-xl border border-white/40 dark:border-white/10"></div>
                 </section>
 
                 <section x-cloak x-show="step === 4">
