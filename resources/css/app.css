@@ -15,3 +15,84 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+.register-step-panel {
+  contain: layout;
+}
+
+::view-transition-old(register-step-panel),
+::view-transition-new(register-step-panel) {
+  animation-duration: 220ms;
+  animation-timing-function: ease;
+}
+
+@keyframes register-step-forward-old {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(-32px);
+  }
+}
+
+@keyframes register-step-forward-new {
+  from {
+    opacity: 0;
+    transform: translateX(32px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes register-step-backward-old {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(32px);
+  }
+}
+
+@keyframes register-step-backward-new {
+  from {
+    opacity: 0;
+    transform: translateX(-32px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+:root[data-register-step-direction="forward"]::view-transition-old(register-step-panel) {
+  animation-name: register-step-forward-old;
+}
+
+:root[data-register-step-direction="forward"]::view-transition-new(register-step-panel) {
+  animation-name: register-step-forward-new;
+}
+
+:root[data-register-step-direction="backward"]::view-transition-old(register-step-panel) {
+  animation-name: register-step-backward-old;
+}
+
+:root[data-register-step-direction="backward"]::view-transition-new(register-step-panel) {
+  animation-name: register-step-backward-new;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(register-step-panel),
+  ::view-transition-new(register-step-panel) {
+    animation-duration: 1ms;
+  }
+}
