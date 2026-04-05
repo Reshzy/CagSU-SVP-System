@@ -119,6 +119,27 @@ class BudgetEarmarkExportTest extends TestCase
         $response->assertSee($standalone->item_name);
     }
 
+    public function test_budget_earmark_edit_closes_approve_form_before_deferral_form(): void
+    {
+        $response = $this->actingAs($this->budgetOfficer)->get(
+            route('budget.purchase-requests.edit', $this->pendingPr)
+        );
+
+        $response->assertOk();
+        $html = $response->getContent();
+        $openApprove = strpos($html, 'id="budget-earmark-approve-form"');
+        $this->assertNotFalse($openApprove);
+        $firstClose = strpos($html, '</form>', $openApprove);
+        $this->assertNotFalse($firstClose);
+        $deferralForm = strpos($html, 'id="deferral-form"', $openApprove);
+        $this->assertNotFalse($deferralForm);
+        $this->assertLessThan(
+            $deferralForm,
+            $firstClose,
+            'The earmark approve form must close before the deferral form so hidden required deferral fields do not block approval.'
+        );
+    }
+
     public function test_budget_officer_can_approve_earmark_with_new_fields(): void
     {
         $response = $this->actingAs($this->budgetOfficer)->put(

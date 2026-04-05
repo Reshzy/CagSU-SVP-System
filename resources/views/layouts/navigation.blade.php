@@ -14,19 +14,33 @@
                 this.scrollThresholdPx = h;
             }
         },
+        publishStickyHeaderOffset() {
+            const el = this.$el;
+            if (! el) {
+                return;
+            }
+            const h = Math.ceil(el.getBoundingClientRect().height);
+            if (h > 0) {
+                document.documentElement.style.setProperty('--app-sticky-header-offset', h + 'px');
+            }
+        },
+        syncNavLayout() {
+            this.publishStickyHeaderOffset();
+            if (! this.scrolled) {
+                this.captureOriginalNavHeight();
+            }
+            this.syncScroll();
+        },
         syncScroll() {
             const root = document.scrollingElement ?? document.documentElement;
             const y = Math.max(0, root.scrollTop);
             this.scrolled = y > this.scrollThresholdPx;
         },
         onNavResize() {
-            if (! this.scrolled) {
-                this.captureOriginalNavHeight();
-            }
-            this.syncScroll();
+            this.syncNavLayout();
         },
     }"
-    x-init="$nextTick(() => { captureOriginalNavHeight(); syncScroll(); }); $watch('scrolled', (v) => { if (! v) { $nextTick(() => captureOriginalNavHeight()); } })"
+    x-init="$nextTick(() => { syncNavLayout(); new ResizeObserver(() => syncNavLayout()).observe($el); }); $watch('scrolled', (v) => { $nextTick(() => { publishStickyHeaderOffset(); if (! v) { captureOriginalNavHeight(); } }); })"
     @scroll.window="syncScroll()"
     @resize.window.debounce.150ms="onNavResize()"
     class="sticky top-0 z-40 w-full transition-[padding] duration-300 motion-reduce:transition-none"

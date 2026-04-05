@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Main app nav (#main-app-navigation) overwrites this with measured px height.
+ * Fallback for first paint and pages without that nav (e.g. guest layout).
+ */
+:root {
+    --app-sticky-header-offset: 4.5rem;
+}
+
 /* Hide elements with x-cloak until Alpine has initialized (removes the attribute). */
 [x-cloak] {
     display: none !important;

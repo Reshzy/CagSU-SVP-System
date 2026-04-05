@@ -397,7 +397,7 @@
 
                 <!-- Action Sidebar -->
                 <div class="lg:col-span-1">
-                    <div class="bg-white rounded-lg shadow-sm overflow-hidden sticky top-6">
+                    <div class="bg-white rounded-lg shadow-sm overflow-hidden sticky top-[calc(var(--app-sticky-header-offset)+0.75rem)]">
                         <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
                             <h3 class="text-lg font-semibold text-gray-900">Actions</h3>
                         </div>
