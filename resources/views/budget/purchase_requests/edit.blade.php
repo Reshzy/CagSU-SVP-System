@@ -37,7 +37,7 @@
             @endif
 
             {{-- Earmark Form --}}
-            <form method="POST" action="{{ route('budget.purchase-requests.update', $purchaseRequest) }}" class="space-y-6">
+            <form id="budget-earmark-approve-form" method="POST" action="{{ route('budget.purchase-requests.update', $purchaseRequest) }}" class="space-y-6">
                 @csrf
                 @method('PUT')
 
@@ -371,6 +371,8 @@
                 </div>
             </div>
 
+            </form>
+
             {{-- Deferral Form (Hidden by default) --}}
             <div id="deferral-section" class="hidden">
                 <form method="POST" action="{{ route('budget.purchase-requests.reject', $purchaseRequest) }}" id="deferral-form">
@@ -437,7 +439,7 @@
             const modalCloseBtn = modal ? modal.querySelector('[data-modal-close]') : null;
             const purposeText = document.getElementById('purpose-text');
             const remarksField = document.getElementById('remarks');
-            const approvalForm = document.querySelector('form[action*="update"]');
+            const approvalForm = document.getElementById('budget-earmark-approve-form');
 
             // Copy purpose to remarks (both buttons)
             function copyPurposeToRemarks() {
