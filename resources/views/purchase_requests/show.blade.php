@@ -278,7 +278,7 @@
 
                 <!-- Right Column: Timeline -->
                 <div class="lg:col-span-1">
-                    <div class="bg-white rounded-lg shadow-sm overflow-hidden sticky top-6">
+                    <div class="bg-white rounded-lg shadow-sm overflow-hidden sticky top-[calc(var(--app-sticky-header-offset)+0.75rem)]">
                         <div class="bg-gradient-to-r from-cagsu-maroon to-cagsu-orange px-6 py-4">
                             <h3 class="text-lg font-bold text-white">Activity Timeline</h3>
                         </div>

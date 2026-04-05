@@ -377,7 +377,7 @@
                 </div>
 
                 <!-- Sticky Summary Sidebar -->
-                <div class="w-96 sticky top-4 self-start max-h-[calc(100vh-1rem)] overflow-y-auto scrollbar-hide">
+                <div class="w-96 sticky top-[calc(var(--app-sticky-header-offset)+0.75rem)] self-start max-h-[calc(100vh-var(--app-sticky-header-offset)-0.75rem-6rem)] overflow-y-auto scrollbar-hide">
                     <div class="space-y-6">
                     <!-- PR Details Form -->
                     <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">

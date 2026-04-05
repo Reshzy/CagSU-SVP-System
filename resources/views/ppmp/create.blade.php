@@ -241,7 +241,7 @@
                 </div>
 
                 <!-- Sticky Summary Sidebar -->
-                <div class="w-80 sticky top-4 self-start">
+                <div class="w-80 sticky top-[calc(var(--app-sticky-header-offset)+0.75rem)] self-start">
                     <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                         <div class="p-4">
                             <h3 class="text-lg font-bold mb-4 text-gray-800 dark:text-gray-200">Selected Items</h3>
