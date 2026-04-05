@@ -10,7 +10,7 @@ use Illuminate\View\View;
 
 class CeoDepartmentRequestController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request): RedirectResponse
     {
         $status = $request->query('status', 'pending');
 
@@ -20,17 +20,10 @@ class CeoDepartmentRequestController extends Controller
             $status = 'pending';
         }
 
-        $query = DepartmentRequest::query()->with('reviewer')->orderByDesc('created_at');
-
-        if ($status !== '') {
-            $query->where('status', $status);
-        }
-
-        $departmentRequests = $query->paginate(20)->appends(['status' => $status]);
-
-        $pendingCount = DepartmentRequest::where('status', 'pending')->count();
-
-        return view('ceo.department-requests.index', compact('departmentRequests', 'status', 'pendingCount'));
+        return redirect()->route('ceo.departments.index', [
+            'tab' => 'requests',
+            'status' => $status,
+        ]);
     }
 
     public function show(DepartmentRequest $departmentRequest): View
@@ -41,7 +34,7 @@ class CeoDepartmentRequestController extends Controller
     public function approve(DepartmentRequest $departmentRequest, Request $request): RedirectResponse
     {
         if (! $departmentRequest->isPending()) {
-            return redirect()->route('ceo.department-requests.index')
+            return redirect()->route('ceo.departments.index', ['tab' => 'requests'])
                 ->with('status', 'This request has already been reviewed.');
         }
 
@@ -69,7 +62,7 @@ class CeoDepartmentRequestController extends Controller
             'reviewed_at' => now(),
         ]);
 
-        return redirect()->route('ceo.department-requests.index')
+        return redirect()->route('ceo.departments.index', ['tab' => 'requests'])
             ->with('status', "Department \"{$departmentRequest->name}\" approved and created successfully.");
     }
 
@@ -80,7 +73,7 @@ class CeoDepartmentRequestController extends Controller
         ]);
 
         if (! $departmentRequest->isPending()) {
-            return redirect()->route('ceo.department-requests.index')
+            return redirect()->route('ceo.departments.index', ['tab' => 'requests'])
                 ->with('status', 'This request has already been reviewed.');
         }
 
@@ -91,7 +84,7 @@ class CeoDepartmentRequestController extends Controller
             'rejection_reason' => $request->input('rejection_reason'),
         ]);
 
-        return redirect()->route('ceo.department-requests.index')
+        return redirect()->route('ceo.departments.index', ['tab' => 'requests'])
             ->with('status', "Department request \"{$departmentRequest->name}\" rejected.");
     }
 }

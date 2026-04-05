@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\Ceo\DepartmentManagement;
 use App\Models\Department;
 use App\Models\DepartmentRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -165,10 +167,16 @@ class DepartmentRequestTest extends TestCase
 
         DepartmentRequest::factory()->count(3)->pending()->create();
 
+        // The old requests index redirects to the tabbed hub on the requests tab
         $this->actingAs($ceo)
             ->get(route('ceo.department-requests.index'))
+            ->assertRedirect(route('ceo.departments.index', ['tab' => 'requests', 'status' => 'pending']));
+
+        // The hub itself renders successfully
+        $this->actingAs($ceo)
+            ->get(route('ceo.departments.index', ['tab' => 'requests']))
             ->assertOk()
-            ->assertSee('Department Requests');
+            ->assertSee('Department Management');
     }
 
     public function test_non_executive_cannot_access_ceo_department_requests(): void
@@ -215,7 +223,7 @@ class DepartmentRequestTest extends TestCase
 
         $this->actingAs($ceo)
             ->post(route('ceo.department-requests.approve', $dr))
-            ->assertRedirect(route('ceo.department-requests.index'))
+            ->assertRedirect(route('ceo.departments.index', ['tab' => 'requests']))
             ->assertSessionHas('status');
 
         $this->assertDatabaseHas('department_requests', [
@@ -261,7 +269,7 @@ class DepartmentRequestTest extends TestCase
 
         $this->actingAs($ceo)
             ->post(route('ceo.department-requests.approve', $dr))
-            ->assertRedirect(route('ceo.department-requests.index'));
+            ->assertRedirect(route('ceo.departments.index', ['tab' => 'requests']));
 
         $this->assertDatabaseMissing('departments', ['name' => $dr->name.$dr->name]);
     }
@@ -299,7 +307,7 @@ class DepartmentRequestTest extends TestCase
             ->post(route('ceo.department-requests.reject', $dr), [
                 'rejection_reason' => 'This department already exists under a different name.',
             ])
-            ->assertRedirect(route('ceo.department-requests.index'))
+            ->assertRedirect(route('ceo.departments.index', ['tab' => 'requests']))
             ->assertSessionHas('status');
 
         $this->assertDatabaseHas('department_requests', [
@@ -326,6 +334,68 @@ class DepartmentRequestTest extends TestCase
             ->assertSessionHasErrors('rejection_reason');
 
         $this->assertDatabaseHas('department_requests', ['id' => $dr->id, 'status' => 'pending']);
+    }
+
+    // ─── CEO: department management hub ─────────────────────────────────────────
+
+    public function test_executive_officer_can_view_department_management_hub(): void
+    {
+        $ceo = User::factory()->create(['approval_status' => 'approved', 'is_active' => true]);
+        $ceo->assignRole('Executive Officer');
+
+        Department::factory()->create(['name' => 'College of Business', 'code' => 'COB']);
+        DepartmentRequest::factory()->pending()->create(['name' => 'College of Medicine']);
+
+        $this->actingAs($ceo)
+            ->get(route('ceo.departments.index'))
+            ->assertOk()
+            ->assertSee('Department Management');
+    }
+
+    public function test_livewire_departments_tab_shows_departments(): void
+    {
+        $ceo = User::factory()->create(['approval_status' => 'approved', 'is_active' => true]);
+        $ceo->assignRole('Executive Officer');
+
+        $department = Department::factory()->create(['name' => 'College of Science', 'code' => 'COS']);
+
+        $this->actingAs($ceo);
+
+        Livewire::test(DepartmentManagement::class, ['tab' => 'departments'])
+            ->assertSee('College of Science')
+            ->assertSee('COS');
+    }
+
+    public function test_livewire_requests_tab_shows_department_requests(): void
+    {
+        $ceo = User::factory()->create(['approval_status' => 'approved', 'is_active' => true]);
+        $ceo->assignRole('Executive Officer');
+
+        DepartmentRequest::factory()->pending()->create(['name' => 'College of Pharmacy', 'code' => 'COP']);
+
+        $this->actingAs($ceo);
+
+        Livewire::test(DepartmentManagement::class, ['tab' => 'requests'])
+            ->assertSee('College of Pharmacy')
+            ->assertSee('COP');
+    }
+
+    public function test_livewire_tab_switching_isolates_data(): void
+    {
+        $ceo = User::factory()->create(['approval_status' => 'approved', 'is_active' => true]);
+        $ceo->assignRole('Executive Officer');
+
+        Department::factory()->create(['name' => 'College of Arts', 'code' => 'COA']);
+        DepartmentRequest::factory()->pending()->create(['name' => 'College of Dentistry', 'code' => 'COD']);
+
+        $this->actingAs($ceo);
+
+        Livewire::test(DepartmentManagement::class, ['tab' => 'departments'])
+            ->assertSee('College of Arts')
+            ->assertDontSee('College of Dentistry')
+            ->call('setTab', 'requests')
+            ->assertSee('College of Dentistry')
+            ->assertDontSee('College of Arts');
     }
 
     // ─── Register dropdown: only approved departments shown ─────────────────────

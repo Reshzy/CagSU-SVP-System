@@ -192,25 +192,18 @@
                                         @endif
                                     </x-dropdown-link>
 
-                                    <x-dropdown-link :href="route('ceo.department-requests.index')" class="flex items-center justify-between gap-2">
+                                    <x-dropdown-link :href="route('ceo.departments.index')" class="flex items-center justify-between gap-2">
                                         <span class="flex items-center gap-2">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                             </svg>
-                                            {{ __('Department Requests') }}
+                                            {{ __('Department Management') }}
                                         </span>
                                         @if($pendingDeptRequests > 0)
                                             <span class="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-cagsu-yellow px-1.5 text-xs font-bold text-cagsu-maroon">
                                                 {{ $pendingDeptRequests }}
                                             </span>
                                         @endif
-                                    </x-dropdown-link>
-
-                                    <x-dropdown-link :href="route('ceo.departments.index')" class="flex items-center gap-2">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                                        </svg>
-                                        {{ __('Manage Departments') }}
                                     </x-dropdown-link>
                                 </x-slot>
                             </x-dropdown>

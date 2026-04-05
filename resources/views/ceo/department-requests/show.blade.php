@@ -8,7 +8,7 @@
     <div class="py-6">
         <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
             <div class="mb-4">
-                <a href="{{ route('ceo.department-requests.index') }}" class="inline-flex items-center gap-1 text-sm text-cagsu-maroon underline-offset-4 hover:underline">
+                <a href="{{ route('ceo.departments.index', ['tab' => 'requests']) }}" class="inline-flex items-center gap-1 text-sm text-cagsu-maroon underline-offset-4 hover:underline">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                     </svg>
