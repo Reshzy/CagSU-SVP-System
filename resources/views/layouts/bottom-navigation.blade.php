@@ -1,8 +1,36 @@
-{{-- Single glass capsule: home + scroll (slides from behind home rightward inside the same bar) --}}
+{{-- Single glass capsule: home + scroll (slides from behind home rightward inside the same bar).
+     Show "back to top" when scroll exceeds the main navbar height (same threshold as glass top nav). --}}
 <div
-    x-data="{ show: false }"
-    x-init="show = window.scrollY > 300"
-    @scroll.window.throttle.100ms="show = window.scrollY > 300"
+    x-data="{
+        show: false,
+        scrollThresholdPx: 64,
+        captureMainNavHeight() {
+            const el = document.getElementById('main-app-navigation');
+            if (! el) {
+                return;
+            }
+            const h = Math.ceil(el.getBoundingClientRect().height);
+            if (h > 0) {
+                this.scrollThresholdPx = h;
+            }
+        },
+        syncScroll() {
+            const root = document.scrollingElement ?? document.documentElement;
+            const y = Math.max(0, root.scrollTop);
+            this.show = y > this.scrollThresholdPx;
+        },
+        onResize() {
+            const root = document.scrollingElement ?? document.documentElement;
+            const y = Math.max(0, root.scrollTop);
+            if (y <= this.scrollThresholdPx) {
+                this.captureMainNavHeight();
+            }
+            this.syncScroll();
+        },
+    }"
+    x-init="$nextTick(() => { captureMainNavHeight(); syncScroll(); }); $watch('show', (v) => { if (! v) { $nextTick(() => captureMainNavHeight()); } })"
+    @scroll.window="syncScroll()"
+    @resize.window.debounce.150ms="onResize()"
     class="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4"
 >
     <nav

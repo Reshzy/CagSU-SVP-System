@@ -1,4 +1,5 @@
 <nav
+    id="main-app-navigation"
     x-data="{
         open: false,
         scrolled: false,
