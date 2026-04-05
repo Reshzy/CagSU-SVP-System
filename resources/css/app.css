@@ -7,6 +7,45 @@
     display: none !important;
 }
 
+/* ── Dropdown Popover ────────────────────────────────────────────────
+   Popovers render in the top layer, escaping overflow-hidden ancestors
+   (e.g. the glass navbar shell).  We use CSS anchor positioning when
+   the browser supports it; JS placement is the fallback (see
+   dropdown.blade.php).
+──────────────────────────────────────────────────────────────────── */
+.dd-popover {
+    /* reset user-agent popover styles */
+    padding: 0;
+    margin: 0;
+    border: 0;
+    background: transparent;
+    overflow: visible;
+    color: inherit;
+}
+
+@supports (position-anchor: --x) {
+    .dd-popover {
+        position: absolute;
+        inset: auto;
+        margin-top: 0.5rem; /* mt-2 gap below trigger */
+    }
+
+    .dd-popover.dd-popover-align-left {
+        top: anchor(bottom);
+        left: anchor(left);
+    }
+
+    .dd-popover.dd-popover-align-right {
+        top: anchor(bottom);
+        right: anchor(right);
+    }
+
+    .dd-popover.dd-popover-align-top {
+        bottom: anchor(top);
+        left: anchor(left);
+    }
+}
+
 /* Hide scrollbar visually while keeping scroll functionality. */
 .scrollbar-hide {
     -ms-overflow-style: none;
