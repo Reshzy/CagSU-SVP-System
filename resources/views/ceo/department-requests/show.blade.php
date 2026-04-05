@@ -8,7 +8,7 @@
     <div class="py-6">
         <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
             <div class="mb-4">
-                <a href="{{ route('ceo.department-requests.index') }}" class="inline-flex items-center gap-1 text-sm text-cagsu-maroon underline-offset-4 hover:underline">
+                <a href="{{ route('ceo.departments.index', ['tab' => 'requests']) }}" class="inline-flex items-center gap-1 text-sm text-cagsu-maroon underline-offset-4 hover:underline">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                     </svg>
@@ -56,6 +56,18 @@
                             <dd class="text-gray-900">{{ $departmentRequest->description ?: '—' }}</dd>
                         </div>
                         <div class="flex gap-4 py-3">
+                            <dt class="w-40 font-medium text-gray-600 shrink-0">Department Head</dt>
+                            <dd class="text-gray-900">{{ $departmentRequest->head_name ?: '—' }}</dd>
+                        </div>
+                        <div class="flex gap-4 py-3">
+                            <dt class="w-40 font-medium text-gray-600 shrink-0">Head Contact Email</dt>
+                            <dd class="text-gray-900">{{ $departmentRequest->contact_email ?: '—' }}</dd>
+                        </div>
+                        <div class="flex gap-4 py-3">
+                            <dt class="w-40 font-medium text-gray-600 shrink-0">Head Contact Phone</dt>
+                            <dd class="text-gray-900">{{ $departmentRequest->contact_phone ?: '—' }}</dd>
+                        </div>
+                        <div class="flex gap-4 py-3">
                             <dt class="w-40 font-medium text-gray-600 shrink-0">Requester Email</dt>
                             <dd class="text-gray-900">{{ $departmentRequest->requester_email ?: '—' }}</dd>
                         </div>
@@ -89,7 +101,7 @@
                                 @csrf
                                 <button
                                     type="submit"
-                                    onclick="return confirm('Approve and create the department \"{{ addslashes($departmentRequest->name) }}\"?')"
+                                    onclick='return confirm("Approve and create the department \"{{ addslashes($departmentRequest->name) }}\"?")'
                                     class="w-full rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                                 >
                                     Approve & Create Department

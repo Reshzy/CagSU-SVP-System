@@ -1,4 +1,55 @@
-<nav x-data="{ open: false }" class="bg-white border-b-4 border-cagsu-yellow shadow-lg">
+<nav
+    id="main-app-navigation"
+    x-data="{
+        open: false,
+        scrolled: false,
+        scrollThresholdPx: 64,
+        captureOriginalNavHeight() {
+            const el = this.$el;
+            if (! el) {
+                return;
+            }
+            const h = Math.ceil(el.getBoundingClientRect().height);
+            if (h > 0) {
+                this.scrollThresholdPx = h;
+            }
+        },
+        syncScroll() {
+            const root = document.scrollingElement ?? document.documentElement;
+            const y = Math.max(0, root.scrollTop);
+            this.scrolled = y > this.scrollThresholdPx;
+        },
+        onNavResize() {
+            if (! this.scrolled) {
+                this.captureOriginalNavHeight();
+            }
+            this.syncScroll();
+        },
+    }"
+    x-init="$nextTick(() => { captureOriginalNavHeight(); syncScroll(); }); $watch('scrolled', (v) => { if (! v) { $nextTick(() => captureOriginalNavHeight()); } })"
+    @scroll.window="syncScroll()"
+    @resize.window.debounce.150ms="onNavResize()"
+    class="sticky top-0 z-40 w-full transition-[padding] duration-300 motion-reduce:transition-none"
+    :class="scrolled ? 'pt-3 px-6 pb-2 sm:px-10 sm:pt-4 lg:px-14' : 'p-0'"
+>
+    <div
+        class="w-full transition-all duration-300 motion-reduce:transition-none"
+        :class="scrolled
+            ? 'relative mx-auto w-full max-w-7xl overflow-hidden rounded-2xl border border-white/20 border-b-2 border-b-cagsu-yellow bg-white/[0.65] px-3 py-2 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.12),inset_0_1px_0_0_rgba(255,255,255,0.55),inset_0_-1px_0_0_rgba(255,255,255,0.22)] backdrop-blur-xl backdrop-saturate-150 sm:px-5 sm:py-2.5 dark:border-white/10 dark:bg-white/[0.08] dark:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5),inset_0_1px_0_0_rgba(255,255,255,0.12),inset_0_-1px_0_0_rgba(255,255,255,0.08)]'
+            : 'bg-white border-b-4 border-cagsu-yellow'"
+    >
+        <span
+            x-show="scrolled"
+            x-cloak
+            class="pointer-events-none absolute inset-x-4 top-px z-20 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent dark:via-white/25"
+            aria-hidden="true"
+        ></span>
+        <span
+            x-show="scrolled"
+            x-cloak
+            class="pointer-events-none absolute inset-x-4 bottom-px z-20 h-px bg-gradient-to-r from-transparent via-white/45 to-transparent dark:via-white/15"
+            aria-hidden="true"
+        ></span>
     <!-- Primary Navigation Menu -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-16">
@@ -192,25 +243,18 @@
                                         @endif
                                     </x-dropdown-link>
 
-                                    <x-dropdown-link :href="route('ceo.department-requests.index')" class="flex items-center justify-between gap-2">
+                                    <x-dropdown-link :href="route('ceo.departments.index')" class="flex items-center justify-between gap-2">
                                         <span class="flex items-center gap-2">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                             </svg>
-                                            {{ __('Department Requests') }}
+                                            {{ __('Department Management') }}
                                         </span>
                                         @if($pendingDeptRequests > 0)
                                             <span class="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-cagsu-yellow px-1.5 text-xs font-bold text-cagsu-maroon">
                                                 {{ $pendingDeptRequests }}
                                             </span>
                                         @endif
-                                    </x-dropdown-link>
-
-                                    <x-dropdown-link :href="route('ceo.departments.index')" class="flex items-center gap-2">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                                        </svg>
-                                        {{ __('Manage Departments') }}
                                     </x-dropdown-link>
                                 </x-slot>
                             </x-dropdown>
@@ -402,5 +446,6 @@
                 </form>
             </div>
         </div>
+    </div>
     </div>
 </nav>

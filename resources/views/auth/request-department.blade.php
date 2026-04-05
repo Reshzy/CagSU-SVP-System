@@ -69,6 +69,49 @@
             <x-input-error :messages="$errors->get('description')" class="mt-2" />
         </div>
 
+        <div>
+            <x-input-label for="head_name" :value="__('Department Head Name')" />
+            <x-text-input
+                id="head_name"
+                class="mt-1 block w-full"
+                type="text"
+                name="head_name"
+                :value="old('head_name')"
+                required
+                placeholder="e.g. Dr. Juan Dela Cruz"
+            />
+            <x-input-error :messages="$errors->get('head_name')" class="mt-2" />
+        </div>
+
+        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div>
+                <x-input-label for="contact_email" :value="__('Head Contact Email (Optional)')" />
+                <x-text-input
+                    id="contact_email"
+                    class="mt-1 block w-full"
+                    type="email"
+                    name="contact_email"
+                    :value="old('contact_email')"
+                    placeholder="head.department@cagsu.edu.ph"
+                />
+                <x-input-error :messages="$errors->get('contact_email')" class="mt-2" />
+            </div>
+
+            <div>
+                <x-input-label for="contact_phone" :value="__('Head Contact Phone (Optional)')" />
+                <x-text-input
+                    id="contact_phone"
+                    class="mt-1 block w-full"
+                    type="text"
+                    name="contact_phone"
+                    :value="old('contact_phone')"
+                    maxlength="30"
+                    placeholder="+63 912 345 6789"
+                />
+                <x-input-error :messages="$errors->get('contact_phone')" class="mt-2" />
+            </div>
+        </div>
+
         <div class="border-t border-gray-100 dark:border-gray-800"></div>
 
         <div>

@@ -325,6 +325,52 @@ function registerWizard(config = {}) {
       return true;
     },
 
+    applyStepChange(targetStep) {
+      this.step = targetStep;
+      this.maxStepReached = Math.max(this.maxStepReached, this.step);
+    },
+
+    transitionToStep(targetStep) {
+      if (targetStep === this.step) {
+        return;
+      }
+
+      const applyUpdate = () => {
+        this.applyStepChange(targetStep);
+
+        if (typeof this.$nextTick === 'function') {
+          return this.$nextTick();
+        }
+
+        return undefined;
+      };
+
+      if (typeof document.startViewTransition !== 'function') {
+        applyUpdate();
+        return;
+      }
+
+      const direction = targetStep > this.step ? 'forward' : 'backward';
+
+      try {
+        document.documentElement.dataset.registerStepDirection = direction;
+      } catch (error) {
+        // ignore dataset errors
+      }
+
+      const transition = document.startViewTransition(() => applyUpdate());
+
+      if (transition && typeof transition.finished?.finally === 'function') {
+        transition.finished.finally(() => {
+          try {
+            delete document.documentElement.dataset.registerStepDirection;
+          } catch (error) {
+            // ignore cleanup errors
+          }
+        });
+      }
+    },
+
     nextStep() {
       const canProceed = this.validateStep(this.step);
       if (!canProceed) {
@@ -336,14 +382,13 @@ function registerWizard(config = {}) {
       }
 
       if (this.step < 4) {
-        this.step += 1;
-        this.maxStepReached = Math.max(this.maxStepReached, this.step);
+        this.transitionToStep(this.step + 1);
       }
     },
 
     prevStep() {
       if (this.step > 1) {
-        this.step -= 1;
+        this.transitionToStep(this.step - 1);
       }
     },
 
@@ -360,8 +405,7 @@ function registerWizard(config = {}) {
         return;
       }
 
-      this.step = targetStep;
-      this.maxStepReached = Math.max(this.maxStepReached, this.step);
+      this.transitionToStep(targetStep);
     },
 
     handleEnter(event) {
@@ -480,7 +524,7 @@ function registerWizard(config = {}) {
           password_confirmation: '',
         };
         this.errors = {};
-        this.step = 1;
+        this.applyStepChange(1);
         this.maxStepReached = 1;
         this.idProofNames = [];
       }
@@ -496,7 +540,7 @@ function registerWizard(config = {}) {
       this.validateAll();
       if (!this.validateStep(3)) {
         event.preventDefault();
-        this.step = 3;
+        this.transitionToStep(3);
         return;
       }
 
