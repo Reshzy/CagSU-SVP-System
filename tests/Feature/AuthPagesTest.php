@@ -97,8 +97,7 @@ class AuthPagesTest extends TestCase
             'department_id' => $department->id,
             'position_id' => $position->id,
             'id_proof' => [
-                UploadedFile::fake()->image('id-front.jpg'),
-                UploadedFile::fake()->image('id-back.jpg'),
+                UploadedFile::fake()->create('id-proof.pdf', 100, 'application/pdf'),
             ],
         ])
             ->assertRedirect(route('login'))
@@ -172,8 +171,7 @@ class AuthPagesTest extends TestCase
             'password_confirmation' => 'password',
             'position_id' => $position->id,
             'id_proof' => [
-                UploadedFile::fake()->image('id-front.jpg'),
-                UploadedFile::fake()->image('id-back.jpg'),
+                UploadedFile::fake()->create('id-proof.pdf', 100, 'application/pdf'),
             ],
         ])->assertSessionHasErrors('department_id');
     }

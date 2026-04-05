@@ -11,6 +11,7 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -39,7 +40,16 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
+        $rawUploadFiles = $request->file('id_proof', []);
+        $uploadFiles = collect($rawUploadFiles)
+            ->filter(fn ($file) => $file && $file->getSize() > 0)
+            ->values()
+            ->all();
+
+        $validationData = $request->all();
+        $validationData['id_proof'] = $uploadFiles;
+
+        $validator = Validator::make($validationData, [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
@@ -48,8 +58,14 @@ class RegisteredUserController extends Controller
             'position_id' => ['required', 'exists:positions,id'],
             'phone' => ['nullable', 'string', 'max:50'],
             'id_proof' => ['required', 'array', 'min:1'],
-            'id_proof.*' => ['required', 'image', 'max:10240'],
+            'id_proof.*' => ['required', 'file', 'mimetypes:image/jpeg,image/png,image/webp,application/pdf', 'max:10240'],
         ]);
+
+        if ($validator->fails()) {
+            throw ValidationException::withMessages($validator->errors()->toArray());
+        }
+
+        $validated = $validator->validated();
 
         $user = User::create([
             'name' => $validated['name'],
@@ -63,7 +79,7 @@ class RegisteredUserController extends Controller
             'approval_status' => 'pending',
         ]);
 
-        // Attach uploaded ID images as Documents
+        // Attach uploaded identification files as Documents
         foreach ($request->file('id_proof', []) as $index => $file) {
             if (! $file) {
                 continue;
@@ -75,8 +91,8 @@ class RegisteredUserController extends Controller
             $user->documents()->create([
                 'document_number' => $documentNumber,
                 'document_type' => 'other',
-                'title' => 'University ID Image '.($index + 1),
-                'description' => 'User-submitted identification image for account approval',
+                'title' => 'Identification Document '.($index + 1),
+                'description' => 'User-submitted identification file for account approval',
                 'file_name' => $file->getClientOriginalName(),
                 'file_path' => $storedPath,
                 'file_extension' => $file->getClientOriginalExtension(),

@@ -235,13 +235,13 @@
                                 id="id_proof"
                                 type="file"
                                 name="id_proof[]"
-                                accept="image/*"
+                                accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
                                 multiple
                                 required
                                 class="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm file:mr-3 file:rounded file:border-0 file:bg-cagsu-maroon file:px-3 file:py-1 file:text-xs file:font-semibold file:text-white hover:file:bg-cagsu-orange focus:outline-none focus:ring-2 focus:ring-cagsu-maroon focus:ring-offset-2 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
                                 @change="handleIdProofChange($event)"
                             />
-                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Upload 2 images (front & back). Max 10 MB each.</p>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Upload identification files such as JPG, PNG, WEBP, or PDF. Max 10 MB each.</p>
                             <p
                                 class="mt-1 text-xs font-medium text-red-600 dark:text-red-400"
                                 role="alert"
@@ -249,7 +249,7 @@
                                 x-cloak
                                 x-show="attemptedReview && !hasIdProofSelected()"
                             >
-                                ID images are required to continue to Review.
+                                Identification files are required to continue to Review.
                             </p>
                             <x-input-error :messages="$errors->get('id_proof')" class="mt-2" />
                             <x-input-error :messages="$errors->get('id_proof.*')" class="mt-2" />
