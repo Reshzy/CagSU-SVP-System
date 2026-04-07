@@ -48,7 +48,7 @@
                         <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                             <div class="p-6">
                                 <div class="flex justify-between items-center mb-4">
-                                    <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200">Select Items from APP</h3>
+                                    <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200">Select Items from PS DBMS Reference</h3>
                                     <div class="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
                                         <button
                                             type="button"

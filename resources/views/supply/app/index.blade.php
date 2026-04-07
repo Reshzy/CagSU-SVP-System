@@ -2,10 +2,10 @@
     <x-slot name="header">
         <div class="flex justify-between items-center gap-4">
             <h2 class="font-semibold text-xl text-gray-800 dark:text-black leading-tight">
-                {{ __('Annual Procurement Plan (APP)') }} - FY {{ $fiscalYear }}
+                {{ __('PS DBMS Reference Catalog') }} - FY {{ $fiscalYear }}
             </h2>
-            <a href="{{ route('supply.app.import') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                Import APP CSV
+            <a href="{{ route('ps-dbms.import') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                Import PS DBMS CSV
             </a>
         </div>
     </x-slot>
@@ -46,7 +46,7 @@
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     @if ($appItems->isEmpty())
-                        <p class="text-gray-500">No APP items found. Please import the APP CSV file.</p>
+                        <p class="text-gray-500">No PS DBMS reference items found. Please import the PS DBMS CSV file.</p>
                     @else
                         @foreach ($categories as $category)
                             <div class="mb-6">
@@ -68,7 +68,9 @@
                                                     <td class="px-4 py-2 text-sm dark:text-white">{{ $item->item_code }}</td>
                                                     <td class="px-4 py-2 text-sm dark:text-white">{{ $item->item_name }}</td>
                                                     <td class="px-4 py-2 text-sm dark:text-white">{{ $item->unit_of_measure }}</td>
-                                                    <td class="px-4 py-2 text-sm text-right dark:text-white">₱{{ number_format($item->unit_price, 2) }}</td>
+                                                    <td class="px-4 py-2 text-sm text-right dark:text-white">
+                                                        {{ $item->unit_price !== null ? '₱' . number_format((float) $item->unit_price, 2) : 'Custom' }}
+                                                    </td>
                                                     <td class="px-4 py-2 text-sm text-center">
                                                         @if ($item->is_active)
                                                             <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">Active</span>

@@ -197,7 +197,7 @@
             @else
                 <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6 text-center">
-                        <p class="text-gray-500 mb-4">No PPMP items found. Create your PPMP by selecting items from the APP.</p>
+                        <p class="text-gray-500 mb-4">No PPMP items found. Create your PPMP by selecting items from the PS DBMS reference catalog.</p>
                         <a href="{{ route('ppmp.create') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                             Create PPMP
                         </a>

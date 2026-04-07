@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-            {{ __('Import PPMP from APP-CSE CSV') }}
+            {{ __('Import PPMP from PS DBMS CSV') }}
         </h2>
     </x-slot>
 
@@ -41,7 +41,7 @@
 
                         <div class="mb-4">
                             <label for="csv_file" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                APP-CSE CSV File
+                                PS DBMS CSV File
                             </label>
                             <input
                                 type="file"
@@ -66,10 +66,10 @@
                                 <div class="text-sm text-blue-700 dark:text-blue-300 space-y-1">
                                     <p><strong>How this import works:</strong></p>
                                     <ul class="list-disc list-inside space-y-1">
-                                        <li>Upload the standard <strong>APP-CSE CSV file / PPMP CSV file</strong> for the selected fiscal year.</li>
+                                        <li>Upload the standard <strong>PS DBMS CSV file / PPMP CSV file</strong> for the selected fiscal year.</li>
                                         <li>The importer reads <strong>Q1–Q4 quantities</strong> from the monthly breakdown columns.</li>
                                         <li>Only items with <strong>at least one non-zero quarterly quantity</strong> are imported.</li>
-                                        <li>Items <strong>not in the current APP catalog</strong> for this fiscal year will be skipped (import the APP first).</li>
+                                        <li>Items <strong>not in the current PS DBMS reference catalog</strong> for this fiscal year will be skipped (import PS DBMS first).</li>
                                         <li>This is a <strong>merge</strong> — existing PPMP items are updated; items not in the CSV are left unchanged.</li>
                                     </ul>
                                 </div>
