@@ -142,6 +142,17 @@
                         initialToasts.forEach((toast) => {
                             this.addToast(toast.type, toast.message);
                         });
+
+                        window.addEventListener('app-toast', (event) => {
+                            const detail = event?.detail ?? {};
+                            if (typeof detail === 'string') {
+                                this.addToast('info', detail);
+
+                                return;
+                            }
+
+                            this.addToast(detail.type ?? 'info', detail.message ?? '');
+                        });
                     },
 
                     addToast(type, message) {
@@ -189,6 +200,39 @@
 
                         return palette[type] || palette.info;
                     },
+                };
+            }
+
+            if (typeof window.appToast !== 'function') {
+                window.appToast = function (typeOrPayload = 'info', message = '') {
+                    if (typeof typeOrPayload === 'string' && message === '') {
+                        window.dispatchEvent(new CustomEvent('app-toast', {
+                            detail: {
+                                type: 'info',
+                                message: typeOrPayload,
+                            },
+                        }));
+
+                        return;
+                    }
+
+                    if (typeof typeOrPayload === 'object' && typeOrPayload !== null) {
+                        window.dispatchEvent(new CustomEvent('app-toast', {
+                            detail: {
+                                type: typeOrPayload.type ?? 'info',
+                                message: typeOrPayload.message ?? '',
+                            },
+                        }));
+
+                        return;
+                    }
+
+                    window.dispatchEvent(new CustomEvent('app-toast', {
+                        detail: {
+                            type: typeOrPayload || 'info',
+                            message: message || '',
+                        },
+                    }));
                 };
             }
         </script>

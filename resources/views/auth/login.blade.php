@@ -8,8 +8,6 @@
         <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Log in to continue to the SVP System.</p>
     </div>
 
-    <x-auth-session-status class="mb-4" :status="session('status')" />
-
     <form method="POST" action="{{ route('login') }}" class="space-y-4">
         @csrf
 

@@ -158,15 +158,6 @@
             @endif
         </div>
 
-        @if(session('status'))
-            <div class="mx-6 mt-4 flex items-center gap-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 px-4 py-3 text-sm text-green-800 dark:text-green-300">
-                <svg class="h-4 w-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                </svg>
-                {{ session('status') }}
-            </div>
-        @endif
-
         @if($users->hasPages())
             <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
                 {{ $users->links() }}

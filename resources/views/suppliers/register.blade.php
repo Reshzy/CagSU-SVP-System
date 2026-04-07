@@ -4,9 +4,6 @@
 	<div class="max-w-2xl mx-auto py-12">
 		<div class="bg-white shadow rounded-lg p-6">
 			<h1 class="text-2xl font-semibold mb-4">Supplier Registration</h1>
-			@if(session('status'))
-				<div class="mb-4 p-3 rounded-md bg-green-50 text-green-700">{{ session('status') }}</div>
-			@endif
 			<form action="{{ route('suppliers.register.store') }}" method="POST" class="space-y-4">
 				@csrf
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
