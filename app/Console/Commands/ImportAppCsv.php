@@ -20,7 +20,7 @@ class ImportAppCsv extends Command
      *
      * @var string
      */
-    protected $description = 'Import Annual Procurement Plan (APP) items from CSV file';
+    protected $description = 'Import PS DBMS reference items from CSV file';
 
     /**
      * Execute the console command.
@@ -36,7 +36,7 @@ class ImportAppCsv extends Command
             return Command::FAILURE;
         }
 
-        $this->info("Starting APP import from: {$filePath}");
+        $this->info("Starting PS DBMS reference import from: {$filePath}");
         $this->info("Fiscal Year: {$fiscalYear}");
 
         $file = fopen($filePath, 'r');

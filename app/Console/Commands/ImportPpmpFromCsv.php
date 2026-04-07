@@ -16,7 +16,7 @@ class ImportPpmpFromCsv extends Command
      * @var string
      */
     protected $signature = 'ppmp:import-csv
-                            {file : Path to the APP-CSE CSV file}
+                            {file : Path to the PS DBMS CSV file}
                             {--year= : Fiscal year for the PPMP (defaults to current year)}
                             {--department= : Department ID to import PPMP for}';
 
@@ -25,10 +25,10 @@ class ImportPpmpFromCsv extends Command
      *
      * @var string
      */
-    protected $description = 'Import PPMP quarterly quantities from an APP-CSE CSV file';
+    protected $description = 'Import PPMP quarterly quantities from a PS DBMS CSV file';
 
     /**
-     * Column indices in the APP-CSE CSV format.
+     * Column indices in the PS DBMS CSV format.
      */
     private const COL_ITEM_CODE = 1;
 
@@ -145,20 +145,20 @@ class ImportPpmpFromCsv extends Command
                     continue;
                 }
 
-                // Look up the APP item by item code and fiscal year
+                // Look up the PS DBMS reference item by item code and fiscal year
                 $appItem = AppItem::query()
                     ->where('item_code', $itemCode)
                     ->where('fiscal_year', $fiscalYear)
                     ->first();
 
                 if (! $appItem) {
-                    $this->warn("APP item not found for code '{$itemCode}' in FY {$fiscalYear} — skipping.");
+                    $this->warn("PS DBMS reference item not found for code '{$itemCode}' in FY {$fiscalYear} — skipping.");
                     $skippedNotInApp++;
 
                     continue;
                 }
 
-                // Determine the unit cost: use CSV price column if available and APP item has no price
+                // Determine the unit cost: use CSV price column if available and PS DBMS item has no price
                 $customPrice = null;
                 if (isset($row[self::COL_PRICE])) {
                     $priceStr = preg_replace('/[₱,\s]/', '', trim($row[self::COL_PRICE]));
@@ -224,7 +224,7 @@ class ImportPpmpFromCsv extends Command
             $this->info("Items imported (new): {$imported}");
             $this->info("Items updated (existing): {$updated}");
             $this->info("Items skipped (zero quantity): {$skippedZeroQty}");
-            $this->info("Items skipped (not in APP catalog): {$skippedNotInApp}");
+            $this->info("Items skipped (not in PS DBMS catalog): {$skippedNotInApp}");
 
             return Command::SUCCESS;
         } catch (\Exception $e) {

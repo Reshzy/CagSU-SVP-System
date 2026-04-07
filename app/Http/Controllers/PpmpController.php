@@ -49,7 +49,7 @@ class PpmpController extends Controller
     }
 
     /**
-     * Show APP items for selection
+     * Show PS DBMS reference items for PPMP selection.
      */
     public function create(): View|RedirectResponse
     {
@@ -63,7 +63,7 @@ class PpmpController extends Controller
         $fiscalYear = date('Y');
         $ppmp = Ppmp::getOrCreateForDepartment($user->department_id, $fiscalYear);
 
-        // Get APP items
+        // Get PS DBMS reference items
         $categories = AppItem::getCategories($fiscalYear);
         $appItems = AppItem::active()
             ->forFiscalYear($fiscalYear)
@@ -134,7 +134,7 @@ class PpmpController extends Controller
                     continue;
                 }
 
-                // Use custom unit price if provided, otherwise use APP item price
+                // Use custom unit price if provided, otherwise use PS DBMS reference price
                 $estimatedUnitCost = $itemData['custom_unit_price'] ?? $appItem->unit_price;
 
                 // Validate that we have a price

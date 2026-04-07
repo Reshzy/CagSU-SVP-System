@@ -19,6 +19,47 @@
         
         @livewireStyles
     </head>
+    @php
+        $appToastMessages = [];
+
+        if (session('success')) {
+            $appToastMessages[] = [
+                'type' => 'success',
+                'message' => session('success'),
+            ];
+        }
+
+        if (session('warning')) {
+            $appToastMessages[] = [
+                'type' => 'warning',
+                'message' => session('warning'),
+            ];
+        }
+
+        if (session('status')) {
+            $appToastMessages[] = [
+                'type' => 'info',
+                'message' => session('status'),
+            ];
+        }
+
+        if (session('error')) {
+            $appToastMessages[] = [
+                'type' => 'error',
+                'message' => session('error'),
+            ];
+        }
+
+        if ($errors->any()) {
+            foreach ($errors->all() as $errorMessage) {
+                $appToastMessages[] = [
+                    'type' => 'error',
+                    'message' => $errorMessage,
+                ];
+            }
+        }
+    @endphp
+
     <body class="font-sans antialiased">
         <div class="min-h-screen bg-gov-light">
             @include('layouts.navigation')
@@ -54,8 +95,103 @@
                 {{ $slot }}
             </main>
         </div>
+
+        <div
+            x-data="appToasts(@js($appToastMessages))"
+            class="pointer-events-none fixed right-4 top-[calc(var(--app-sticky-header-offset)+1rem)] z-50 flex w-full max-w-sm flex-col gap-2"
+        >
+            <template x-for="toast in toasts" :key="toast.id">
+                <div
+                    x-show="toast.visible"
+                    x-transition.opacity.duration.250ms
+                    x-transition.scale.origin.top.right.duration.250ms
+                    class="pointer-events-auto rounded-lg border px-4 py-3 shadow-lg backdrop-blur-sm"
+                    :class="toastClasses(toast.type)"
+                    role="status"
+                    aria-live="polite"
+                    data-app-toast
+                >
+                    <div class="flex items-start gap-3">
+                        <div class="flex-1 text-sm font-medium" x-text="toast.message"></div>
+                        <button
+                            type="button"
+                            @click="dismiss(toast.id)"
+                            class="rounded p-0.5 opacity-80 transition hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                            :class="closeButtonClasses(toast.type)"
+                        >
+                            <span class="sr-only">Dismiss notification</span>
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </div>
         {{-- Stack for page-specific scripts pushed from views --}}
         @stack('scripts')
+
+        <script>
+            function appToasts(initialToasts = []) {
+                return {
+                    toasts: [],
+                    nextToastId: 1,
+                    dismissDelayMs: 5000,
+
+                    init() {
+                        initialToasts.forEach((toast) => {
+                            this.addToast(toast.type, toast.message);
+                        });
+                    },
+
+                    addToast(type, message) {
+                        const toast = {
+                            id: this.nextToastId++,
+                            type: type || 'info',
+                            message: message || '',
+                            visible: true,
+                        };
+
+                        this.toasts.push(toast);
+                        window.setTimeout(() => this.dismiss(toast.id), this.dismissDelayMs);
+                    },
+
+                    dismiss(id) {
+                        const toast = this.toasts.find((item) => item.id === id);
+                        if (!toast || !toast.visible) {
+                            return;
+                        }
+
+                        toast.visible = false;
+                        window.setTimeout(() => {
+                            this.toasts = this.toasts.filter((item) => item.id !== id);
+                        }, 260);
+                    },
+
+                    toastClasses(type) {
+                        const palette = {
+                            success: 'border-green-300 bg-green-50 text-green-900 dark:border-green-700 dark:bg-green-900/90 dark:text-green-100',
+                            error: 'border-red-300 bg-red-50 text-red-900 dark:border-red-700 dark:bg-red-900/90 dark:text-red-100',
+                            warning: 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-900/90 dark:text-amber-100',
+                            info: 'border-sky-300 bg-sky-50 text-sky-900 dark:border-sky-700 dark:bg-sky-900/90 dark:text-sky-100',
+                        };
+
+                        return palette[type] || palette.info;
+                    },
+
+                    closeButtonClasses(type) {
+                        const palette = {
+                            success: 'text-green-700 focus-visible:ring-green-500 dark:text-green-200',
+                            error: 'text-red-700 focus-visible:ring-red-500 dark:text-red-200',
+                            warning: 'text-amber-700 focus-visible:ring-amber-500 dark:text-amber-200',
+                            info: 'text-sky-700 focus-visible:ring-sky-500 dark:text-sky-200',
+                        };
+
+                        return palette[type] || palette.info;
+                    },
+                };
+            }
+        </script>
 
         @include('layouts.bottom-navigation')
 

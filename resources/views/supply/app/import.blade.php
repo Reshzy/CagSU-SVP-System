@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Import Annual Procurement Plan (APP)') }}
+            {{ __('Import PS DBMS Reference Catalog') }}
         </h2>
     </x-slot>
 
@@ -9,7 +9,7 @@
         <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
-                    <form action="{{ route('supply.app.process') }}" method="POST" enctype="multipart/form-data">
+                    <form action="{{ route('ps-dbms.process') }}" method="POST" enctype="multipart/form-data">
                         @csrf
 
                         <div class="mb-4">
@@ -47,7 +47,7 @@
                                 <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                             @enderror
                             <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                Upload the APP CSV file. The file should contain item codes, names, units, and prices.
+                                Upload the PS DBMS CSV file. The file should contain item codes, names, units, and prices.
                             </p>
                         </div>
 
@@ -60,7 +60,7 @@
                                 </div>
                                 <div class="ml-3">
                                     <p class="text-sm text-blue-700 dark:text-blue-200">
-                                        <strong>Note:</strong> Importing a CSV will create or update APP items for the selected fiscal year.
+                                        <strong>Note:</strong> Importing a CSV will create or update PS DBMS reference items for the selected fiscal year.
                                         Existing items with the same item code and fiscal year will be updated.
                                     </p>
                                 </div>
@@ -72,10 +72,10 @@
                                 type="submit"
                                 class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
                             >
-                                Import APP
+                                Import PS DBMS
                             </button>
                             <a
-                                href="{{ route('supply.app.index') }}"
+                                href="{{ route('ps-dbms.index') }}"
                                 class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
                             >
                                 Cancel

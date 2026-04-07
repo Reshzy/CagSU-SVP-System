@@ -125,29 +125,31 @@
         </div>
     </div>
 
-    <!-- APP Management -->
-    <div class="bg-white overflow-hidden shadow-lg rounded-lg hover:shadow-xl transition">
-        <div class="p-6">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <svg class="h-8 w-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-                    </svg>
+    @can('manage-ps-dbms')
+        <!-- PS DBMS Management -->
+        <div class="bg-white overflow-hidden shadow-lg rounded-lg hover:shadow-xl transition">
+            <div class="p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-8 w-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">PS DBMS Items</dt>
+                            <dd class="text-2xl font-bold text-gray-900">{{ \App\Models\AppItem::where('is_active', true)->count() }}</dd>
+                        </dl>
+                    </div>
                 </div>
-                <div class="ml-5 w-0 flex-1">
-                    <dl>
-                        <dt class="text-sm font-medium text-gray-500 truncate">APP Items</dt>
-                        <dd class="text-2xl font-bold text-gray-900">{{ \App\Models\AppItem::where('is_active', true)->count() }}</dd>
-                    </dl>
+            </div>
+            <div class="bg-gray-50 px-6 py-3">
+                <div class="text-sm">
+                    <a href="{{ route('ps-dbms.index') }}" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">Manage PS DBMS →</a>
                 </div>
             </div>
         </div>
-        <div class="bg-gray-50 px-6 py-3">
-            <div class="text-sm">
-                <a href="{{ route('supply.app.index') }}" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">Manage APP →</a>
-            </div>
-        </div>
-    </div>
+    @endcan
 
 </div>
 
@@ -172,13 +174,15 @@
                 </svg>
                 Manage Suppliers
             </a>
-            <a href="{{ route('supply.app.index') }}" 
-               class="inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-md shadow-sm transition-colors">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-                </svg>
-                Manage APP
-            </a>
+            @can('manage-ps-dbms')
+                <a href="{{ route('ps-dbms.index') }}" 
+                   class="inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-md shadow-sm transition-colors">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                    </svg>
+                    Manage PS DBMS
+                </a>
+            @endcan
         </div>
     </div>
 </div>

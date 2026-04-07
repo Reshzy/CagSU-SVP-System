@@ -7,16 +7,6 @@
 
     <div class="py-12" x-data="ppmpManager()">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            @if ($errors->any())
-                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-                    <ul>
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
-
             <div class="flex gap-6">
                 <!-- Main Content Area -->
                 <div class="flex-1">
@@ -48,7 +38,7 @@
                         <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                             <div class="p-6">
                                 <div class="flex justify-between items-center mb-4">
-                                    <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200">Select Items from APP</h3>
+                                    <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200">Select Items from PS DBMS Reference</h3>
                                     <div class="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
                                         <button
                                             type="button"
@@ -64,9 +54,11 @@
                                 </div>
                                 
                                 <!-- Search Box -->
-                                <div class="mb-6">
+                                <div id="ppmp-search-anchor" class="mb-6 scroll-mt-[calc(var(--app-sticky-header-offset)+1rem)]">
                                     <input 
                                         type="text" 
+                                        id="ppmp-search"
+                                        x-ref="ppmpSearchInput"
                                         x-model="searchQuery"
                                         placeholder="Search items by name, code, or category..."
                                         class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -244,7 +236,33 @@
                 <div class="w-80 sticky top-[calc(var(--app-sticky-header-offset)+0.75rem)] self-start">
                     <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                         <div class="p-4">
-                            <h3 class="text-lg font-bold mb-4 text-gray-800 dark:text-gray-200">Selected Items</h3>
+                            <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+                                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200">Selected Items</h3>
+                                <div class="flex flex-wrap items-center justify-end gap-1.5">
+                                    <button
+                                        type="button"
+                                        @click="focusPpmpSearch"
+                                        class="inline-flex items-center gap-1 rounded-md border border-sky-400/70 bg-sky-50 px-2 py-1 text-xs font-medium text-sky-900 shadow-sm hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:border-sky-500/45 dark:bg-sky-950/50 dark:text-sky-100 dark:hover:bg-sky-900/60 dark:focus-visible:ring-sky-400 dark:focus-visible:ring-offset-gray-800"
+                                        title="{{ __('Jump to item search') }}"
+                                    >
+                                        <svg class="h-3.5 w-3.5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                                        </svg>
+                                        {{ __('Search') }}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        @click="closeAllCategories"
+                                        class="inline-flex items-center gap-1 rounded-md border border-indigo-300 bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-900 shadow-sm hover:bg-indigo-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:border-indigo-500/50 dark:bg-indigo-950/45 dark:text-indigo-100 dark:hover:bg-indigo-900/55 dark:focus-visible:ring-indigo-400 dark:focus-visible:ring-offset-gray-800"
+                                        title="{{ __('Collapse all categories') }}"
+                                    >
+                                        <svg class="h-3.5 w-3.5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+                                        </svg>
+                                        {{ __('Collapse all') }}
+                                    </button>
+                                </div>
+                            </div>
                             
                             <div class="mb-4 text-sm text-gray-600 dark:text-gray-400">
                                 <div class="flex justify-between mb-2">
@@ -428,6 +446,24 @@
                 closeAllCategories() {
                     this.expandedCategories = [];
                     localStorage.setItem('ppmpExpandedCategories', JSON.stringify([]));
+                },
+
+                focusPpmpSearch() {
+                    const anchor = document.getElementById('ppmp-search-anchor');
+                    const input = this.$refs.ppmpSearchInput;
+                    const scrollTarget = anchor ?? input;
+
+                    if (scrollTarget) {
+                        scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+
+                    if (!input) {
+                        return;
+                    }
+
+                    window.setTimeout(() => {
+                        input.focus({ preventScroll: true });
+                    }, 400);
                 },
 
                 toggleItem(itemId, itemName, unitPrice, needsCustomPrice, isChecked) {

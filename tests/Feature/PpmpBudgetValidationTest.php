@@ -19,7 +19,7 @@ class PpmpBudgetValidationTest extends TestCase
     {
         $department = Department::factory()->create();
         $user = User::factory()->create(['department_id' => $department->id]);
-        
+
         DepartmentBudget::factory()->create([
             'department_id' => $department->id,
             'fiscal_year' => date('Y'),
@@ -49,6 +49,11 @@ class PpmpBudgetValidationTest extends TestCase
 
         $response->assertRedirect(route('ppmp.index'));
         $response->assertSessionHas('success');
+        $this->actingAs($user)
+            ->withSession(['success' => 'PPMP validated successfully!'])
+            ->get(route('ppmp.index'))
+            ->assertSee('data-app-toast', false)
+            ->assertSee('PPMP validated successfully!');
 
         $ppmp->refresh();
         $this->assertEquals('validated', $ppmp->status);
@@ -59,7 +64,7 @@ class PpmpBudgetValidationTest extends TestCase
     {
         $department = Department::factory()->create();
         $user = User::factory()->create(['department_id' => $department->id]);
-        
+
         DepartmentBudget::factory()->create([
             'department_id' => $department->id,
             'fiscal_year' => date('Y'),
@@ -85,9 +90,17 @@ class PpmpBudgetValidationTest extends TestCase
 
         $ppmp = Ppmp::where('department_id', $department->id)->first();
 
-        $response = $this->actingAs($user)->post(route('ppmp.validate', $ppmp));
+        $response = $this->actingAs($user)
+            ->from(route('ppmp.index'))
+            ->post(route('ppmp.validate', $ppmp));
 
         $response->assertSessionHasErrors('budget');
+        $this->actingAs($user)
+            ->from(route('ppmp.index'))
+            ->followingRedirects()
+            ->post(route('ppmp.validate', $ppmp))
+            ->assertSee('data-app-toast', false)
+            ->assertSee('exceeds allocated budget');
 
         $ppmp->refresh();
         $this->assertEquals('draft', $ppmp->status);
@@ -97,7 +110,7 @@ class PpmpBudgetValidationTest extends TestCase
     public function test_budget_validator_service_works_correctly(): void
     {
         $department = Department::factory()->create();
-        
+
         DepartmentBudget::factory()->create([
             'department_id' => $department->id,
             'fiscal_year' => date('Y'),
@@ -110,8 +123,8 @@ class PpmpBudgetValidationTest extends TestCase
             'total_estimated_cost' => 3000,
         ]);
 
-        $validator = new PpmpBudgetValidator();
-        
+        $validator = new PpmpBudgetValidator;
+
         $this->assertTrue($validator->validatePpmpAgainstBudget($ppmp));
 
         $ppmp->total_estimated_cost = 6000;
@@ -123,7 +136,7 @@ class PpmpBudgetValidationTest extends TestCase
     public function test_budget_status_provides_correct_information(): void
     {
         $department = Department::factory()->create();
-        
+
         DepartmentBudget::factory()->create([
             'department_id' => $department->id,
             'fiscal_year' => date('Y'),
@@ -136,7 +149,7 @@ class PpmpBudgetValidationTest extends TestCase
             'total_estimated_cost' => 7000,
         ]);
 
-        $validator = new PpmpBudgetValidator();
+        $validator = new PpmpBudgetValidator;
         $status = $validator->getBudgetStatus($ppmp);
 
         $this->assertEquals(10000, $status['allocated']);

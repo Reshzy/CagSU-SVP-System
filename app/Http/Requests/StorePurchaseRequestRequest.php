@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Models\DepartmentBudget;
 use App\Models\PpmpItem;
+use App\Models\User;
 use App\Services\PpmpQuarterlyTracker;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
@@ -15,10 +16,20 @@ class StorePurchaseRequestRequest extends FormRequest
      */
     public function authorize(): bool
     {
+        /** @var User|null $user */
         $user = Auth::user();
 
+        if (! $user) {
+            return false;
+        }
+
+        // System Administrators are not allowed to create PRs.
+        if ($user->isSVPRole('System Admin')) {
+            return false;
+        }
+
         // User must be assigned to a department
-        if (! $user || ! $user->department_id) {
+        if (! $user->department_id) {
             return false;
         }
 

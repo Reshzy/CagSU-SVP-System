@@ -15,18 +15,6 @@
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
 
-                    @if(session('status'))
-                        <div class="mb-4 rounded-md bg-green-50 px-4 py-3 text-sm text-green-700">
-                            {{ session('status') }}
-                        </div>
-                    @endif
-
-                    @if(session('error'))
-                        <div class="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
-                            {{ session('error') }}
-                        </div>
-                    @endif
-
                     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
                         <h3 class="text-lg font-medium">Department Requests</h3>
                         <form method="GET" action="{{ route('ceo.department-requests.index') }}" class="flex items-center gap-2">

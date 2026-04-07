@@ -8,6 +8,7 @@ use App\Models\Ppmp;
 use App\Models\PpmpItem;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class PurchaseRequestCollapseAllTest extends TestCase
@@ -55,5 +56,24 @@ class PurchaseRequestCollapseAllTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('Collapse all');
+    }
+
+    public function test_system_admin_cannot_access_purchase_request_creation_page(): void
+    {
+        $department = Department::factory()->create();
+        $user = User::factory()->create(['department_id' => $department->id]);
+        Role::findOrCreate('System Admin');
+        $user->assignRole('System Admin');
+
+        Ppmp::factory()
+            ->validated()
+            ->create([
+                'department_id' => $department->id,
+                'fiscal_year' => date('Y'),
+            ]);
+
+        $response = $this->actingAs($user)->get(route('purchase-requests.create'));
+
+        $response->assertForbidden();
     }
 }
