@@ -10,18 +10,6 @@
     <div class="py-8">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
             
-            @if(session('status'))
-                <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-                    {{ session('status') }}
-                </div>
-            @endif
-
-            @if(session('error'))
-                <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                    {{ session('error') }}
-                </div>
-            @endif
-
             {{-- Info Banner --}}
             <div class="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg">
                 <div class="flex items-center">

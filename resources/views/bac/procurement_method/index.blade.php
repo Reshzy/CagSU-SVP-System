@@ -9,14 +9,6 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
-                    @if(session('status'))
-                        <div class="mb-4 p-3 rounded-md bg-green-50 text-green-700">{{ session('status') }}</div>
-                    @endif
-
-                    @if(session('error'))
-                        <div class="mb-4 p-3 rounded-md bg-red-50 text-red-700">{{ session('error') }}</div>
-                    @endif
-
                     <div class="mb-6">
                         <p class="text-gray-600">
                             Review purchase requests and determine the appropriate procurement method based on the estimated budget and procurement type.

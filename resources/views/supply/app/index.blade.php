@@ -12,12 +12,6 @@
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            @if (session('success'))
-                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
-                    <span class="block sm:inline">{{ session('success') }}</span>
-                </div>
-            @endif
-
             @if (session('import_output'))
                 <div class="bg-gray-100 border border-gray-400 text-gray-700 px-4 py-3 rounded relative mb-4">
                     <pre class="text-xs">{{ session('import_output') }}</pre>

@@ -9,14 +9,6 @@
         <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900 space-y-6">
-                    @if(session('status'))
-                        <div class="mb-4 p-3 rounded-md bg-green-50 text-green-700">{{ session('status') }}</div>
-                    @endif
-
-                    @if(session('error'))
-                        <div class="mb-4 p-3 rounded-md bg-red-50 text-red-700">{{ session('error') }}</div>
-                    @endif
-
                     <!-- Approval Trail -->
                     <div class="bg-blue-50 p-4 rounded-md space-y-3">
                         <div class="text-sm font-semibold text-blue-800 mb-2">Approval History</div>

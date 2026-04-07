@@ -8,9 +8,6 @@
 	<div class="py-8">
 		<div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
 			<div class="bg-white shadow rounded-lg p-6">
-				@if(session('status'))
-					<div class="mb-4 p-3 rounded-md bg-green-50 text-green-700">{{ session('status') }}</div>
-				@endif
 				<form action="{{ route('supply.suppliers.update', $supplier) }}" method="POST" class="space-y-4">
 					@csrf
 					@method('PUT')
