@@ -4,8 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\Department;
 use App\Models\Position;
+use App\Models\Ppmp;
+use App\Models\PpmpItem;
 use App\Models\PurchaseRequest;
 use App\Models\User;
+use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Spatie\Permission\Models\Role;
@@ -19,16 +22,18 @@ class PrReturnReplacementTest extends TestCase
     {
         parent::setUp();
 
+        $this->seed(RolePermissionSeeder::class);
+
         // Create roles
-        Role::create(['name' => 'Dean']);
-        Role::create(['name' => 'Supply Officer']);
-        Role::create(['name' => 'System Admin']);
+        Role::findOrCreate('Dean');
+        Role::findOrCreate('Supply Officer');
+        Role::findOrCreate('System Admin');
     }
 
     public function test_supply_officer_can_return_pr_with_remarks(): void
     {
         $college = Department::factory()->create(['is_archived' => false]);
-        $supplyPosition = Position::factory()->create(['name' => 'Supply Officer']);
+        $supplyPosition = Position::query()->create(['name' => 'Supply Officer']);
 
         $supplyOfficer = User::factory()->create([
             'position_id' => $supplyPosition->id,
@@ -43,7 +48,7 @@ class PrReturnReplacementTest extends TestCase
 
         $this->actingAs($supplyOfficer);
 
-        $response = $this->post(route('supply.purchase-requests.update-status', $pr), [
+        $response = $this->put(route('supply.purchase-requests.status', $pr), [
             'action' => 'return',
             'return_remarks' => 'Specifications incomplete',
         ]);
@@ -61,7 +66,7 @@ class PrReturnReplacementTest extends TestCase
     public function test_supply_officer_can_activate_pr(): void
     {
         $college = Department::factory()->create(['is_archived' => false]);
-        $supplyPosition = Position::factory()->create(['name' => 'Supply Officer']);
+        $supplyPosition = Position::query()->create(['name' => 'Supply Officer']);
 
         $supplyOfficer = User::factory()->create([
             'position_id' => $supplyPosition->id,
@@ -76,7 +81,7 @@ class PrReturnReplacementTest extends TestCase
 
         $this->actingAs($supplyOfficer);
 
-        $response = $this->post(route('supply.purchase-requests.update-status', $pr), [
+        $response = $this->put(route('supply.purchase-requests.status', $pr), [
             'action' => 'activate',
             'notes' => 'PR validated and activated',
         ]);
@@ -90,7 +95,7 @@ class PrReturnReplacementTest extends TestCase
     public function test_dean_can_create_replacement_pr(): void
     {
         $college = Department::factory()->create(['is_archived' => false]);
-        $deanPosition = Position::factory()->create(['name' => 'Dean']);
+        $deanPosition = Position::query()->create(['name' => 'Dean']);
 
         $dean = User::factory()->create([
             'department_id' => $college->id,
@@ -106,16 +111,22 @@ class PrReturnReplacementTest extends TestCase
             'return_remarks' => 'Need more details',
         ]);
 
+        $ppmp = Ppmp::factory()->validated()->create([
+            'department_id' => $college->id,
+            'fiscal_year' => (int) date('Y'),
+        ]);
+        PpmpItem::factory()->create(['ppmp_id' => $ppmp->id]);
+
         $this->actingAs($dean);
 
-        $response = $this->get(route('purchase-requests.create-replacement', $originalPr));
+        $response = $this->get(route('purchase-requests.replacement.create', $originalPr));
         $response->assertStatus(200);
     }
 
     public function test_replacement_pr_links_to_original(): void
     {
         $college = Department::factory()->create(['is_archived' => false]);
-        $deanPosition = Position::factory()->create(['name' => 'Dean']);
+        $deanPosition = Position::query()->create(['name' => 'Dean']);
 
         $dean = User::factory()->create([
             'department_id' => $college->id,
@@ -146,7 +157,7 @@ class PrReturnReplacementTest extends TestCase
 
         $this->assertEquals($originalPr->id, $replacementPr->replaces_pr_id);
         $this->assertEquals($replacementPr->id, $originalPr->fresh()->replaced_by_pr_id);
-        $this->assertTrue($originalPr->fresh()->is_archived);
+        $this->assertTrue((bool) $originalPr->fresh()->is_archived);
     }
 
     public function test_returned_prs_do_not_appear_in_active_list(): void

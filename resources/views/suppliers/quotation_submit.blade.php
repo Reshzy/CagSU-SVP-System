@@ -4,9 +4,6 @@
 	<div class="max-w-xl mx-auto py-12">
 		<div class="bg-white shadow rounded-lg p-6">
 			<h1 class="text-2xl font-semibold mb-4">Submit Quotation</h1>
-			@if(session('status'))
-				<div class="mb-4 p-3 rounded-md bg-green-50 text-green-700">{{ session('status') }}</div>
-			@endif
 			<form action="{{ route('suppliers.quotations.submit.store') }}" method="POST" class="space-y-4">
 				@csrf
 				<div>

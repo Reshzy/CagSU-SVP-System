@@ -30,15 +30,15 @@ class BacActivityLoggingTest extends TestCase
         parent::setUp();
 
         // Create necessary positions
-        Position::factory()->create(['name' => 'Supply Officer']);
-        Position::factory()->create(['name' => 'Dean']);
-        Position::factory()->create(['name' => 'BAC Chair']);
+        Position::query()->create(['name' => 'Supply Officer']);
+        Position::query()->create(['name' => 'Dean']);
+        $bacChairPosition = Position::query()->create(['name' => 'BAC Chair']);
 
         // Create department and user
         $this->department = Department::factory()->create();
         $this->user = User::factory()->create([
             'department_id' => $this->department->id,
-            'position_id' => Position::where('name', 'BAC Chair')->first()->id,
+            'position_id' => $bacChairPosition->id,
         ]);
 
         // Create a PR in BAC evaluation status
@@ -211,8 +211,8 @@ class BacActivityLoggingTest extends TestCase
             'aoq_reference_number' => 'AOQ-0126-0001',
             'file_path' => 'aoq_documents/test.docx',
             'generated_by' => $this->user->id,
-            'generated_at' => now(),
         ]);
+        $aoqGeneration->reference_number = $aoqGeneration->aoq_reference_number;
 
         $logger = app(PurchaseRequestActivityLogger::class);
         $logger->logAoqGenerated($this->pr, $aoqGeneration);
@@ -245,7 +245,6 @@ class BacActivityLoggingTest extends TestCase
             'aoq_reference_number' => 'AOQ-0126-0002',
             'file_path' => 'aoq_documents/test_g2.docx',
             'generated_by' => $this->user->id,
-            'generated_at' => now(),
         ]);
 
         $logger = app(PurchaseRequestActivityLogger::class);

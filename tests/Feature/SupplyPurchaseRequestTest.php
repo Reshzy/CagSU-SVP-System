@@ -7,6 +7,7 @@ use App\Models\Position;
 use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestItem;
 use App\Models\User;
+use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -25,9 +26,11 @@ class SupplyPurchaseRequestTest extends TestCase
     {
         parent::setUp();
 
+        $this->seed(RolePermissionSeeder::class);
+
         // Create roles
-        Role::create(['name' => 'Supply Officer']);
-        Role::create(['name' => 'Dean']);
+        Role::findOrCreate('Supply Officer');
+        Role::findOrCreate('Dean');
 
         // Create department
         $this->department = Department::factory()->create([
@@ -37,7 +40,7 @@ class SupplyPurchaseRequestTest extends TestCase
         ]);
 
         // Create supply officer
-        $supplyPosition = Position::factory()->create(['name' => 'Supply Officer']);
+        $supplyPosition = Position::query()->create(['name' => 'Supply Officer']);
         $this->supplyOfficer = User::factory()->create([
             'position_id' => $supplyPosition->id,
             'is_archived' => false,

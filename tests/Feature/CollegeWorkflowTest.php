@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Department;
+use App\Models\DepartmentBudget;
 use App\Models\Position;
+use App\Models\Ppmp;
 use App\Models\PpmpItem;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -33,7 +35,7 @@ class CollegeWorkflowTest extends TestCase
             'is_archived' => false,
         ]);
 
-        $deanPosition = Position::factory()->create(['name' => 'Dean']);
+        $deanPosition = Position::query()->create(['name' => 'Dean']);
 
         $dean = User::factory()->create([
             'department_id' => $college->id,
@@ -42,12 +44,30 @@ class CollegeWorkflowTest extends TestCase
         ]);
         $dean->assignRole('Dean');
 
-        $ppmpItem = PpmpItem::factory()->create([
-            'college_id' => $college->id,
-            'is_active' => true,
+        $ppmp = Ppmp::factory()->validated()->create([
+            'department_id' => $college->id,
+            'fiscal_year' => (int) date('Y'),
         ]);
 
+        $ppmpItem = PpmpItem::factory()->create([
+            'ppmp_id' => $ppmp->id,
+            'q1_quantity' => 25,
+            'q2_quantity' => 25,
+            'q3_quantity' => 25,
+            'q4_quantity' => 25,
+            'total_quantity' => 100,
+        ]);
+        $ppmpItem->load('appItem');
+
         $this->actingAs($dean);
+
+        DepartmentBudget::query()->create([
+            'department_id' => $college->id,
+            'fiscal_year' => (int) date('Y'),
+            'allocated_budget' => 500000,
+            'utilized_budget' => 0,
+            'reserved_budget' => 0,
+        ]);
 
         $response = $this->post(route('purchase-requests.store'), [
             'purpose' => 'Test PR',
@@ -55,10 +75,10 @@ class CollegeWorkflowTest extends TestCase
             'items' => [
                 [
                     'ppmp_item_id' => $ppmpItem->id,
-                    'item_name' => $ppmpItem->item_name,
-                    'unit_of_measure' => $ppmpItem->unit_of_measure,
+                    'item_name' => $ppmpItem->appItem->item_name,
+                    'unit_of_measure' => $ppmpItem->appItem->unit_of_measure,
                     'quantity_requested' => 5,
-                    'estimated_unit_cost' => 100,
+                    'estimated_unit_cost' => (float) $ppmpItem->estimated_unit_cost,
                 ],
             ],
         ]);
@@ -72,10 +92,18 @@ class CollegeWorkflowTest extends TestCase
 
     public function test_dean_cannot_create_pr_for_other_college(): void
     {
-        $college1 = Department::factory()->create(['code' => 'COE', 'is_archived' => false]);
-        $college2 = Department::factory()->create(['code' => 'CBEA', 'is_archived' => false]);
+        $college1 = Department::factory()->create([
+            'name' => 'College One',
+            'code' => 'COE',
+            'is_archived' => false,
+        ]);
+        $college2 = Department::factory()->create([
+            'name' => 'College Two',
+            'code' => 'CBEA',
+            'is_archived' => false,
+        ]);
 
-        $deanPosition = Position::factory()->create(['name' => 'Dean']);
+        $deanPosition = Position::query()->create(['name' => 'Dean']);
 
         $dean = User::factory()->create([
             'department_id' => $college1->id,
@@ -84,16 +112,23 @@ class CollegeWorkflowTest extends TestCase
         ]);
         $dean->assignRole('Dean');
 
+        $college2Ppmp = Ppmp::factory()->validated()->create([
+            'department_id' => $college2->id,
+            'fiscal_year' => (int) date('Y'),
+        ]);
+
         $ppmpItem = PpmpItem::factory()->create([
-            'college_id' => $college2->id,
-            'is_active' => true,
+            'ppmp_id' => $college2Ppmp->id,
         ]);
 
         $this->actingAs($dean);
 
         // Should only see PPMP items for their own college
-        $availableItems = PpmpItem::active()
-            ->forCollege($dean->department_id)
+        $availableItems = PpmpItem::query()
+            ->whereHas('ppmp', function ($query) use ($dean): void {
+                $query->where('department_id', $dean->department_id)
+                    ->where('status', 'validated');
+            })
             ->get();
 
         $this->assertCount(0, $availableItems);
@@ -102,14 +137,41 @@ class CollegeWorkflowTest extends TestCase
 
     public function test_ppmp_items_scoped_to_college(): void
     {
-        $college1 = Department::factory()->create(['code' => 'COE', 'is_archived' => false]);
-        $college2 = Department::factory()->create(['code' => 'CBEA', 'is_archived' => false]);
+        $college1 = Department::factory()->create([
+            'name' => 'College Three',
+            'code' => 'COE2',
+            'is_archived' => false,
+        ]);
+        $college2 = Department::factory()->create([
+            'name' => 'College Four',
+            'code' => 'CBEA2',
+            'is_archived' => false,
+        ]);
 
-        $item1 = PpmpItem::factory()->create(['college_id' => $college1->id, 'is_active' => true]);
-        $item2 = PpmpItem::factory()->create(['college_id' => $college2->id, 'is_active' => true]);
+        $college1Ppmp = Ppmp::factory()->validated()->create([
+            'department_id' => $college1->id,
+            'fiscal_year' => (int) date('Y'),
+        ]);
+        $college2Ppmp = Ppmp::factory()->validated()->create([
+            'department_id' => $college2->id,
+            'fiscal_year' => (int) date('Y'),
+        ]);
 
-        $college1Items = PpmpItem::active()->forCollege($college1->id)->get();
-        $college2Items = PpmpItem::active()->forCollege($college2->id)->get();
+        $item1 = PpmpItem::factory()->create(['ppmp_id' => $college1Ppmp->id]);
+        $item2 = PpmpItem::factory()->create(['ppmp_id' => $college2Ppmp->id]);
+
+        $college1Items = PpmpItem::query()
+            ->whereHas('ppmp', function ($query) use ($college1): void {
+                $query->where('department_id', $college1->id)
+                    ->where('status', 'validated');
+            })
+            ->get();
+        $college2Items = PpmpItem::query()
+            ->whereHas('ppmp', function ($query) use ($college2): void {
+                $query->where('department_id', $college2->id)
+                    ->where('status', 'validated');
+            })
+            ->get();
 
         $this->assertCount(1, $college1Items);
         $this->assertCount(1, $college2Items);
