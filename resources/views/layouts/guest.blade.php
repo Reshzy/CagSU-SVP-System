@@ -96,9 +96,13 @@
             <template x-for="toast in toasts" :key="toast.id">
                 <div
                     x-show="toast.visible"
-                    x-transition.opacity.duration.250ms
-                    x-transition.scale.origin.top.right.duration.250ms
-                    class="pointer-events-auto rounded-lg border px-4 py-3 shadow-lg backdrop-blur-sm"
+                    x-transition:enter="transform transition ease-out duration-300"
+                    x-transition:enter-start="translate-x-full opacity-0"
+                    x-transition:enter-end="translate-x-0 opacity-100"
+                    x-transition:leave="transform transition ease-in duration-220"
+                    x-transition:leave-start="translate-x-0 opacity-100"
+                    x-transition:leave-end="translate-x-full opacity-0"
+                    class="pointer-events-auto rounded-lg border-2 px-4 py-3 shadow-2xl"
                     :class="toastClasses(toast.type)"
                     role="status"
                     aria-live="polite"
@@ -109,7 +113,7 @@
                         <button
                             type="button"
                             @click="dismiss(toast.id)"
-                            class="rounded p-0.5 opacity-80 transition hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                            class="rounded p-0.5 opacity-95 transition hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
                             :class="closeButtonClasses(toast.type)"
                         >
                             <span class="sr-only">Dismiss notification</span>
@@ -117,6 +121,13 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
+                    </div>
+                    <div class="mt-3 h-1.5 w-full overflow-hidden rounded-full" :class="progressTrackClasses(toast.type)">
+                        <div
+                            class="h-full rounded-full transition-[width] duration-75 linear"
+                            :class="progressBarClasses(toast.type)"
+                            :style="`width: ${toast.progress}%;`"
+                        ></div>
                     </div>
                 </div>
             </template>
@@ -152,10 +163,33 @@
                             type: type || 'info',
                             message: message || '',
                             visible: true,
+                            progress: 100,
+                            dismissTimeoutId: null,
+                            progressRafId: null,
+                            startedAtMs: null,
                         };
 
                         this.toasts.push(toast);
-                        window.setTimeout(() => this.dismiss(toast.id), this.dismissDelayMs);
+                        const startProgressDraining = (timestamp) => {
+                            if (! toast.visible) {
+                                return;
+                            }
+
+                            if (toast.startedAtMs === null) {
+                                toast.startedAtMs = timestamp;
+                            }
+
+                            const elapsedMs = timestamp - toast.startedAtMs;
+                            const remainingRatio = Math.max(0, 1 - (elapsedMs / this.dismissDelayMs));
+                            toast.progress = Math.round(remainingRatio * 10000) / 100;
+
+                            if (remainingRatio > 0) {
+                                toast.progressRafId = window.requestAnimationFrame(startProgressDraining);
+                            }
+                        };
+
+                        toast.progressRafId = window.requestAnimationFrame(startProgressDraining);
+                        toast.dismissTimeoutId = window.setTimeout(() => this.dismiss(toast.id), this.dismissDelayMs);
                     },
 
                     dismiss(id) {
@@ -164,18 +198,43 @@
                             return;
                         }
 
+                        if (toast.dismissTimeoutId) {
+                            window.clearTimeout(toast.dismissTimeoutId);
+                            toast.dismissTimeoutId = null;
+                        }
+
+                        if (toast.progressRafId) {
+                            window.cancelAnimationFrame(toast.progressRafId);
+                            toast.progressRafId = null;
+                        }
+
+                        toast.progress = 0;
                         toast.visible = false;
                         window.setTimeout(() => {
+                            this.toasts.forEach((item) => {
+                                if (item.id !== id) {
+                                    return;
+                                }
+
+                                if (item.dismissTimeoutId) {
+                                    window.clearTimeout(item.dismissTimeoutId);
+                                }
+
+                                if (item.progressRafId) {
+                                    window.cancelAnimationFrame(item.progressRafId);
+                                }
+                            });
+
                             this.toasts = this.toasts.filter((item) => item.id !== id);
                         }, 260);
                     },
 
                     toastClasses(type) {
                         const palette = {
-                            success: 'border-green-300 bg-green-50 text-green-900 dark:border-green-700 dark:bg-green-900/90 dark:text-green-100',
-                            error: 'border-red-300 bg-red-50 text-red-900 dark:border-red-700 dark:bg-red-900/90 dark:text-red-100',
-                            warning: 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-900/90 dark:text-amber-100',
-                            info: 'border-sky-300 bg-sky-50 text-sky-900 dark:border-sky-700 dark:bg-sky-900/90 dark:text-sky-100',
+                            success: 'border-emerald-200 bg-emerald-700 text-emerald-50 dark:border-emerald-100 dark:bg-emerald-600 dark:text-white',
+                            error: 'border-red-200 bg-red-700 text-red-50 dark:border-red-100 dark:bg-red-600 dark:text-white',
+                            warning: 'border-amber-100 bg-amber-400 text-amber-950 dark:border-amber-50 dark:bg-amber-300 dark:text-amber-950',
+                            info: 'border-sky-200 bg-sky-700 text-sky-50 dark:border-sky-100 dark:bg-sky-600 dark:text-white',
                         };
 
                         return palette[type] || palette.info;
@@ -183,10 +242,32 @@
 
                     closeButtonClasses(type) {
                         const palette = {
-                            success: 'text-green-700 focus-visible:ring-green-500 dark:text-green-200',
-                            error: 'text-red-700 focus-visible:ring-red-500 dark:text-red-200',
-                            warning: 'text-amber-700 focus-visible:ring-amber-500 dark:text-amber-200',
-                            info: 'text-sky-700 focus-visible:ring-sky-500 dark:text-sky-200',
+                            success: 'text-emerald-50 focus-visible:ring-emerald-100 focus-visible:ring-offset-emerald-700 dark:text-white dark:focus-visible:ring-emerald-50 dark:focus-visible:ring-offset-emerald-600',
+                            error: 'text-red-50 focus-visible:ring-red-100 focus-visible:ring-offset-red-700 dark:text-white dark:focus-visible:ring-red-50 dark:focus-visible:ring-offset-red-600',
+                            warning: 'text-amber-950 focus-visible:ring-amber-900 focus-visible:ring-offset-amber-300 dark:text-amber-950 dark:focus-visible:ring-amber-900 dark:focus-visible:ring-offset-amber-300',
+                            info: 'text-sky-50 focus-visible:ring-sky-100 focus-visible:ring-offset-sky-700 dark:text-white dark:focus-visible:ring-sky-50 dark:focus-visible:ring-offset-sky-600',
+                        };
+
+                        return palette[type] || palette.info;
+                    },
+
+                    progressTrackClasses(type) {
+                        const palette = {
+                            success: 'bg-emerald-900/35',
+                            error: 'bg-red-900/35',
+                            warning: 'bg-amber-950/20',
+                            info: 'bg-sky-900/35',
+                        };
+
+                        return palette[type] || palette.info;
+                    },
+
+                    progressBarClasses(type) {
+                        const palette = {
+                            success: 'bg-emerald-50',
+                            error: 'bg-red-50',
+                            warning: 'bg-amber-900',
+                            info: 'bg-sky-50',
                         };
 
                         return palette[type] || palette.info;
