@@ -67,12 +67,14 @@
                                     </svg>
                                     View Details
                                 </a>
-                                <a href="{{ route('purchase-requests.replacement.create', $returned) }}" class="inline-flex items-center px-4 py-2 bg-cagsu-maroon text-white rounded-lg hover:bg-cagsu-orange transition font-medium">
-                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                    </svg>
-                                    Create Replacement PR
-                                </a>
+                                @if(! auth()->user()->hasRole('System Admin'))
+                                    <a href="{{ route('purchase-requests.replacement.create', $returned) }}" class="inline-flex items-center px-4 py-2 bg-cagsu-maroon text-white rounded-lg hover:bg-cagsu-orange transition font-medium">
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                        </svg>
+                                        Create Replacement PR
+                                    </a>
+                                @endif
                             </div>
                         </div>
                         @endforeach
@@ -86,12 +88,14 @@
                 <div class="p-6 text-gray-900">
                     <div class="flex items-center justify-between mb-4">
                         <div class="text-lg font-semibold">All Purchase Requests</div>
-                        <a href="{{ route('purchase-requests.create') }}" class="inline-flex items-center px-4 py-2 bg-cagsu-yellow text-white rounded-md hover:opacity-90">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                            </svg>
-                            New PR
-                        </a>
+                        @if(! auth()->user()->hasRole('System Admin'))
+                            <a href="{{ route('purchase-requests.create') }}" class="inline-flex items-center px-4 py-2 bg-cagsu-yellow text-white rounded-md hover:opacity-90">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                                New PR
+                            </a>
+                        @endif
                     </div>
 
                     <div class="overflow-x-auto">
@@ -162,9 +166,11 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                         </svg>
                                         <p class="text-sm">No purchase requests yet.</p>
-                                        <a href="{{ route('purchase-requests.create') }}" class="text-sm text-cagsu-maroon hover:text-cagsu-orange font-medium mt-2 inline-block">
-                                            Create your first PR →
-                                        </a>
+                                        @if(! auth()->user()->hasRole('System Admin'))
+                                            <a href="{{ route('purchase-requests.create') }}" class="text-sm text-cagsu-maroon hover:text-cagsu-orange font-medium mt-2 inline-block">
+                                                Create your first PR →
+                                            </a>
+                                        @endif
                                     </td>
                                 </tr>
                                 @endforelse
