@@ -131,16 +131,38 @@
                     </div>
                     <div class="mt-3 h-1.5 w-full overflow-hidden rounded-full" :class="progressTrackClasses(toast.type)">
                         <div
-                            class="h-full rounded-full transition-[width] duration-75 linear"
+                            class="h-full w-full rounded-full"
                             :class="progressBarClasses(toast.type)"
-                            :style="`width: ${toast.progress}%;`"
+                            :style="`animation: app-toast-drain ${dismissDelayMs}ms linear forwards;`"
                         ></div>
                     </div>
                 </div>
             </template>
         </div>
+
+        @if (config('app.debug'))
+            <button
+                type="button"
+                class="fixed bottom-24 right-4 z-40 rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold text-white shadow-lg transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+                x-data
+                x-on:click="window.appToast({ type: 'info', message: 'Preview toast: 5-second progress drain.' })"
+            >
+                Test Toast
+            </button>
+        @endif
         {{-- Stack for page-specific scripts pushed from views --}}
         @stack('scripts')
+
+        <style>
+            @keyframes app-toast-drain {
+                from {
+                    width: 100%;
+                }
+                to {
+                    width: 0%;
+                }
+            }
+        </style>
 
         <script>
             function appToasts(initialToasts = []) {
@@ -171,33 +193,19 @@
                             id: this.nextToastId++,
                             type: type || 'info',
                             message: message || '',
-                            visible: true,
-                            progress: 100,
+                            visible: false,
                             dismissTimeoutId: null,
-                            progressRafId: null,
-                            startedAtMs: null,
                         };
 
                         this.toasts.push(toast);
-                        const startProgressDraining = (timestamp) => {
-                            if (! toast.visible) {
+                        window.requestAnimationFrame(() => {
+                            const toastToShow = this.toasts.find((item) => item.id === toast.id);
+                            if (! toastToShow) {
                                 return;
                             }
 
-                            if (toast.startedAtMs === null) {
-                                toast.startedAtMs = timestamp;
-                            }
-
-                            const elapsedMs = timestamp - toast.startedAtMs;
-                            const remainingRatio = Math.max(0, 1 - (elapsedMs / this.dismissDelayMs));
-                            toast.progress = Math.round(remainingRatio * 10000) / 100;
-
-                            if (remainingRatio > 0) {
-                                toast.progressRafId = window.requestAnimationFrame(startProgressDraining);
-                            }
-                        };
-
-                        toast.progressRafId = window.requestAnimationFrame(startProgressDraining);
+                            toastToShow.visible = true;
+                        });
                         toast.dismissTimeoutId = window.setTimeout(() => this.dismiss(toast.id), this.dismissDelayMs);
                     },
 
@@ -212,12 +220,6 @@
                             toast.dismissTimeoutId = null;
                         }
 
-                        if (toast.progressRafId) {
-                            window.cancelAnimationFrame(toast.progressRafId);
-                            toast.progressRafId = null;
-                        }
-
-                        toast.progress = 0;
                         toast.visible = false;
                         window.setTimeout(() => {
                             this.toasts.forEach((item) => {
@@ -227,10 +229,6 @@
 
                                 if (item.dismissTimeoutId) {
                                     window.clearTimeout(item.dismissTimeoutId);
-                                }
-
-                                if (item.progressRafId) {
-                                    window.cancelAnimationFrame(item.progressRafId);
                                 }
                             });
 
@@ -262,10 +260,10 @@
 
                     progressTrackClasses(type) {
                         const palette = {
-                            success: 'bg-emerald-900/35',
-                            error: 'bg-red-900/35',
-                            warning: 'bg-amber-950/20',
-                            info: 'bg-sky-900/35',
+                            success: 'bg-emerald-950/30',
+                            error: 'bg-red-950/30',
+                            warning: 'bg-amber-950/30',
+                            info: 'bg-sky-950/30',
                         };
 
                         return palette[type] || palette.info;
@@ -273,10 +271,10 @@
 
                     progressBarClasses(type) {
                         const palette = {
-                            success: 'bg-emerald-50',
-                            error: 'bg-red-50',
+                            success: 'bg-emerald-200',
+                            error: 'bg-red-200',
                             warning: 'bg-amber-900',
-                            info: 'bg-sky-50',
+                            info: 'bg-sky-200',
                         };
 
                         return palette[type] || palette.info;
