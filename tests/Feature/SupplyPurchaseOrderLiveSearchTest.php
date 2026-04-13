@@ -7,6 +7,7 @@ use App\Models\PurchaseOrder;
 use App\Models\PurchaseRequest;
 use App\Models\Supplier;
 use App\Models\User;
+use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -15,9 +16,19 @@ class SupplyPurchaseOrderLiveSearchTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function createSupplyOfficerUser(): User
+    {
+        $this->seed(RolePermissionSeeder::class);
+
+        $user = User::factory()->create();
+        $user->assignRole('Supply Officer');
+
+        return $user;
+    }
+
     public function test_purchase_order_index_page_loads_with_livewire_component(): void
     {
-        $user = User::factory()->create();
+        $user = $this->createSupplyOfficerUser();
 
         $response = $this->actingAs($user)->get(route('supply.purchase-orders.index'));
 
@@ -27,7 +38,7 @@ class SupplyPurchaseOrderLiveSearchTest extends TestCase
 
     public function test_livewire_component_displays_purchase_orders(): void
     {
-        $user = User::factory()->create();
+        $user = $this->createSupplyOfficerUser();
         $supplier = Supplier::factory()->create(['business_name' => 'Test Supplier Inc']);
         $pr = PurchaseRequest::factory()->create(['pr_number' => 'PR-2026-0001']);
         $po = PurchaseOrder::factory()->create([
@@ -47,7 +58,7 @@ class SupplyPurchaseOrderLiveSearchTest extends TestCase
 
     public function test_search_filters_by_po_number(): void
     {
-        $user = User::factory()->create();
+        $user = $this->createSupplyOfficerUser();
         $supplier = Supplier::factory()->create();
         $pr = PurchaseRequest::factory()->create();
 
@@ -65,14 +76,14 @@ class SupplyPurchaseOrderLiveSearchTest extends TestCase
 
         Livewire::actingAs($user)
             ->test(PurchaseOrderTable::class)
-            ->set('search', 'PO-0226-0001')
+            ->set('poNumberSearch', 'PO-0226-0001')
             ->assertSee('PO-0226-0001')
             ->assertDontSee('PO-0226-0002');
     }
 
     public function test_search_filters_by_pr_number(): void
     {
-        $user = User::factory()->create();
+        $user = $this->createSupplyOfficerUser();
         $supplier = Supplier::factory()->create();
 
         $pr1 = PurchaseRequest::factory()->create(['pr_number' => 'PR-2026-0001']);
@@ -92,14 +103,14 @@ class SupplyPurchaseOrderLiveSearchTest extends TestCase
 
         Livewire::actingAs($user)
             ->test(PurchaseOrderTable::class)
-            ->set('search', 'PR-2026-0001')
+            ->set('prNumberFilter', 'PR-2026-0001')
             ->assertSee('PO-0226-0001')
             ->assertDontSee('PO-0226-0002');
     }
 
     public function test_search_filters_by_supplier_name(): void
     {
-        $user = User::factory()->create();
+        $user = $this->createSupplyOfficerUser();
         $pr = PurchaseRequest::factory()->create();
 
         $supplier1 = Supplier::factory()->create(['business_name' => 'Alpha Supplies Inc']);
@@ -119,14 +130,14 @@ class SupplyPurchaseOrderLiveSearchTest extends TestCase
 
         Livewire::actingAs($user)
             ->test(PurchaseOrderTable::class)
-            ->set('search', 'Alpha')
+            ->set('supplierFilter', (string) $supplier1->id)
             ->assertSee('PO-0226-0001')
             ->assertDontSee('PO-0226-0002');
     }
 
     public function test_status_filter_works(): void
     {
-        $user = User::factory()->create();
+        $user = $this->createSupplyOfficerUser();
         $supplier = Supplier::factory()->create();
         $pr = PurchaseRequest::factory()->create();
 
@@ -153,17 +164,17 @@ class SupplyPurchaseOrderLiveSearchTest extends TestCase
 
     public function test_search_updates_url_with_query_parameter(): void
     {
-        $user = User::factory()->create();
+        $user = $this->createSupplyOfficerUser();
 
         Livewire::actingAs($user)
-            ->withQueryParams(['q' => 'PO-0226'])
+            ->withQueryParams(['po' => 'PO-0226'])
             ->test(PurchaseOrderTable::class)
-            ->assertSet('search', 'PO-0226');
+            ->assertSet('poNumberSearch', 'PO-0226');
     }
 
     public function test_pagination_resets_on_search(): void
     {
-        $user = User::factory()->create();
+        $user = $this->createSupplyOfficerUser();
         $supplier = Supplier::factory()->create();
         $pr = PurchaseRequest::factory()->create();
 
@@ -178,18 +189,19 @@ class SupplyPurchaseOrderLiveSearchTest extends TestCase
 
         Livewire::actingAs($user)
             ->test(PurchaseOrderTable::class)
-            ->set('page', 2)
-            ->set('search', 'PO-0226-0001')
-            ->assertSet('page', 1);
+            ->call('setPage', 2)
+            ->set('poNumberSearch', 'PO-0226-0001')
+            ->assertSee('PO-0226-0001')
+            ->assertDontSee('PO-0226-0020');
     }
 
     public function test_shows_no_results_message_when_search_returns_nothing(): void
     {
-        $user = User::factory()->create();
+        $user = $this->createSupplyOfficerUser();
 
         Livewire::actingAs($user)
             ->test(PurchaseOrderTable::class)
-            ->set('search', 'nonexistent-po-number')
-            ->assertSee('No purchase orders found matching your search criteria');
+            ->set('poNumberSearch', 'nonexistent-po-number')
+            ->assertSee('No purchase orders found matching your search criteria.');
     }
 }

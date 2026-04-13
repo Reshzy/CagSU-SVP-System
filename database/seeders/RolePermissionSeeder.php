@@ -74,6 +74,8 @@ class RolePermissionSeeder extends Seeder
             'manage-users',
             'manage-roles',
             'manage-permissions',
+            'manage-ps-dbms',
+            'view-consolidated-app',
             'system-configuration',
             'view-audit-logs',
 
@@ -205,6 +207,8 @@ class RolePermissionSeeder extends Seeder
             'view-supplier-info',
             'request-quotations',
             'create-reports',
+            'manage-ps-dbms',
+            'view-consolidated-app',
         ]);
 
         // 9. Canvassing Unit - Supplier Outreach

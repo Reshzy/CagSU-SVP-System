@@ -28,22 +28,6 @@
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            @if (session('success'))
-                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
-                    <span class="block sm:inline">{{ session('success') }}</span>
-                </div>
-            @endif
-
-            @if ($errors->any())
-                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-                    <ul>
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
-
             <!-- Budget Status -->
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg mb-6">
                 <div class="p-6">
@@ -197,7 +181,7 @@
             @else
                 <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6 text-center">
-                        <p class="text-gray-500 mb-4">No PPMP items found. Create your PPMP by selecting items from the APP.</p>
+                        <p class="text-gray-500 mb-4">No PPMP items found. Create your PPMP by selecting items from the PS DBMS reference catalog.</p>
                         <a href="{{ route('ppmp.create') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                             Create PPMP
                         </a>
@@ -206,5 +190,6 @@
             @endif
         </div>
     </div>
+
 </x-app-layout>
 

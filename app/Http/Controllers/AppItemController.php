@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Storage;
 class AppItemController extends Controller
 {
     /**
-     * Display APP items for the supply officer
+     * Display PS DBMS reference items for planning.
      */
     public function index(Request $request): View
     {
@@ -50,7 +50,7 @@ class AppItemController extends Controller
     }
 
     /**
-     * Process CSV import
+     * Process PS DBMS reference CSV import.
      */
     public function processImport(Request $request): RedirectResponse
     {
@@ -61,7 +61,7 @@ class AppItemController extends Controller
 
         // Store the uploaded file temporarily
         $file = $request->file('csv_file');
-        $fileName = 'app_import_' . time() . '.csv';
+        $fileName = 'app_import_'.time().'.csv';
         $filePath = $file->storeAs('imports', $fileName);
         $fullPath = Storage::path($filePath);
 
@@ -80,8 +80,8 @@ class AppItemController extends Controller
 
             if ($exitCode === 0) {
                 return redirect()
-                    ->route('supply.app.index', ['fiscal_year' => $validated['fiscal_year']])
-                    ->with('success', 'APP items imported successfully!')
+                    ->route('ps-dbms.index', ['fiscal_year' => $validated['fiscal_year']])
+                    ->with('success', 'PS DBMS reference items imported successfully!')
                     ->with('import_output', $output);
             }
 
@@ -97,7 +97,7 @@ class AppItemController extends Controller
 
             return back()
                 ->withInput()
-                ->withErrors(['csv_file' => 'Import failed: ' . $e->getMessage()]);
+                ->withErrors(['csv_file' => 'Import failed: '.$e->getMessage()]);
         }
     }
 }

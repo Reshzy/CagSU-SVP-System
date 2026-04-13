@@ -7,7 +7,12 @@
         <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
-                    <a href="{{ route('ceo.departments.index') }}" class="text-sm underline">Back to list</a>
+                    <a href="{{ route('ceo.departments.index', ['tab' => 'departments']) }}" class="inline-flex items-center gap-1 text-sm text-cagsu-maroon underline-offset-4 hover:underline">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                        Back to departments
+                    </a>
                     <form method="POST" action="{{ route('ceo.departments.update', $department) }}" class="mt-4 space-y-4">
                         @csrf
                         @method('PUT')
@@ -44,6 +49,7 @@
                             <x-input-error :messages="$errors->get('contact_phone')" class="mt-1" />
                         </div>
                         <div class="flex items-center gap-2">
+                            <input type="hidden" name="is_active" value="0" />
                             <input type="checkbox" id="is_active" name="is_active" value="1" class="rounded" @checked(old('is_active', $department->is_active)) />
                             <label for="is_active" class="text-sm">Active</label>
                         </div>

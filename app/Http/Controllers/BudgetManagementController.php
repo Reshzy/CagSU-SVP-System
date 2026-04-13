@@ -16,26 +16,7 @@ class BudgetManagementController extends Controller
     {
         $fiscalYear = $request->input('fiscal_year', date('Y'));
 
-        $departments = Department::with(['currentBudget'])
-            ->active()
-            ->get()
-            ->map(function ($department) use ($fiscalYear) {
-                $budget = $department->getBudgetForYear($fiscalYear);
-
-                return [
-                    'id' => $department->id,
-                    'name' => $department->name,
-                    'code' => $department->code,
-                    'allocated_budget' => $budget->allocated_budget,
-                    'utilized_budget' => $budget->utilized_budget,
-                    'reserved_budget' => $budget->reserved_budget,
-                    'available_budget' => $budget->getAvailableBudget(),
-                    'utilization_percentage' => $budget->getUtilizationPercentage(),
-                ];
-            });
-
         return view('budget.department-budgets', [
-            'departments' => $departments,
             'fiscalYear' => $fiscalYear,
         ]);
     }

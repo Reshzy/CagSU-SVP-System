@@ -2,7 +2,11 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\Department;
+use App\Models\Position;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class RegistrationTest extends TestCase
@@ -18,14 +22,23 @@ class RegistrationTest extends TestCase
 
     public function test_new_users_can_register(): void
     {
+        Storage::fake('public');
+        $department = Department::factory()->create(['is_active' => true]);
+        $position = Position::create(['name' => 'Employee']);
+
         $response = $this->post('/register', [
             'name' => 'Test User',
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'department_id' => $department->id,
+            'position_id' => $position->id,
+            'id_proof' => [
+                UploadedFile::fake()->create('id-proof.pdf', 100, 'application/pdf'),
+            ],
         ]);
 
-        $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        $this->assertGuest();
+        $response->assertRedirect(route('login', absolute: false));
     }
 }

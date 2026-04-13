@@ -10,6 +10,7 @@ use App\Models\Ppmp;
 use App\Models\PpmpItem;
 use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestItem;
+use App\Models\User;
 use App\Notifications\PurchaseRequestSubmitted;
 use App\Services\PpmpQuarterlyTracker;
 use App\Services\PurchaseRequestActivityLogger;
@@ -138,6 +139,12 @@ class PurchaseRequestController extends Controller
 
     public function createReplacement(PurchaseRequest $originalPr): View
     {
+        /** @var User|null $user */
+        $user = Auth::user();
+        if ($user?->isSVPRole('System Admin')) {
+            abort(403, 'System Administrators are not allowed to create replacement purchase requests.');
+        }
+
         // Ensure the PR is returned and belongs to the current user
         if ($originalPr->status !== 'returned_by_supply' || $originalPr->requester_id !== Auth::id()) {
             abort(403, 'Unauthorized to create replacement for this PR.');
@@ -159,8 +166,13 @@ class PurchaseRequestController extends Controller
      */
     protected function preparePrCreationDataForReplacement(PurchaseRequest $originalPr): array
     {
+        /** @var User|null $user */
         $user = Auth::user();
         $fiscalYear = date('Y');
+
+        if ($user?->isSVPRole('System Admin')) {
+            abort(403, 'System Administrators are not allowed to create purchase requests.');
+        }
 
         if (! $user->department_id) {
             abort(403, 'You must be assigned to a department to create purchase requests.');
@@ -345,8 +357,13 @@ class PurchaseRequestController extends Controller
      */
     protected function preparePrCreationData(): array
     {
+        /** @var User|null $user */
         $user = Auth::user();
         $fiscalYear = date('Y');
+
+        if ($user?->isSVPRole('System Admin')) {
+            abort(403, 'System Administrators are not allowed to create purchase requests.');
+        }
 
         if (! $user->department_id) {
             abort(403, 'You must be assigned to a department to create purchase requests.');
@@ -421,7 +438,7 @@ class PurchaseRequestController extends Controller
         $quarterlyTracker = app(PpmpQuarterlyTracker::class);
         $currentQuarter = $quarterlyTracker->getQuarterFromDate();
 
-        /** @var array<int, \App\Models\PurchaseRequestItem> Maps submission index -> created model for lot parent resolution */
+        /** @var array<int, PurchaseRequestItem> Maps submission index -> created model for lot parent resolution */
         $createdByIndex = [];
 
         foreach ($items as $index => $itemData) {
@@ -501,7 +518,7 @@ class PurchaseRequestController extends Controller
     protected function notifySupplyOffice(PurchaseRequest $purchaseRequest): void
     {
         try {
-            $supplyUsers = \App\Models\User::role('Supply Officer')->get();
+            $supplyUsers = User::role('Supply Officer')->get();
             foreach ($supplyUsers as $user) {
                 $user->notify(new PurchaseRequestSubmitted($purchaseRequest));
             }

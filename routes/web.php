@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AccountingDisbursementController;
 use App\Http\Controllers\Api\BudgetCheckController;
+use App\Http\Controllers\AppConsolidationController;
 use App\Http\Controllers\AppItemController;
 use App\Http\Controllers\BacItemGroupController;
 use App\Http\Controllers\BacMeetingController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\BudgetEarmarkController;
 use App\Http\Controllers\BudgetManagementController;
 use App\Http\Controllers\CeoApprovalController;
 use App\Http\Controllers\CeoDepartmentController;
+use App\Http\Controllers\CeoDepartmentRequestController;
 use App\Http\Controllers\CeoUserManagementController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\InventoryReceiptController;
@@ -106,11 +108,17 @@ Route::middleware('auth')->group(function () {
         Route::post('/supply/purchase-orders/{purchaseOrder}/inventory-receipts', [InventoryReceiptController::class, 'store'])->name('supply.inventory-receipts.store');
         Route::get('/supply/inventory-receipts/{inventoryReceipt}', [InventoryReceiptController::class, 'show'])->name('supply.inventory-receipts.show');
 
-        // APP Management (Annual Procurement Plan)
-        Route::get('/supply/app', [AppItemController::class, 'index'])->name('supply.app.index');
-        Route::get('/supply/app/import', [AppItemController::class, 'import'])->name('supply.app.import');
-        Route::post('/supply/app/import', [AppItemController::class, 'processImport'])->name('supply.app.process');
     });
+
+    // PS DBMS Reference Catalog Management
+    Route::middleware('can:manage-ps-dbms')->prefix('reference/ps-dbms')->name('ps-dbms.')->group(function () {
+        Route::get('/', [AppItemController::class, 'index'])->name('index');
+        Route::get('/import', [AppItemController::class, 'import'])->name('import');
+        Route::post('/import', [AppItemController::class, 'processImport'])->name('process');
+    });
+
+    // Consolidated APP (read-only)
+    Route::middleware('can:view-consolidated-app')->get('/bac/app', [AppConsolidationController::class, 'index'])->name('bac.app.index');
 
     // Canvassing Unit - Supplier management
     Route::middleware('can:manage-suppliers')->group(function () {
@@ -189,6 +197,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/ceo/departments', [CeoDepartmentController::class, 'store'])->name('ceo.departments.store');
         Route::get('/ceo/departments/{department}/edit', [CeoDepartmentController::class, 'edit'])->name('ceo.departments.edit');
         Route::put('/ceo/departments/{department}', [CeoDepartmentController::class, 'update'])->name('ceo.departments.update');
+
+        // CEO Department Request Review
+        Route::get('/ceo/department-requests', [CeoDepartmentRequestController::class, 'index'])->name('ceo.department-requests.index');
+        Route::get('/ceo/department-requests/{departmentRequest}', [CeoDepartmentRequestController::class, 'show'])->name('ceo.department-requests.show');
+        Route::post('/ceo/department-requests/{departmentRequest}/approve', [CeoDepartmentRequestController::class, 'approve'])->name('ceo.department-requests.approve');
+        Route::post('/ceo/department-requests/{departmentRequest}/reject', [CeoDepartmentRequestController::class, 'reject'])->name('ceo.department-requests.reject');
     });
 
     // BAC Signatory Management (Admin/BAC Chair only)

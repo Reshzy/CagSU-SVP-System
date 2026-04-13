@@ -14,10 +14,6 @@
 						<a href="{{ route('bac.meetings.create') }}" class="px-3 py-2 bg-cagsu-maroon text-white rounded-md">Schedule Meeting</a>
 					</div>
 
-					@if(session('status'))
-						<div class="mb-4 p-3 rounded-md bg-green-50 text-green-700">{{ session('status') }}</div>
-					@endif
-
 					<div class="overflow-x-auto">
 						<table class="min-w-full divide-y divide-gray-200">
 							<thead class="bg-gray-50">

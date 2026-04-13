@@ -64,17 +64,6 @@
             </div>
             @endif
 
-            @if ($errors->any())
-                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-                    <strong class="font-bold">Error!</strong>
-                    <ul class="mt-2 list-disc list-inside">
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
-
             <div class="flex gap-6">
                 <!-- Main Content Area -->
                 <div class="flex-1">
@@ -111,8 +100,11 @@
                                         <button
                                             type="button"
                                             @click="closeAllCategories"
-                                            class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-800"
+                                            class="inline-flex items-center gap-1.5 rounded-md border border-indigo-700/20 bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:border-indigo-400/30 dark:bg-indigo-600 dark:hover:bg-indigo-500 dark:focus-visible:ring-indigo-400 dark:focus-visible:ring-offset-gray-800"
                                         >
+                                            <svg class="h-4 w-4 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+                                            </svg>
                                             Collapse all
                                         </button>
                                         <div>
@@ -122,12 +114,14 @@
                                 </div>
                                 
                                 <!-- Search Box -->
-                                <div class="mb-6">
+                                <div id="pr-ppmp-search-anchor" class="mb-6 scroll-mt-[calc(var(--app-sticky-header-offset)+1rem)]">
                                     <input 
                                         type="text" 
+                                        id="pr-ppmp-search"
+                                        x-ref="ppmpSearchInput"
                                         x-model="searchQuery"
                                         placeholder="Search items by name, code, or category..."
-                                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        class="w-full rounded-md border-sky-300 bg-white shadow-sm focus:border-sky-500 focus:ring-sky-500 dark:border-sky-600/60 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-sky-400 dark:focus:ring-sky-400"
                                     />
                                 </div>
 
@@ -429,7 +423,7 @@
                 </div>
 
                 <!-- Sticky Summary Sidebar -->
-                <div class="w-96 sticky top-4 self-start max-h-[calc(100vh-1rem)] overflow-y-auto scrollbar-hide space-y-6">
+                <div class="w-96 sticky top-[calc(var(--app-sticky-header-offset)+0.75rem)] self-start max-h-[calc(100vh-var(--app-sticky-header-offset)-0.75rem-6rem)] overflow-y-auto overscroll-y-contain scrollbar-hide space-y-6">
                     <!-- PR Details Form -->
                     <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                         <div class="p-4">
@@ -490,16 +484,40 @@
                     <!-- Selected Items Summary -->
                     <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                         <div class="p-4">
-                            <div class="flex items-center justify-between mb-4">
+                            <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
                                 <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200">Selected Items</h3>
-                                <button
-                                    type="button"
-                                    x-show="ungroupedCount >= 2"
-                                    @click="openLotModal"
-                                    class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-indigo-600 text-white rounded hover:bg-indigo-700">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-                                    Create Lot
-                                </button>
+                                <div class="flex flex-wrap items-center justify-end gap-1.5">
+                                    <button
+                                        type="button"
+                                        @click="focusPpmpSearch"
+                                        class="inline-flex items-center gap-1 rounded-md border border-sky-400/70 bg-sky-50 px-2 py-1 text-xs font-medium text-sky-900 shadow-sm hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:border-sky-500/45 dark:bg-sky-950/50 dark:text-sky-100 dark:hover:bg-sky-900/60 dark:focus-visible:ring-sky-400 dark:focus-visible:ring-offset-gray-800"
+                                        title="{{ __('Jump to PPMP search') }}"
+                                    >
+                                        <svg class="h-3.5 w-3.5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                                        </svg>
+                                        {{ __('Search') }}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        @click="closeAllCategories"
+                                        class="inline-flex items-center gap-1 rounded-md border border-indigo-300 bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-900 shadow-sm hover:bg-indigo-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:border-indigo-500/50 dark:bg-indigo-950/45 dark:text-indigo-100 dark:hover:bg-indigo-900/55 dark:focus-visible:ring-indigo-400 dark:focus-visible:ring-offset-gray-800"
+                                        title="{{ __('Collapse all categories') }}"
+                                    >
+                                        <svg class="h-3.5 w-3.5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+                                        </svg>
+                                        {{ __('Collapse all') }}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        x-show="ungroupedCount >= 2"
+                                        @click="openLotModal"
+                                        class="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-700">
+                                        <svg class="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                                        {{ __('Create Lot') }}
+                                    </button>
+                                </div>
                             </div>
                             
                             <div class="mb-4 text-sm">
@@ -877,6 +895,21 @@
                 closeAllCategories() {
                     this.expandedCategories = [];
                     localStorage.setItem('prExpandedCategories', JSON.stringify([]));
+                },
+
+                focusPpmpSearch() {
+                    const anchor = document.getElementById('pr-ppmp-search-anchor');
+                    const input = this.$refs.ppmpSearchInput;
+                    const scrollTarget = anchor ?? input;
+                    if (scrollTarget) {
+                        scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                    if (! input) {
+                        return;
+                    }
+                    window.setTimeout(() => {
+                        input.focus({ preventScroll: true });
+                    }, 400);
                 },
 
                 addItem(itemId, itemData) {

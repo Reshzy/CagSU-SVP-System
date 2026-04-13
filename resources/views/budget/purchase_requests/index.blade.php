@@ -10,12 +10,6 @@
     <div class="py-8">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
 
-            @if(session('status'))
-                <div class="p-4 rounded-lg bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 text-green-800 dark:text-green-300 text-sm font-medium">
-                    {{ session('status') }}
-                </div>
-            @endif
-
             {{-- Tab Navigation --}}
             <div x-data="{ activeTab: '{{ session('active_tab', 'pending') }}' }">
                 <div class="border-b border-gray-200 dark:border-gray-700">

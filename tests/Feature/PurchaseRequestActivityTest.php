@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Department;
 use App\Models\Position;
+use App\Models\Ppmp;
+use App\Models\PpmpItem;
 use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestActivity;
 use App\Models\User;
@@ -24,14 +26,14 @@ class PurchaseRequestActivityTest extends TestCase
         parent::setUp();
 
         // Create necessary positions
-        Position::factory()->create(['name' => 'Supply Officer']);
-        Position::factory()->create(['name' => 'Dean']);
+        Position::query()->create(['name' => 'Supply Officer']);
+        $deanPosition = Position::query()->create(['name' => 'Dean']);
 
         // Create department and user
         $this->department = Department::factory()->create();
         $this->user = User::factory()->create([
             'department_id' => $this->department->id,
-            'position_id' => Position::where('name', 'Dean')->first()->id,
+            'position_id' => $deanPosition->id,
         ]);
     }
 
@@ -147,6 +149,12 @@ class PurchaseRequestActivityTest extends TestCase
 
     public function test_replacement_pr_creation_route_exists(): void
     {
+        $ppmp = Ppmp::factory()->validated()->create([
+            'department_id' => $this->department->id,
+            'fiscal_year' => (int) date('Y'),
+        ]);
+        PpmpItem::factory()->create(['ppmp_id' => $ppmp->id]);
+
         $pr = PurchaseRequest::factory()->create([
             'requester_id' => $this->user->id,
             'department_id' => $this->department->id,
