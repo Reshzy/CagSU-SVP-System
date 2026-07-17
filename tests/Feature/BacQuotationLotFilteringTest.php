@@ -97,6 +97,18 @@ class BacQuotationLotFilteringTest extends TestCase
         $response->assertSee('Included in lot bid');
     }
 
+    public function test_manage_quotations_page_defaults_quotation_date_to_today(): void
+    {
+        [$pr] = $this->makePrWithLotAndStandalone();
+
+        $response = $this->actingAs($this->bacUser)
+            ->get(route('bac.quotations.manage', $pr));
+
+        $response->assertOk();
+        $response->assertSee('name="quotation_date"', false);
+        $response->assertSee('value="'.now()->format('Y-m-d').'"', false);
+    }
+
     public function test_store_quotation_saves_lot_header_price_and_skips_children(): void
     {
         [$pr, $lot, $child, $standalone] = $this->makePrWithLotAndStandalone();

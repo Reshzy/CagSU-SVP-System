@@ -393,7 +393,7 @@
                                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                                 <div>
                                                     <label class="block text-sm font-medium text-gray-700 mb-1">Quotation Date <span class="text-red-500">*</span></label>
-                                                    <input type="date" name="quotation_date" class="quotation-date w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" data-group="{{ $group->id }}" required>
+                                                    <input type="date" name="quotation_date" value="{{ now()->format('Y-m-d') }}" class="quotation-date w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" data-group="{{ $group->id }}" required>
                                                     @if($hasGroupRfq)
                                                         <p class="mt-1 text-xs text-gray-500">Deadline: {{ $groupRfq->generated_at->addDays(4)->format('M d, Y') }}</p>
                                                     @endif
@@ -689,7 +689,7 @@
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Quotation Date <span class="text-red-500">*</span></label>
                                     <input type="date" name="quotation_date" id="quotation_date" 
-                                           value="{{ old('quotation_date') }}"
+                                           value="{{ old('quotation_date', now()->format('Y-m-d')) }}"
                                            class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
                                     @if($rfq)
                                         <p class="mt-1 text-xs text-gray-500">Deadline: {{ $rfq->created_at->addDays(4)->format('M d, Y') }}</p>
@@ -1085,30 +1085,36 @@
             });
         });
 
-        // Calculate validity date when quotation date changes
+        // Calculate validity date when quotation date changes (or is prefilled)
+        function updateValidityDateDisplay(dateInput) {
+            if (!dateInput.value) {
+                return;
+            }
+
+            const quotationDate = new Date(dateInput.value);
+            const validityDate = new Date(quotationDate);
+            validityDate.setDate(validityDate.getDate() + 10);
+
+            const formatted = validityDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+            const groupId = dateInput.getAttribute('data-group');
+
+            let validityDisplay;
+            if (groupId) {
+                validityDisplay = document.querySelector(`.validity-date-display[data-group="${groupId}"]`);
+            } else {
+                validityDisplay = document.getElementById('validity_date_display');
+            }
+
+            if (validityDisplay) {
+                validityDisplay.value = formatted;
+            }
+        }
+
         document.querySelectorAll('.quotation-date, #quotation_date').forEach(dateInput => {
             dateInput.addEventListener('change', function() {
-                if (this.value) {
-                    const quotationDate = new Date(this.value);
-                    const validityDate = new Date(quotationDate);
-                    validityDate.setDate(validityDate.getDate() + 10);
-                    
-                    const formatted = validityDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-                    const groupId = this.getAttribute('data-group');
-                    
-                    // Find the corresponding validity display
-                    let validityDisplay;
-                    if (groupId) {
-                        validityDisplay = document.querySelector(`.validity-date-display[data-group="${groupId}"]`);
-                    } else {
-                        validityDisplay = document.getElementById('validity_date_display');
-                    }
-                    
-                    if (validityDisplay) {
-                        validityDisplay.value = formatted;
-                    }
-                }
+                updateValidityDateDisplay(this);
             });
+            updateValidityDateDisplay(dateInput);
         });
 
         // Calculate totals and check ABC compliance for each item
@@ -1292,9 +1298,9 @@
                             });
                             calculateGrandTotal(groupId);
 
-                            const validityDisplay = document.querySelector(`.validity-date-display[data-group="${groupId}"]`);
-                            if (validityDisplay) {
-                                validityDisplay.value = '';
+                            const dateInput = form.querySelector(`.quotation-date[data-group="${groupId}"]`);
+                            if (dateInput) {
+                                updateValidityDateDisplay(dateInput);
                             }
 
                             const locationInput = document.querySelector(`.supplier-location[data-group="${groupId}"]`);

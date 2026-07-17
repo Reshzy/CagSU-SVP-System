@@ -277,6 +277,29 @@ class BacRfqService
     }
 
     /**
+     * Resolve Item No. cell text for RFQ display rows (blank for lot children).
+     *
+     * @param  array<int, array{is_bid_line?: bool}>  $displayItems
+     * @return list<string>
+     */
+    public static function resolveItemNumbers(array $displayItems): array
+    {
+        $numbers = [];
+        $bidLineNumber = 0;
+
+        foreach ($displayItems as $item) {
+            if ($item['is_bid_line'] ?? true) {
+                $bidLineNumber++;
+                $numbers[] = (string) $bidLineNumber;
+            } else {
+                $numbers[] = '';
+            }
+        }
+
+        return $numbers;
+    }
+
+    /**
      * Load signatories from parameter or database, with fallback to defaults
      */
     private function loadSignatories(?array $signatories = null): array
@@ -628,14 +651,16 @@ class BacRfqService
         $paragraphCenter = ['alignment' => Jc::CENTER, 'spaceAfter' => 0, 'spaceBefore' => 0];
         $paragraphLeft = ['spaceAfter' => 0, 'spaceBefore' => 0];
 
+        $itemNumbers = self::resolveItemNumbers(array_slice($this->data['items'], 0, $itemCount));
+
         for ($i = 0; $i < $totalRows; $i++) {
             $table->addRow();
 
             if ($i < $itemCount) {
                 $item = $this->data['items'][$i];
-                $itemNumber = $i + 1;
+                $itemNumberText = $itemNumbers[$i] ?? '';
 
-                $table->addCell(Converter::cmToTwip(0.6), $cellStyle)->addText((string) $itemNumber, [], $paragraphCenter);
+                $table->addCell(Converter::cmToTwip(0.6), $cellStyle)->addText($itemNumberText, [], $paragraphCenter);
                 $table->addCell(Converter::cmToTwip(1.5), $cellStyle)->addText($item['unit_of_measure'] ?? '', ['allCaps' => true], $paragraphCenter);
                 $table->addCell(null, $cellStyle)->addText($item['item_name'] ?? '', ['allCaps' => true], $paragraphLeft);
                 $table->addCell(Converter::cmToTwip(2.2), $cellStyle)->addText((string) ($item['quantity_requested'] ?? ''), [], $paragraphCenter);
