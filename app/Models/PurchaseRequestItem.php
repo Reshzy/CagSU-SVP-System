@@ -164,6 +164,14 @@ class PurchaseRequestItem extends Model
             'failure_reason' => $reason,
         ]);
 
+        if ($this->isLotHeader()) {
+            $this->lotChildren()->update([
+                'procurement_status' => 'failed',
+                'failed_at' => now(),
+                'failure_reason' => $reason,
+            ]);
+        }
+
         return true;
     }
 
@@ -285,11 +293,11 @@ class PurchaseRequestItem extends Model
     }
 
     /**
-     * Scope to get items eligible for quotation (excludes lot header rows;
-     * lot children are quoted individually)
+     * Scope to get items eligible for quotation (lot headers + standalones;
+     * lot children are display-only and bid as part of their parent lot)
      */
     public function scopeQuotable($query)
     {
-        return $query->where('is_lot', false);
+        return $query->whereNull('parent_lot_id');
     }
 }

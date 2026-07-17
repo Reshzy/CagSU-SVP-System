@@ -5,8 +5,11 @@ namespace App\Services;
 use App\Models\Document;
 use App\Models\PrItemGroup;
 use App\Models\PurchaseRequest;
+use App\Models\PurchaseRequestItem;
 use App\Models\RfqGeneration;
+use App\Models\RfqSignatory;
 use DateTime;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -56,7 +59,7 @@ class BacRfqService
      */
     public function generateRfqForGroup(PrItemGroup $itemGroup, ?array $signatoryData = null): ?RfqGeneration
     {
-        $itemGroup->load(['purchaseRequest.resolutionSignatories', 'items']);
+        $itemGroup->load(['purchaseRequest.resolutionSignatories', 'items.lotChildren']);
         $this->purchaseRequest = $itemGroup->purchaseRequest;
 
         // Load data specific to this group
@@ -105,7 +108,7 @@ class BacRfqService
             'purpose' => $this->purchaseRequest->purpose ?? 'N/A',
             'canvasser' => $signatories['canvassing_officer']['name'] ?? 'N/A',
             'deadline_date' => $this->calculateDeadlineDate($resolutionDate),
-            'items' => $itemGroup->items->filter(fn ($i) => ! $i->isLotHeader())->values()->toArray(),
+            'items' => $this->buildRfqDisplayItems($itemGroup->items),
             'signatories' => $signatories,
         ];
     }
@@ -191,7 +194,7 @@ class BacRfqService
         // Save signatories if provided
         if ($signatoryData) {
             foreach ($signatoryData as $position => $data) {
-                \App\Models\RfqSignatory::create([
+                RfqSignatory::create([
                     'rfq_generation_id' => $rfqGeneration->id,
                     'position' => $position,
                     'user_id' => $data['user_id'] ?? null,
@@ -210,7 +213,7 @@ class BacRfqService
      */
     private function loadData(?array $signatoryData = null): void
     {
-        $this->purchaseRequest->load(['items', 'resolutionSignatories', 'rfqSignatories']);
+        $this->purchaseRequest->load(['items.lotChildren', 'resolutionSignatories', 'rfqSignatories']);
 
         // Get resolution date for deadline calculation
         $resolutionDoc = $this->purchaseRequest->documents()
@@ -232,9 +235,45 @@ class BacRfqService
             'purpose' => $this->purchaseRequest->purpose ?? 'N/A',
             'canvasser' => $signatories['canvassing_officer']['name'] ?? 'N/A',
             'deadline_date' => $this->calculateDeadlineDate($resolutionDate),
-            'items' => $this->purchaseRequest->items->filter(fn ($i) => ! $i->isLotHeader())->values()->toArray(),
+            'items' => $this->buildRfqDisplayItems($this->purchaseRequest->items),
             'signatories' => $signatories,
         ];
+    }
+
+    /**
+     * Build RFQ table rows: lot headers (bid lines) with indented children for display,
+     * plus standalone items.
+     *
+     * @param  Collection<int, PurchaseRequestItem>  $items
+     * @return array<int, array{unit_of_measure: mixed, item_name: mixed, quantity_requested: mixed, is_bid_line: bool}>
+     */
+    private function buildRfqDisplayItems(Collection $items): array
+    {
+        $rows = [];
+
+        foreach ($items->filter(fn (PurchaseRequestItem $item) => ! $item->isLotChild())->values() as $item) {
+            $rows[] = [
+                'unit_of_measure' => $item->unit_of_measure,
+                'item_name' => $item->isLotHeader()
+                    ? ($item->lot_name ?? $item->item_name)
+                    : $item->item_name,
+                'quantity_requested' => $item->quantity_requested,
+                'is_bid_line' => true,
+            ];
+
+            if ($item->isLotHeader()) {
+                foreach ($item->lotChildren as $child) {
+                    $rows[] = [
+                        'unit_of_measure' => $child->unit_of_measure,
+                        'item_name' => '  - '.$child->item_name,
+                        'quantity_requested' => $child->quantity_requested,
+                        'is_bid_line' => false,
+                    ];
+                }
+            }
+        }
+
+        return $rows;
     }
 
     /**

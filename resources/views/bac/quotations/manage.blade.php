@@ -309,12 +309,14 @@
                                                         <th class="px-4 py-2 text-center text-xs font-semibold text-gray-700 uppercase">Status</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody class="bg-white divide-y divide-gray-200">
-                                                    @foreach($group->items as $item)
+                                                    @foreach($group->quotableItems as $item)
+                                                    <tbody x-data="{ open: false }" class="bg-white divide-y divide-gray-100 border-b border-gray-200">
                                                     <tr class="{{ $item->procurement_status === 'failed' ? 'bg-red-50' : '' }}">
                                                         <td class="px-4 py-2 text-sm">{{ $item->quantity_requested }}</td>
                                                         <td class="px-4 py-2 text-sm">{{ $item->unit_of_measure }}</td>
-                                                        <td class="px-4 py-2 text-sm">{{ $item->item_name }}</td>
+                                                        <td class="px-4 py-2 text-sm">
+                                                            @include('bac.quotations.partials.lot-description', ['item' => $item])
+                                                        </td>
                                                         <td class="px-4 py-2 text-sm text-right font-mono">₱{{ number_format((float)$item->estimated_unit_cost, 2) }}</td>
                                                         <td class="px-4 py-2 text-sm text-right font-mono font-semibold">₱{{ number_format((float)$item->estimated_total_cost, 2) }}</td>
                                                         <td class="px-4 py-2 text-sm text-center">
@@ -334,12 +336,15 @@
                                                             @endif
                                                         </td>
                                                     </tr>
+                                                    @include('bac.quotations.partials.lot-children-rows', ['item' => $item, 'mode' => 'summary-status'])
+                                                    </tbody>
                                                     @endforeach
+                                                    <tbody>
                                                     <tr class="bg-gray-50 font-semibold">
                                                         <td colspan="5" class="px-4 py-2 text-sm text-right">Group Total ABC:</td>
-                                                        <td class="px-4 py-2 text-sm text-right font-mono text-lg">₱{{ number_format($group->calculateTotalCost(), 2) }}</td>
+                                                        <td class="px-4 py-2 text-sm text-right font-mono text-lg">₱{{ number_format((float) $group->quotableItems->sum('estimated_total_cost'), 2) }}</td>
                                                     </tr>
-                                                </tbody>
+                                                    </tbody>
                                             </table>
                                         </div>
                                     </div>
@@ -424,12 +429,14 @@
                                                                 <th class="px-4 py-2 text-center text-xs font-semibold text-gray-700 uppercase">Status</th>
                                                             </tr>
                                                         </thead>
-                                                        <tbody class="bg-white divide-y divide-gray-200">
-                                                            @foreach($group->items as $index => $item)
+                                                            @foreach($group->quotableItems as $index => $item)
+                                                            <tbody x-data="{ open: false }" class="bg-white divide-y divide-gray-100 border-b border-gray-200">
                                                             <tr class="quotation-item-row">
                                                                 <td class="px-4 py-2 text-sm">{{ $item->quantity_requested }}</td>
                                                                 <td class="px-4 py-2 text-sm">{{ $item->unit_of_measure }}</td>
-                                                                <td class="px-4 py-2 text-sm">{{ $item->item_name }}</td>
+                                                                <td class="px-4 py-2 text-sm">
+                                                                    @include('bac.quotations.partials.lot-description', ['item' => $item])
+                                                                </td>
                                                                 <td class="px-4 py-2 text-sm text-right font-mono">₱{{ number_format((float)$item->estimated_unit_cost, 2) }}</td>
                                                                 <td class="px-4 py-2">
                                                                     <input type="hidden" name="items[{{ $index }}][pr_item_id]" value="{{ $item->id }}">
@@ -451,7 +458,10 @@
                                                                     <span class="abc-status" id="status_{{ $group->id }}_{{ $index }}"></span>
                                                                 </td>
                                                             </tr>
+                                                            @include('bac.quotations.partials.lot-children-rows', ['item' => $item, 'mode' => 'pricing'])
+                                                            </tbody>
                                                             @endforeach
+                                                            <tbody>
                                                             <tr class="bg-gray-50 font-semibold">
                                                                 <td colspan="5" class="px-4 py-3 text-right text-base">Grand Total:</td>
                                                                 <td class="px-4 py-3 text-right text-lg font-mono">
@@ -459,7 +469,7 @@
                                                                 </td>
                                                                 <td></td>
                                                             </tr>
-                                                        </tbody>
+                                                            </tbody>
                                                     </table>
                                                 </div>
                                             </div>
@@ -603,21 +613,26 @@
                                             <th class="px-4 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">ABC (Total)</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="bg-white divide-y divide-gray-200">
-                                        @foreach($purchaseRequest->items as $item)
+                                    @foreach($quotableItems as $item)
+                                        <tbody x-data="{ open: false }" class="bg-white divide-y divide-gray-100 border-b border-gray-200">
                                         <tr>
                                             <td class="px-4 py-2 text-sm">{{ $item->quantity_requested }}</td>
                                             <td class="px-4 py-2 text-sm">{{ $item->unit_of_measure }}</td>
-                                            <td class="px-4 py-2 text-sm">{{ $item->item_name }}</td>
+                                            <td class="px-4 py-2 text-sm">
+                                                @include('bac.quotations.partials.lot-description', ['item' => $item])
+                                            </td>
                                             <td class="px-4 py-2 text-sm text-right font-mono">₱{{ number_format((float)$item->estimated_unit_cost, 2) }}</td>
                                             <td class="px-4 py-2 text-sm text-right font-mono font-semibold">₱{{ number_format((float)$item->estimated_total_cost, 2) }}</td>
                                         </tr>
+                                        @include('bac.quotations.partials.lot-children-rows', ['item' => $item, 'mode' => 'summary'])
+                                        </tbody>
                                         @endforeach
+                                        <tbody>
                                         <tr class="bg-gray-50 font-semibold">
                                             <td colspan="4" class="px-4 py-2 text-sm text-right">Total ABC:</td>
                                             <td class="px-4 py-2 text-sm text-right font-mono text-lg">₱{{ number_format((float)$purchaseRequest->estimated_total, 2) }}</td>
                                         </tr>
-                                    </tbody>
+                                        </tbody>
                                 </table>
                             </div>
                         </div>
@@ -719,12 +734,14 @@
                                                 <th class="px-4 py-2 text-center text-xs font-semibold text-gray-700 uppercase">Status</th>
                                             </tr>
                                         </thead>
-                                        <tbody class="bg-white divide-y divide-gray-200" id="quotationItemsTable">
-                                            @foreach($purchaseRequest->items as $index => $item)
+                                            @foreach($quotableItems as $index => $item)
+                                            <tbody x-data="{ open: false }" class="bg-white divide-y divide-gray-100 border-b border-gray-200" @if($index === 0) id="quotationItemsTable" @endif>
                                             <tr class="quotation-item-row">
                                                 <td class="px-4 py-2 text-sm">{{ $item->quantity_requested }}</td>
                                                 <td class="px-4 py-2 text-sm">{{ $item->unit_of_measure }}</td>
-                                                <td class="px-4 py-2 text-sm">{{ $item->item_name }}</td>
+                                                <td class="px-4 py-2 text-sm">
+                                                    @include('bac.quotations.partials.lot-description', ['item' => $item])
+                                                </td>
                                                 <td class="px-4 py-2 text-sm text-right font-mono">₱{{ number_format((float)$item->estimated_unit_cost, 2) }}</td>
                                                 <td class="px-4 py-2">
                                                     <input type="hidden" name="items[{{ $index }}][pr_item_id]" value="{{ $item->id }}">
@@ -746,7 +763,10 @@
                                                     <span class="abc-status" id="status_{{ $index }}"></span>
                                                 </td>
                                             </tr>
+                                            @include('bac.quotations.partials.lot-children-rows', ['item' => $item, 'mode' => 'pricing'])
+                                            </tbody>
                                             @endforeach
+                                            <tbody>
                                             <tr class="bg-gray-50 font-semibold">
                                                 <td colspan="5" class="px-4 py-3 text-right text-base">Grand Total:</td>
                                                 <td class="px-4 py-3 text-right text-lg font-mono">
@@ -754,7 +774,7 @@
                                                 </td>
                                                 <td></td>
                                             </tr>
-                                        </tbody>
+                                            </tbody>
                                     </table>
                                 </div>
                             </div>
@@ -931,10 +951,12 @@
                                         @endforeach
                                     </tr>
                                 </thead>
-                                <tbody class="bg-white divide-y divide-gray-200">
-                                    @foreach($purchaseRequest->items as $prItem)
+                                    @foreach($quotableItems as $prItem)
+                                    <tbody x-data="{ open: false }" class="bg-white divide-y divide-gray-100 border-b border-gray-200">
                                     <tr>
-                                        <td class="px-3 py-2 border-r">{{ $prItem->item_name }}</td>
+                                        <td class="px-3 py-2 border-r">
+                                            @include('bac.quotations.partials.lot-description', ['item' => $prItem])
+                                        </td>
                                         <td class="px-3 py-2 text-center border-r">{{ $prItem->unit_of_measure }}</td>
                                         <td class="px-3 py-2 text-center border-r">{{ $prItem->quantity_requested }}</td>
                                         <td class="px-3 py-2 text-right font-mono border-r">₱{{ number_format((float)$prItem->estimated_unit_cost, 2) }}</td>
@@ -945,7 +967,6 @@
                                                 $quotItem = $q->quotationItems->firstWhere('purchase_request_item_id', $prItem->id);
                                                 $itemQuotations[] = $quotItem;
                                             }
-                                            // Only consider non-null prices for lowest price calculation
                                             $lowestPrice = collect($itemQuotations)->filter(function($item) {
                                                 return $item && $item->unit_price !== null;
                                             })->min('unit_price');
@@ -966,8 +987,10 @@
                                         </td>
                                         @endforeach
                                     </tr>
+                                    @include('bac.quotations.partials.lot-children-rows', ['item' => $prItem, 'mode' => 'comparison', 'supplierCount' => $quotations->count()])
+                                    </tbody>
                                     @endforeach
-                                    
+                                    <tbody>
                                     <tr class="bg-gray-50 font-semibold text-base">
                                         <td colspan="3" class="px-3 py-3 text-right border-r">TOTAL:</td>
                                         <td class="px-3 py-3 text-right font-mono border-r">₱{{ number_format((float)$purchaseRequest->estimated_total, 2) }}</td>
@@ -979,7 +1002,7 @@
                                         </td>
                                         @endforeach
                                     </tr>
-                                </tbody>
+                                    </tbody>
                             </table>
                         </div>
 

@@ -163,10 +163,12 @@
                     @endforeach
                 </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-                @foreach($group->items as $prItem)
+                @foreach($group->quotableItems as $prItem)
+                <tbody x-data="{ open: false }" class="bg-white divide-y divide-gray-100 border-b border-gray-200">
                 <tr>
-                    <td class="px-3 py-2 border-r">{{ $prItem->item_name }}</td>
+                    <td class="px-3 py-2 border-r">
+                        @include('bac.quotations.partials.lot-description', ['item' => $prItem])
+                    </td>
                     <td class="px-3 py-2 text-center border-r">{{ $prItem->unit_of_measure }}</td>
                     <td class="px-3 py-2 text-center border-r">{{ $prItem->quantity_requested }}</td>
                     <td class="px-3 py-2 text-right font-mono border-r">₱{{ number_format((float)$prItem->estimated_unit_cost, 2) }}</td>
@@ -197,11 +199,14 @@
                     </td>
                     @endforeach
                 </tr>
+                @include('bac.quotations.partials.lot-children-rows', ['item' => $prItem, 'mode' => 'comparison', 'supplierCount' => $groupQuotations->count()])
+                </tbody>
                 @endforeach
 
+                <tbody>
                 <tr class="bg-gray-50 font-semibold text-base">
                     <td colspan="3" class="px-3 py-3 text-right border-r">TOTAL:</td>
-                    <td class="px-3 py-3 text-right font-mono border-r">₱{{ number_format($group->calculateTotalCost(), 2) }}</td>
+                    <td class="px-3 py-3 text-right font-mono border-r">₱{{ number_format((float) $group->quotableItems->sum('estimated_total_cost'), 2) }}</td>
                     @foreach($groupQuotations as $quotation)
                     <td class="px-3 py-3 text-right font-mono text-lg border-l
                         @if($quotation->bac_status === 'lowest_bidder') bg-green-100 @endif
@@ -210,7 +215,7 @@
                     </td>
                     @endforeach
                 </tr>
-            </tbody>
+                </tbody>
         </table>
     </div>
 

@@ -31,14 +31,14 @@ class AoqService
     {
         $results = [];
 
-        // Determine which items to process (exclude lot header rows)
+        // Determine which items to process (lot headers + standalones; exclude lot children)
         if ($itemGroup) {
-            $items = $itemGroup->items->filter(fn ($i) => ! $i->isLotHeader())->values();
+            $items = $itemGroup->items->filter(fn ($i) => ! $i->isLotChild())->values();
             $quotations = $itemGroup->quotations()
                 ->with(['supplier', 'quotationItems.purchaseRequestItem'])
                 ->get();
         } else {
-            $items = $purchaseRequest->items->filter(fn ($i) => ! $i->isLotHeader())->values();
+            $items = $purchaseRequest->items->filter(fn ($i) => ! $i->isLotChild())->values();
             $quotations = $purchaseRequest->quotations()
                 ->with(['supplier', 'quotationItems.purchaseRequestItem'])
                 ->get();
@@ -497,9 +497,9 @@ class AoqService
             $errors[] = 'No quotations have been submitted yet.';
         }
 
-        // Must have all items with quotes (excluding failed items and lot headers)
+        // Must have all quotable items with quotes (excluding failed items and lot children)
         foreach ($purchaseRequest->items as $item) {
-            if ($item->isLotHeader() || $item->procurement_status === 'failed') {
+            if ($item->isLotChild() || $item->procurement_status === 'failed') {
                 continue;
             }
 
@@ -516,7 +516,7 @@ class AoqService
         // Check for unresolved ties
         $unresolvedTies = [];
         foreach ($purchaseRequest->items as $item) {
-            if ($item->isLotHeader() || $item->procurement_status === 'failed') {
+            if ($item->isLotChild() || $item->procurement_status === 'failed') {
                 continue;
             }
 
@@ -567,9 +567,9 @@ class AoqService
             $errors[] = 'No quotations have been submitted for this group yet.';
         }
 
-        // Check each item in the group (excluding lot headers)
+        // Check each quotable item in the group (excluding lot children)
         foreach ($itemGroup->items as $item) {
-            if ($item->isLotHeader() || $item->procurement_status === 'failed') {
+            if ($item->isLotChild() || $item->procurement_status === 'failed') {
                 continue;
             }
 
@@ -586,7 +586,7 @@ class AoqService
         // Check for unresolved ties in this group
         $unresolvedTies = [];
         foreach ($itemGroup->items as $item) {
-            if ($item->isLotHeader() || $item->procurement_status === 'failed') {
+            if ($item->isLotChild() || $item->procurement_status === 'failed') {
                 continue;
             }
 
@@ -1138,7 +1138,27 @@ class AoqService
             $table->addCell($widths['no'], $cellMiddle)->addText((string) $rowNum, $dataText, $paragraphCenter);
             $table->addCell($widths['qty'], $cellMiddle)->addText((string) $item->quantity_requested, $dataText, $paragraphCenter);
             $table->addCell($widths['unit'], $cellMiddle)->addText($item->unit_of_measure ?? '', $unitDataText, $paragraphCenter);
-            $table->addCell($widths['article'], ['valign' => 'top'])->addText($item->item_name, $articleDataText, $paragraphLeft);
+
+            $articleCell = $table->addCell($widths['article'], ['valign' => 'top']);
+            $articleCell->addText($item->lot_name ?? $item->item_name, $articleDataText, $paragraphLeft);
+            if ($item->isLotHeader() && $item->relationLoaded('lotChildren') && $item->lotChildren->isNotEmpty()) {
+                foreach ($item->lotChildren as $child) {
+                    $articleCell->addText(
+                        '  - '.$child->item_name.' ('.$child->quantity_requested.' '.$child->unit_of_measure.')',
+                        ['size' => 7],
+                        $paragraphLeft
+                    );
+                }
+            } elseif ($item->isLotHeader()) {
+                $item->loadMissing('lotChildren');
+                foreach ($item->lotChildren as $child) {
+                    $articleCell->addText(
+                        '  - '.$child->item_name.' ('.$child->quantity_requested.' '.$child->unit_of_measure.')',
+                        ['size' => 7],
+                        $paragraphLeft
+                    );
+                }
+            }
 
             foreach ($suppliers as $supplierIndex => $supplier) {
                 $quote = collect($data['quotes'])->first(fn ($q) => $q['quotation']->supplier_id === $supplier->id);

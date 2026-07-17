@@ -33,7 +33,11 @@ class PurchaseOrderService
                 }
             });
 
-        $winningItems = $query->get();
+        $winningItems = $query->get()->filter(function (QuotationItem $quotationItem) {
+            $prItem = $quotationItem->purchaseRequestItem;
+
+            return $prItem && ! $prItem->isLotChild();
+        })->values();
 
         // Group by supplier
         $groupedBySupplier = $winningItems->groupBy(function ($item) {

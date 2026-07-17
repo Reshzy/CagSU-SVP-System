@@ -48,8 +48,7 @@ class PurchaseRequestLotTest extends TestCase
 
     // --- Lot model helpers ---
 
-    /** @test */
-    public function purchase_request_item_is_lot_header_returns_true_for_lot_items(): void
+    public function test_purchase_request_item_is_lot_header_returns_true_for_lot_items(): void
     {
         $lot = PurchaseRequestItem::factory()->create(['is_lot' => true, 'lot_name' => 'Painting Works']);
 
@@ -57,8 +56,7 @@ class PurchaseRequestLotTest extends TestCase
         $this->assertFalse($lot->isLotChild());
     }
 
-    /** @test */
-    public function purchase_request_item_is_lot_child_returns_true_when_parent_set(): void
+    public function test_purchase_request_item_is_lot_child_returns_true_when_parent_set(): void
     {
         $lot = PurchaseRequestItem::factory()->create(['is_lot' => true]);
         $child = PurchaseRequestItem::factory()->create(['parent_lot_id' => $lot->id]);
@@ -67,8 +65,7 @@ class PurchaseRequestLotTest extends TestCase
         $this->assertFalse($child->isLotHeader());
     }
 
-    /** @test */
-    public function lot_children_relationship_returns_children(): void
+    public function test_lot_children_relationship_returns_children(): void
     {
         $pr = PurchaseRequest::factory()->create();
         $lot = PurchaseRequestItem::factory()->create(['purchase_request_id' => $pr->id, 'is_lot' => true]);
@@ -82,8 +79,7 @@ class PurchaseRequestLotTest extends TestCase
         $this->assertTrue($lot->lotChildren->contains($child2));
     }
 
-    /** @test */
-    public function parent_lot_relationship_resolves_parent(): void
+    public function test_parent_lot_relationship_resolves_parent(): void
     {
         $lot = PurchaseRequestItem::factory()->create(['is_lot' => true]);
         $child = PurchaseRequestItem::factory()->create(['parent_lot_id' => $lot->id]);
@@ -93,8 +89,7 @@ class PurchaseRequestLotTest extends TestCase
         $this->assertEquals($lot->id, $child->parentLot->id);
     }
 
-    /** @test */
-    public function quotable_scope_excludes_lot_headers(): void
+    public function test_quotable_scope_includes_lot_headers_and_excludes_children(): void
     {
         $pr = PurchaseRequest::factory()->create();
         $lot = PurchaseRequestItem::factory()->create(['purchase_request_id' => $pr->id, 'is_lot' => true]);
@@ -104,15 +99,14 @@ class PurchaseRequestLotTest extends TestCase
         $quotable = PurchaseRequestItem::quotable()->whereIn('id', [$lot->id, $standalone->id, $child->id])->get();
 
         $this->assertCount(2, $quotable);
-        $this->assertFalse($quotable->contains($lot));
+        $this->assertTrue($quotable->contains($lot));
         $this->assertTrue($quotable->contains($standalone));
-        $this->assertTrue($quotable->contains($child));
+        $this->assertFalse($quotable->contains($child));
     }
 
     // --- Supply Officer lot CRUD ---
 
-    /** @test */
-    public function supply_officer_can_create_lot_from_standalone_items(): void
+    public function test_supply_officer_can_create_lot_from_standalone_items(): void
     {
         $user = $this->makeSupplyUser();
         $pr = $this->makePrWithItems('submitted');
@@ -138,8 +132,7 @@ class PurchaseRequestLotTest extends TestCase
         }
     }
 
-    /** @test */
-    public function supply_officer_cannot_create_lot_with_fewer_than_two_items(): void
+    public function test_supply_officer_cannot_create_lot_with_fewer_than_two_items(): void
     {
         $user = $this->makeSupplyUser();
         $pr = $this->makePrWithItems('submitted');
@@ -153,8 +146,7 @@ class PurchaseRequestLotTest extends TestCase
         $response->assertStatus(422);
     }
 
-    /** @test */
-    public function supply_officer_can_update_lot_name_and_members(): void
+    public function test_supply_officer_can_update_lot_name_and_members(): void
     {
         $user = $this->makeSupplyUser();
         $pr = $this->makePrWithItems('supply_office_review');
@@ -186,8 +178,7 @@ class PurchaseRequestLotTest extends TestCase
         $this->assertEquals('Updated Lot', $lot->lot_name);
     }
 
-    /** @test */
-    public function supply_officer_can_destroy_lot_and_ungroup_items(): void
+    public function test_supply_officer_can_destroy_lot_and_ungroup_items(): void
     {
         $user = $this->makeSupplyUser();
         $pr = $this->makePrWithItems('submitted');
@@ -217,8 +208,7 @@ class PurchaseRequestLotTest extends TestCase
         }
     }
 
-    /** @test */
-    public function lot_management_is_forbidden_when_pr_is_not_in_review_status(): void
+    public function test_lot_management_is_forbidden_when_pr_is_not_in_review_status(): void
     {
         $user = $this->makeSupplyUser();
         $pr = $this->makePrWithItems('budget_office_review');
@@ -234,8 +224,7 @@ class PurchaseRequestLotTest extends TestCase
 
     // --- PR Excel Export ---
 
-    /** @test */
-    public function supply_officer_can_export_purchase_request_as_excel(): void
+    public function test_supply_officer_can_export_purchase_request_as_excel(): void
     {
         $templatePath = storage_path('app/templates/PurchaseRequestTemplate.xlsx');
 
@@ -256,8 +245,7 @@ class PurchaseRequestLotTest extends TestCase
 
     // --- Lot cost calculation ---
 
-    /** @test */
-    public function lot_total_cost_equals_sum_of_child_items(): void
+    public function test_lot_total_cost_equals_sum_of_child_items(): void
     {
         $pr = PurchaseRequest::factory()->create();
 

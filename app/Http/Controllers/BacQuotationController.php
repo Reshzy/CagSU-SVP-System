@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AoqGeneration;
+use App\Models\AoqSignatory;
 use App\Models\BacSignatory;
 use App\Models\PrItemGroup;
 use App\Models\PurchaseRequest;
@@ -11,11 +13,14 @@ use App\Models\QuotationItem;
 use App\Models\ResolutionSignatory;
 use App\Models\RfqSignatory;
 use App\Models\Supplier;
+use App\Models\User;
 use App\Services\AoqService;
 use App\Services\BacResolutionService;
 use App\Services\BacRfqService;
 use App\Services\PurchaseRequestActivityLogger;
+use App\Services\SignatoryLoaderService;
 use App\Services\SupplierWithdrawalService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -62,13 +67,24 @@ class BacQuotationController extends Controller
         abort_if(empty($purchaseRequest->procurement_method), 500, 'Procurement method not set. This should not happen.');
 
         $purchaseRequest->load([
-            'items',
+            'items.lotChildren',
             'documents',
             'resolutionSignatories',
             'rfqSignatories',
             'itemGroups.rfqGeneration',
-            'itemGroups.items',
+            'itemGroups.items.lotChildren',
         ]);
+
+        // Bid grain: lot headers + standalones (lot children are display-only)
+        $quotableItems = $purchaseRequest->items
+            ->filter(fn (PurchaseRequestItem $item) => ! $item->isLotChild())
+            ->values();
+
+        foreach ($purchaseRequest->itemGroups as $group) {
+            $group->quotableItems = $group->items
+                ->filter(fn (PurchaseRequestItem $item) => ! $item->isLotChild())
+                ->values();
+        }
 
         // Get the BAC resolution document if it exists
         $resolution = $purchaseRequest->documents()
@@ -93,7 +109,7 @@ class BacQuotationController extends Controller
         // Get BAC signatories for regeneration form
         $bacSignatories = BacSignatory::with('user')->active()->get()->groupBy('position');
 
-        return view('bac.quotations.manage', compact('purchaseRequest', 'suppliers', 'quotations', 'quotationsByGroup', 'resolution', 'rfq', 'bacSignatories', 'canEdit', 'isReadOnly'));
+        return view('bac.quotations.manage', compact('purchaseRequest', 'quotableItems', 'suppliers', 'quotations', 'quotationsByGroup', 'resolution', 'rfq', 'bacSignatories', 'canEdit', 'isReadOnly'));
     }
 
     public function groupQuotationsPartial(PurchaseRequest $purchaseRequest, PrItemGroup $group): View
@@ -104,7 +120,10 @@ class BacQuotationController extends Controller
             abort(404);
         }
 
-        $group->load('items');
+        $group->load('items.lotChildren');
+        $group->quotableItems = $group->items
+            ->filter(fn (PurchaseRequestItem $item) => ! $item->isLotChild())
+            ->values();
         $groupQuotations = Quotation::where('purchase_request_id', $purchaseRequest->id)
             ->where('pr_item_group_id', $group->id)
             ->with(['supplier', 'quotationItems.purchaseRequestItem'])
@@ -141,9 +160,14 @@ class BacQuotationController extends Controller
             'items.*.unit_price' => ['nullable', 'numeric', 'min:0'], // Now optional - supplier may not quote all items
         ]);
 
-        // Validate that at least one item has a unit price (supplier must quote at least one item)
+        // Validate that at least one quotable item has a unit price (supplier must quote at least one item)
         $hasAtLeastOnePrice = false;
         foreach ($validated['items'] as $item) {
+            $prItem = $purchaseRequest->items->firstWhere('id', $item['pr_item_id'] ?? null);
+            if ($prItem && $prItem->isLotChild()) {
+                continue;
+            }
+
             if (isset($item['unit_price']) && $item['unit_price'] !== null && $item['unit_price'] !== '') {
                 $hasAtLeastOnePrice = true;
                 break;
@@ -169,7 +193,7 @@ class BacQuotationController extends Controller
         }
 
         // Calculate validity date (quotation_date + 10 days)
-        $quotationDate = \Carbon\Carbon::parse($validated['quotation_date']);
+        $quotationDate = Carbon::parse($validated['quotation_date']);
         $validityDate = $quotationDate->copy()->addDays(10);
 
         // Determine item group if items are grouped (for duplicate check)
@@ -224,7 +248,7 @@ class BacQuotationController extends Controller
             foreach ($validated['items'] as $itemData) {
                 $prItem = $purchaseRequest->items->firstWhere('id', $itemData['pr_item_id']);
 
-                if (! $prItem) {
+                if (! $prItem || $prItem->isLotChild()) {
                     continue;
                 }
 
@@ -294,7 +318,7 @@ class BacQuotationController extends Controller
 
             // Create quotation items
             foreach ($itemsData as $itemData) {
-                \App\Models\QuotationItem::create([
+                QuotationItem::create([
                     'quotation_id' => $quotation->id,
                     'purchase_request_item_id' => $itemData['pr_item_id'],
                     'unit_price' => $itemData['unit_price'],
@@ -690,7 +714,7 @@ class BacQuotationController extends Controller
         foreach ($signatories as $position => $data) {
             if ($data['input_mode'] === 'select' && ! empty($data['user_id'])) {
                 // Registered user from dropdown
-                $user = \App\Models\User::find($data['user_id']);
+                $user = User::find($data['user_id']);
                 $result[$position] = [
                     'name' => $user->name ?? 'N/A',
                     'prefix' => $data['prefix'] ?? null,
@@ -727,7 +751,7 @@ class BacQuotationController extends Controller
 
         try {
             // Validate BAC signatories are configured
-            $signatoryLoader = new \App\Services\SignatoryLoaderService;
+            $signatoryLoader = new SignatoryLoaderService;
             $missingPositions = $signatoryLoader->getMissingPositions(['bac_chairperson', 'canvassing_officer']);
 
             if (! empty($missingPositions)) {
@@ -921,7 +945,7 @@ class BacQuotationController extends Controller
     /**
      * Generate RFQ for a specific item group
      */
-    public function generateRfqForGroup(\App\Models\PrItemGroup $itemGroup): RedirectResponse
+    public function generateRfqForGroup(PrItemGroup $itemGroup): RedirectResponse
     {
         $purchaseRequest = $itemGroup->purchaseRequest;
         // Allow view/print for any PR that has been through BAC
@@ -930,7 +954,7 @@ class BacQuotationController extends Controller
 
         try {
             // Validate BAC signatories are configured
-            $signatoryLoader = new \App\Services\SignatoryLoaderService;
+            $signatoryLoader = new SignatoryLoaderService;
             $missingPositions = $signatoryLoader->getMissingPositions(['bac_chairperson', 'canvassing_officer']);
 
             if (! empty($missingPositions)) {
@@ -955,7 +979,7 @@ class BacQuotationController extends Controller
     /**
      * Download RFQ document for a specific group
      */
-    public function downloadRfqForGroup(\App\Models\PrItemGroup $itemGroup): \Symfony\Component\HttpFoundation\StreamedResponse
+    public function downloadRfqForGroup(PrItemGroup $itemGroup): StreamedResponse
     {
         $purchaseRequest = $itemGroup->purchaseRequest;
         // Allow view/print for any PR that has been through BAC
@@ -979,7 +1003,7 @@ class BacQuotationController extends Controller
     /**
      * Regenerate RFQ for a specific group
      */
-    public function regenerateRfqForGroup(Request $request, \App\Models\PrItemGroup $itemGroup): RedirectResponse
+    public function regenerateRfqForGroup(Request $request, PrItemGroup $itemGroup): RedirectResponse
     {
         $purchaseRequest = $itemGroup->purchaseRequest;
         // Allow view/print for any PR that has been through BAC
@@ -1180,7 +1204,7 @@ class BacQuotationController extends Controller
     {
         $roles = ['BAC Chair', 'BAC Members', 'BAC Secretariat', 'Executive Officer', 'System Admin'];
 
-        return \App\Models\User::with('roles')
+        return User::with('roles')
             ->whereHas('roles', function ($query) use ($roles) {
                 $query->whereIn('name', $roles);
             })
@@ -1306,7 +1330,7 @@ class BacQuotationController extends Controller
         abort_unless($purchaseRequest->hasBeenThroughBac(), 403);
 
         // Check if BAC signatories are configured (allow override during generation)
-        $signatoryLoader = new \App\Services\SignatoryLoaderService;
+        $signatoryLoader = new SignatoryLoaderService;
         $missingPositions = $signatoryLoader->getMissingPositions(['bac_chairman', 'bac_vice_chairman', 'bac_member_1', 'bac_member_2', 'bac_member_3']);
 
         // If signatories are missing and not provided in request, show error
@@ -1398,11 +1422,11 @@ class BacQuotationController extends Controller
     /**
      * Save AOQ signatories to database
      */
-    private function saveAoqSignatories(\App\Models\AoqGeneration $aoqGeneration, array $signatories): void
+    private function saveAoqSignatories(AoqGeneration $aoqGeneration, array $signatories): void
     {
         foreach ($signatories as $position => $data) {
             if ($data['input_mode'] === 'select' && ! empty($data['user_id'])) {
-                \App\Models\AoqSignatory::create([
+                AoqSignatory::create([
                     'aoq_generation_id' => $aoqGeneration->id,
                     'position' => $position,
                     'user_id' => $data['user_id'],
@@ -1411,7 +1435,7 @@ class BacQuotationController extends Controller
                     'suffix' => $data['suffix'] ?? null,
                 ]);
             } elseif ($data['input_mode'] === 'select' && ! empty($data['selected_name'])) {
-                \App\Models\AoqSignatory::create([
+                AoqSignatory::create([
                     'aoq_generation_id' => $aoqGeneration->id,
                     'position' => $position,
                     'user_id' => null,
@@ -1420,7 +1444,7 @@ class BacQuotationController extends Controller
                     'suffix' => $data['suffix'] ?? null,
                 ]);
             } elseif ($data['input_mode'] === 'manual' && ! empty($data['name'])) {
-                \App\Models\AoqSignatory::create([
+                AoqSignatory::create([
                     'aoq_generation_id' => $aoqGeneration->id,
                     'position' => $position,
                     'user_id' => null,
@@ -1451,7 +1475,7 @@ class BacQuotationController extends Controller
     /**
      * Generate AOQ for a specific item group
      */
-    public function generateAoqForGroup(Request $request, \App\Models\PrItemGroup $itemGroup): RedirectResponse
+    public function generateAoqForGroup(Request $request, PrItemGroup $itemGroup): RedirectResponse
     {
         $purchaseRequest = $itemGroup->purchaseRequest;
         // Allow view/print for any PR that has been through BAC
