@@ -31,7 +31,7 @@
     x-init="$nextTick(() => { captureMainNavHeight(); syncScroll(); }); $watch('show', (v) => { if (! v) { $nextTick(() => captureMainNavHeight()); } })"
     @scroll.window="syncScroll()"
     @resize.window.debounce.150ms="onResize()"
-    class="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4"
+    class="pointer-events-none fixed inset-x-0 bottom-6 z-40 flex justify-center px-4"
 >
     <nav
         class="pointer-events-auto relative overflow-hidden rounded-full border border-white/20 bg-white/[0.08] p-1.5 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15),inset_0_1px_0_0_rgba(255,255,255,0.55),inset_0_-1px_0_0_rgba(255,255,255,0.22)] backdrop-blur-2xl backdrop-saturate-150 before:pointer-events-none before:absolute before:inset-x-4 before:top-px before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/80 before:to-transparent before:content-[''] after:pointer-events-none after:absolute after:inset-x-4 after:bottom-px after:h-px after:bg-gradient-to-r after:from-transparent after:via-white/45 after:to-transparent after:content-[''] dark:border-white/10 dark:bg-white/[0.06] dark:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5),inset_0_1px_0_0_rgba(255,255,255,0.12),inset_0_-1px_0_0_rgba(255,255,255,0.08)] dark:before:via-white/25 dark:after:via-white/15"

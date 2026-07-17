@@ -95,10 +95,10 @@ class PpmpBudgetValidationTest extends TestCase
         $response->assertSee('confirm-ppmp-validation', false);
         $response->assertSee('Validate this PPMP?', false);
         $response->assertSee(
-            'fixed inset-0 overflow-y-auto px-4 py-6 sm:px-0 z-50 flex',
+            'fixed inset-0 overflow-y-auto px-4 py-6 sm:px-0 z-50 flex items-center justify-center',
             false
         );
-        $response->assertSee('m-auto w-full', false);
+        $response->assertSee('sm:max-w-md w-full', false);
         $response->assertDontSee('onclick="return confirm(', false);
         $response->assertDontSee('Are you sure you want to validate this PPMP?', false);
     }

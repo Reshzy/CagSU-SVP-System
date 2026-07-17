@@ -49,9 +49,9 @@ $maxWidth = [
     x-show="show"
     @class([
         'fixed inset-0 overflow-y-auto px-4 py-6 sm:px-0 z-50',
-        'flex' => $centered,
+        'flex items-center justify-center' => $centered,
     ])
-    style="display: {{ $show ? 'block' : 'none' }};"
+    style="display: {{ $show ? ($centered ? 'flex' : 'block') : 'none' }};"
 >
     <div
         x-show="show"
@@ -72,7 +72,7 @@ $maxWidth = [
         @class([
             'bg-white rounded-lg overflow-hidden shadow-xl transform transition-all sm:w-full sm:mx-auto',
             $maxWidth,
-            'm-auto w-full' => $centered,
+            'w-full' => $centered,
             'mb-6' => ! $centered,
         ])
         x-transition:enter="ease-out duration-300"
