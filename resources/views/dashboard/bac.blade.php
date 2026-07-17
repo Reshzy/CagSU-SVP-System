@@ -1,4 +1,30 @@
 <!-- BAC Dashboard -->
+@php
+    $pendingEvaluations = \App\Models\PurchaseRequest::query()
+        ->where('status', 'bac_evaluation')
+        ->count();
+
+    $activeQuotations = \App\Models\Quotation::query()
+        ->where('bac_status', 'pending_evaluation')
+        ->whereHas('purchaseRequest', fn ($query) => $query->where('status', 'bac_evaluation'))
+        ->count();
+
+    $upcomingMeetings = \App\Models\BacMeeting::query()
+        ->where('status', 'scheduled')
+        ->where('meeting_datetime', '>=', now())
+        ->count();
+
+    $awardsThisMonth = \App\Models\PurchaseRequest::query()
+        ->where('status', 'bac_approved')
+        ->whereMonth('updated_at', now()->month)
+        ->whereYear('updated_at', now()->year)
+        ->count();
+
+    $resolutionPrepCount = \App\Models\PurchaseRequest::query()
+        ->where('status', 'bac_evaluation')
+        ->whereDoesntHave('documents', fn ($query) => $query->where('document_type', 'bac_resolution'))
+        ->count();
+@endphp
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
     
     <!-- Pending Evaluations -->
@@ -13,7 +39,7 @@
                 <div class="ml-5 w-0 flex-1">
                     <dl>
                         <dt class="text-sm font-medium text-gray-500 truncate">Pending Evaluations</dt>
-                        <dd class="text-lg font-medium text-gray-900">0</dd>
+                        <dd class="text-lg font-medium text-gray-900">{{ $pendingEvaluations }}</dd>
                     </dl>
                 </div>
             </div>
@@ -37,14 +63,14 @@
                 <div class="ml-5 w-0 flex-1">
                     <dl>
                         <dt class="text-sm font-medium text-gray-500 truncate">Active Quotations</dt>
-                        <dd class="text-lg font-medium text-gray-900">0</dd>
+                        <dd class="text-lg font-medium text-gray-900">{{ $activeQuotations }}</dd>
                     </dl>
                 </div>
             </div>
         </div>
         <div class="bg-gray-50 px-6 py-3">
             <div class="text-sm">
-                <a href="#" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">Compare quotes</a>
+                <a href="{{ route('bac.quotations.index') }}" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">Compare quotes</a>
             </div>
         </div>
     </div>
@@ -61,14 +87,14 @@
                 <div class="ml-5 w-0 flex-1">
                     <dl>
                         <dt class="text-sm font-medium text-gray-500 truncate">Upcoming Meetings</dt>
-                        <dd class="text-lg font-medium text-gray-900">0</dd>
+                        <dd class="text-lg font-medium text-gray-900">{{ $upcomingMeetings }}</dd>
                     </dl>
                 </div>
             </div>
         </div>
         <div class="bg-gray-50 px-6 py-3">
             <div class="text-sm">
-                <a href="#" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">Schedule meeting</a>
+                <a href="{{ route('bac.meetings.index') }}" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">Schedule meeting</a>
             </div>
         </div>
     </div>
@@ -85,14 +111,14 @@
                 <div class="ml-5 w-0 flex-1">
                     <dl>
                         <dt class="text-sm font-medium text-gray-500 truncate">Awards This Month</dt>
-                        <dd class="text-lg font-medium text-gray-900">0</dd>
+                        <dd class="text-lg font-medium text-gray-900">{{ $awardsThisMonth }}</dd>
                     </dl>
                 </div>
             </div>
         </div>
         <div class="bg-gray-50 px-6 py-3">
             <div class="text-sm">
-                <a href="#" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">View awards</a>
+                <a href="{{ route('bac.quotations.index') }}" class="font-medium text-cagsu-maroon hover:text-cagsu-orange">View awards</a>
             </div>
         </div>
     </div>
@@ -114,7 +140,7 @@
                 </svg>
                 <h4 class="text-sm font-medium text-gray-900">Technical Review</h4>
                 <p class="text-xs text-gray-500 mt-1">Spec evaluation</p>
-                <div class="mt-2 text-lg font-bold text-cagsu-maroon">0</div>
+                <div class="mt-2 text-lg font-bold text-cagsu-maroon">{{ $pendingEvaluations }}</div>
             </div>
 
             <!-- Quotation Comparison -->
@@ -124,7 +150,7 @@
                 </svg>
                 <h4 class="text-sm font-medium text-gray-900">Quote Analysis</h4>
                 <p class="text-xs text-gray-500 mt-1">Price comparison</p>
-                <div class="mt-2 text-lg font-bold text-cagsu-maroon">0</div>
+                <div class="mt-2 text-lg font-bold text-cagsu-maroon">{{ $activeQuotations }}</div>
             </div>
 
             <!-- Resolution Preparation -->
@@ -134,7 +160,7 @@
                 </svg>
                 <h4 class="text-sm font-medium text-gray-900">Resolution Prep</h4>
                 <p class="text-xs text-gray-500 mt-1">Document creation</p>
-                <div class="mt-2 text-lg font-bold text-cagsu-maroon">0</div>
+                <div class="mt-2 text-lg font-bold text-cagsu-maroon">{{ $resolutionPrepCount }}</div>
             </div>
 
             <!-- Award Decision -->
@@ -144,7 +170,7 @@
                 </svg>
                 <h4 class="text-sm font-medium text-gray-900">Award Decision</h4>
                 <p class="text-xs text-gray-500 mt-1">Final approval</p>
-                <div class="mt-2 text-lg font-bold text-cagsu-maroon">0</div>
+                <div class="mt-2 text-lg font-bold text-cagsu-maroon">{{ $awardsThisMonth }}</div>
             </div>
 
         </div>
