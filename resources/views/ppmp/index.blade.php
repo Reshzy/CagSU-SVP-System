@@ -91,16 +91,50 @@
                     </div>
 
                     @if ($ppmp->items->count() > 0 && $ppmp->status !== 'validated')
-                        <form action="{{ route('ppmp.validate', $ppmp) }}" method="POST" class="mt-4">
-                            @csrf
+                        <div class="mt-4" x-data="">
                             <button
-                                type="submit"
+                                type="button"
                                 class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
-                                onclick="return confirm('Are you sure you want to validate this PPMP? This will mark it as final for budget tracking.')"
+                                x-on:click.prevent="$dispatch('open-modal', 'confirm-ppmp-validation')"
                             >
                                 Validate PPMP
                             </button>
-                        </form>
+                        </div>
+
+                        <x-modal name="confirm-ppmp-validation" maxWidth="md" centered focusable>
+                            <form method="POST" action="{{ route('ppmp.validate', $ppmp) }}" class="p-6">
+                                @csrf
+
+                                <div class="sm:flex sm:items-start">
+                                    <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
+                                        <svg class="h-6 w-6 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </div>
+                                    <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
+                                        <h2 class="text-lg font-medium text-gray-900">
+                                            {{ __('Validate this PPMP?') }}
+                                        </h2>
+                                        <p class="mt-2 text-sm text-gray-600">
+                                            {{ __('This will mark the PPMP as final for budget tracking. You should only validate when all planned items and quantities are correct.') }}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="mt-6 flex justify-end gap-3">
+                                    <x-secondary-button type="button" x-on:click="$dispatch('close')">
+                                        {{ __('Cancel') }}
+                                    </x-secondary-button>
+
+                                    <button
+                                        type="submit"
+                                        class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 focus:bg-green-700 active:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition ease-in-out duration-150"
+                                    >
+                                        {{ __('Validate PPMP') }}
+                                    </button>
+                                </div>
+                            </form>
+                        </x-modal>
                     @endif
                 </div>
             </div>

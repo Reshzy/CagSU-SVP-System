@@ -60,6 +60,49 @@ class PpmpBudgetValidationTest extends TestCase
         $this->assertNotNull($ppmp->validated_at);
     }
 
+    public function test_ppmp_index_uses_confirmation_modal_instead_of_browser_confirm(): void
+    {
+        $department = Department::factory()->create();
+        $user = User::factory()->create(['department_id' => $department->id]);
+
+        DepartmentBudget::factory()->create([
+            'department_id' => $department->id,
+            'fiscal_year' => date('Y'),
+            'allocated_budget' => 10000,
+        ]);
+
+        $appItem = AppItem::factory()->create([
+            'fiscal_year' => date('Y'),
+            'unit_price' => 100,
+        ]);
+
+        $this->actingAs($user)->post(route('ppmp.store'), [
+            'items' => [
+                [
+                    'app_item_id' => $appItem->id,
+                    'q1_quantity' => 10,
+                    'q2_quantity' => 10,
+                    'q3_quantity' => 10,
+                    'q4_quantity' => 10,
+                ],
+            ],
+        ]);
+
+        $response = $this->actingAs($user)->get(route('ppmp.index'));
+
+        $response->assertOk();
+        $response->assertSee('open-modal', false);
+        $response->assertSee('confirm-ppmp-validation', false);
+        $response->assertSee('Validate this PPMP?', false);
+        $response->assertSee(
+            'fixed inset-0 overflow-y-auto px-4 py-6 sm:px-0 z-50 flex',
+            false
+        );
+        $response->assertSee('m-auto w-full', false);
+        $response->assertDontSee('onclick="return confirm(', false);
+        $response->assertDontSee('Are you sure you want to validate this PPMP?', false);
+    }
+
     public function test_ppmp_exceeding_budget_cannot_be_validated(): void
     {
         $department = Department::factory()->create();
