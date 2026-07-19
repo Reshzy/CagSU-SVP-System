@@ -105,26 +105,101 @@
             </div>
 
             @error('items') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
+            @error('lots') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
 
             <div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40">
-                <label class="flex items-center gap-2 text-sm font-medium text-gray-800 dark:text-gray-200">
-                    <input type="checkbox" wire:model.live="groupAsLot" class="rounded border-gray-300 text-cagsu-maroon focus:ring-cagsu-maroon" />
-                    Group items into a lot
-                </label>
-                @if ($groupAsLot)
-                    <div class="mt-3">
-                        <label for="lotName" class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">Lot name</label>
-                        <input
-                            id="lotName"
-                            type="text"
-                            wire:model="lotName"
-                            placeholder="e.g. Office Furniture Lot"
-                            class="block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-cagsu-maroon focus:ring-cagsu-maroon dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                        />
-                        @error('lotName') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            Creates one lot header plus child line items (same structure as the end-user PR form).
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <p class="text-sm font-medium text-gray-800 dark:text-gray-200">Lots</p>
+                        <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                            Optionally group items into one or more lots (same structure as the end-user PR form). Ungrouped items stay standalone.
                         </p>
+                    </div>
+                    <button
+                        type="button"
+                        wire:click="openLotForm"
+                        @disabled($ungroupedLotMemberCount < 2)
+                        class="rounded-lg bg-cagsu-maroon px-3 py-1.5 text-xs font-semibold text-white hover:bg-cagsu-orange disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                        Create Lot
+                    </button>
+                </div>
+
+                @if ($lots !== [])
+                    <div class="mt-4 space-y-2">
+                        @foreach ($lots as $lot)
+                            <div class="rounded-lg border border-indigo-200 bg-indigo-50/70 p-3 dark:border-indigo-800 dark:bg-indigo-950/30">
+                                <div class="flex flex-wrap items-start justify-between gap-2">
+                                    <div class="min-w-0">
+                                        <span class="inline-block rounded bg-indigo-600 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">Lot</span>
+                                        <span class="ml-1 text-sm font-semibold text-gray-900 dark:text-white">{{ $lot['name'] }}</span>
+                                        <ul class="mt-2 space-y-0.5 text-xs text-gray-600 dark:text-gray-300">
+                                            @foreach ($lot['member_keys'] as $memberKey)
+                                                <li>↳ {{ $lotMemberLabels[$memberKey] ?? $memberKey }}</li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button type="button" wire:click="openLotForm('{{ $lot['id'] }}')" class="text-xs font-semibold text-indigo-700 hover:text-indigo-900 dark:text-indigo-300">
+                                            Edit
+                                        </button>
+                                        <button type="button" wire:click="removeLot('{{ $lot['id'] }}')" class="text-xs font-semibold text-red-600 hover:text-red-700">
+                                            Ungroup
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+
+                @if ($showLotForm)
+                    <div class="mt-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-600 dark:bg-gray-800">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
+                            {{ $editingLotId ? 'Edit lot' : 'New lot' }}
+                        </p>
+                        <div class="mt-3">
+                            <label for="lotFormName" class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">Lot name</label>
+                            <input
+                                id="lotFormName"
+                                type="text"
+                                wire:model="lotFormName"
+                                placeholder="e.g. Office Furniture Lot"
+                                class="block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-cagsu-maroon focus:ring-cagsu-maroon dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                            />
+                            @error('lotFormName') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div class="mt-3">
+                            <p class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
+                                Items in this lot <span class="font-normal normal-case text-gray-500">(pick at least 2)</span>
+                            </p>
+                            @if ($lotMemberOptions === [])
+                                <p class="text-xs text-amber-600">No available items. Add/select more items first, or ungroup another lot.</p>
+                            @else
+                                <div class="max-h-48 space-y-1 overflow-y-auto">
+                                    @foreach ($lotMemberOptions as $option)
+                                        <label class="flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700/60">
+                                            <input
+                                                type="checkbox"
+                                                wire:click="toggleLotFormMember('{{ $option['key'] }}')"
+                                                @checked(in_array($option['key'], $lotFormMemberKeys, true))
+                                                class="mt-0.5 rounded border-gray-300 text-cagsu-maroon focus:ring-cagsu-maroon"
+                                            />
+                                            <span>{{ $option['label'] }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            @endif
+                            @error('lotFormMemberKeys') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            <button type="button" wire:click="saveLot" class="rounded-lg bg-cagsu-maroon px-3 py-1.5 text-xs font-semibold text-white hover:bg-cagsu-orange">
+                                {{ $editingLotId ? 'Update lot' : 'Save lot' }}
+                            </button>
+                            <button type="button" wire:click="closeLotForm" class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
+                                Cancel
+                            </button>
+                        </div>
                     </div>
                 @endif
             </div>
@@ -212,14 +287,18 @@
                     <dt class="text-xs uppercase tracking-wide text-gray-500">Items</dt>
                     <dd class="font-medium text-gray-900 dark:text-white">
                         {{ $itemMode === 'ppmp' ? count($selectedPpmpItemIds).' PPMP item(s)' : count($manualItems).' manual row(s)' }}
-                        @if ($groupAsLot)
-                            <span class="text-cagsu-maroon">· Lot: {{ $lotName ?: '(unnamed)' }}</span>
+                        @if ($lots !== [])
+                            <span class="text-cagsu-maroon">
+                                · {{ count($lots) }} lot{{ count($lots) === 1 ? '' : 's' }}:
+                                {{ collect($lots)->pluck('name')->join(', ') }}
+                            </span>
                         @endif
                     </dd>
                 </div>
             </dl>
             @error('budget') <p class="mt-3 text-sm text-red-600">{{ $message }}</p> @enderror
             @error('items') <p class="mt-3 text-sm text-red-600">{{ $message }}</p> @enderror
+            @error('lots') <p class="mt-3 text-sm text-red-600">{{ $message }}</p> @enderror
         @endif
 
         <div class="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4 dark:border-gray-700">

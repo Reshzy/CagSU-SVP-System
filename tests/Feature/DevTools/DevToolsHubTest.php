@@ -145,6 +145,7 @@ class DevToolsHubTest extends TestCase
             ->set('landingStatus', 'supply_office_review')
             ->set('itemMode', 'manual')
             ->set('manualItems', [[
+                'key' => 'manual-stapler',
                 'item_name' => 'Test Stapler',
                 'unit_of_measure' => 'pcs',
                 'quantity_requested' => 2,
@@ -173,10 +174,9 @@ class DevToolsHubTest extends TestCase
             ->set('justification', 'Lot grouping via Dev Tools')
             ->set('landingStatus', 'supply_office_review')
             ->set('itemMode', 'manual')
-            ->set('groupAsLot', true)
-            ->set('lotName', 'Office Supplies Lot')
             ->set('manualItems', [
                 [
+                    'key' => 'item-paper',
                     'item_name' => 'Bond Paper',
                     'unit_of_measure' => 'ream',
                     'quantity_requested' => 5,
@@ -184,6 +184,7 @@ class DevToolsHubTest extends TestCase
                     'detailed_specifications' => '',
                 ],
                 [
+                    'key' => 'item-pen',
                     'item_name' => 'Ballpen',
                     'unit_of_measure' => 'box',
                     'quantity_requested' => 3,
@@ -191,6 +192,11 @@ class DevToolsHubTest extends TestCase
                     'detailed_specifications' => '',
                 ],
             ])
+            ->set('lots', [[
+                'id' => 'lot-office',
+                'name' => 'Office Supplies Lot',
+                'member_keys' => ['item-paper', 'item-pen'],
+            ]])
             ->set('createStep', 4)
             ->call('createPurchaseRequest')
             ->assertHasNoErrors();
@@ -208,6 +214,132 @@ class DevToolsHubTest extends TestCase
         $this->assertCount(2, $children);
         $this->assertTrue($children->contains(fn ($item) => $item->item_name === 'Bond Paper'));
         $this->assertTrue($children->contains(fn ($item) => $item->item_name === 'Ballpen'));
+    }
+
+    public function test_can_create_purchase_request_with_multiple_lots(): void
+    {
+        Livewire::test(Hub::class)
+            ->set('departmentId', $this->department->id)
+            ->set('requesterId', $this->requester->id)
+            ->set('purpose', 'Multi-lot PR test')
+            ->set('justification', 'Multiple lots via Dev Tools')
+            ->set('landingStatus', 'supply_office_review')
+            ->set('itemMode', 'manual')
+            ->set('manualItems', [
+                [
+                    'key' => 'item-a',
+                    'item_name' => 'Item A',
+                    'unit_of_measure' => 'pcs',
+                    'quantity_requested' => 2,
+                    'estimated_unit_cost' => 100,
+                    'detailed_specifications' => '',
+                ],
+                [
+                    'key' => 'item-b',
+                    'item_name' => 'Item B',
+                    'unit_of_measure' => 'pcs',
+                    'quantity_requested' => 1,
+                    'estimated_unit_cost' => 50,
+                    'detailed_specifications' => '',
+                ],
+                [
+                    'key' => 'item-c',
+                    'item_name' => 'Item C',
+                    'unit_of_measure' => 'box',
+                    'quantity_requested' => 4,
+                    'estimated_unit_cost' => 25,
+                    'detailed_specifications' => '',
+                ],
+                [
+                    'key' => 'item-d',
+                    'item_name' => 'Item D',
+                    'unit_of_measure' => 'box',
+                    'quantity_requested' => 3,
+                    'estimated_unit_cost' => 40,
+                    'detailed_specifications' => '',
+                ],
+                [
+                    'key' => 'item-standalone',
+                    'item_name' => 'Standalone Item',
+                    'unit_of_measure' => 'pcs',
+                    'quantity_requested' => 1,
+                    'estimated_unit_cost' => 75,
+                    'detailed_specifications' => '',
+                ],
+            ])
+            ->set('lots', [
+                [
+                    'id' => 'lot-1',
+                    'name' => 'Lot Alpha',
+                    'member_keys' => ['item-a', 'item-b'],
+                ],
+                [
+                    'id' => 'lot-2',
+                    'name' => 'Lot Beta',
+                    'member_keys' => ['item-c', 'item-d'],
+                ],
+            ])
+            ->set('createStep', 4)
+            ->call('createPurchaseRequest')
+            ->assertHasNoErrors();
+
+        $pr = PurchaseRequest::query()->where('purpose', 'Multi-lot PR test')->first();
+        $this->assertNotNull($pr);
+
+        $lots = $pr->items()->where('is_lot', true)->orderBy('id')->get();
+        $this->assertCount(2, $lots);
+        $this->assertTrue($lots->contains(fn ($item) => $item->lot_name === 'Lot Alpha'));
+        $this->assertTrue($lots->contains(fn ($item) => $item->lot_name === 'Lot Beta'));
+
+        $lotAlpha = $lots->firstWhere('lot_name', 'Lot Alpha');
+        $lotBeta = $lots->firstWhere('lot_name', 'Lot Beta');
+
+        $this->assertEquals(250.0, (float) $lotAlpha->estimated_unit_cost);
+        $this->assertEquals(220.0, (float) $lotBeta->estimated_unit_cost);
+        $this->assertCount(2, $pr->items()->where('parent_lot_id', $lotAlpha->id)->get());
+        $this->assertCount(2, $pr->items()->where('parent_lot_id', $lotBeta->id)->get());
+
+        $standalone = $pr->items()
+            ->where('is_lot', false)
+            ->whereNull('parent_lot_id')
+            ->first();
+
+        $this->assertNotNull($standalone);
+        $this->assertSame('Standalone Item', $standalone->item_name);
+    }
+
+    public function test_can_save_lot_from_lot_form(): void
+    {
+        Livewire::test(Hub::class)
+            ->set('itemMode', 'manual')
+            ->set('manualItems', [
+                [
+                    'key' => 'item-a',
+                    'item_name' => 'Chair',
+                    'unit_of_measure' => 'pcs',
+                    'quantity_requested' => 2,
+                    'estimated_unit_cost' => 500,
+                    'detailed_specifications' => '',
+                ],
+                [
+                    'key' => 'item-b',
+                    'item_name' => 'Desk',
+                    'unit_of_measure' => 'pcs',
+                    'quantity_requested' => 1,
+                    'estimated_unit_cost' => 1500,
+                    'detailed_specifications' => '',
+                ],
+            ])
+            ->call('openLotForm')
+            ->set('lotFormName', 'Furniture Lot')
+            ->call('toggleLotFormMember', 'item-a')
+            ->call('toggleLotFormMember', 'item-b')
+            ->call('saveLot')
+            ->assertHasNoErrors()
+            ->assertSet('showLotForm', false)
+            ->assertCount('lots', 1)
+            ->assertSet('lots.0.name', 'Furniture Lot')
+            ->assertSet('lots.0.member_keys', ['item-a', 'item-b']);
     }
 
     public function test_can_set_department_budget(): void

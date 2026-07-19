@@ -16,6 +16,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -50,9 +51,21 @@ class Hub extends Component
 
     public string $itemMode = 'ppmp';
 
-    public bool $groupAsLot = false;
+    /**
+     * Defined lots for the create-PR wizard (same multi-lot model as the end-user form).
+     *
+     * @var list<array{id: string, name: string, member_keys: list<string>}>
+     */
+    public array $lots = [];
 
-    public string $lotName = '';
+    public bool $showLotForm = false;
+
+    public ?string $editingLotId = null;
+
+    public string $lotFormName = '';
+
+    /** @var list<string> */
+    public array $lotFormMemberKeys = [];
 
     /** @var list<int> */
     public array $selectedPpmpItemIds = [];
@@ -60,7 +73,7 @@ class Hub extends Component
     /** @var array<int, array{quantity: int|string, unit_cost: float|string}> */
     public array $ppmpItemOverrides = [];
 
-    /** @var list<array{item_name: string, unit_of_measure: string, quantity_requested: int|string, estimated_unit_cost: float|string, detailed_specifications: string}> */
+    /** @var list<array{key: string, item_name: string, unit_of_measure: string, quantity_requested: int|string, estimated_unit_cost: float|string, detailed_specifications: string}> */
     public array $manualItems = [];
 
     public ?string $createdPrNumber = null;
@@ -128,6 +141,7 @@ class Hub extends Component
         $this->requesterId = null;
         $this->selectedPpmpItemIds = [];
         $this->ppmpItemOverrides = [];
+        $this->resetLots();
         $this->createStep = 1;
         $this->selectedPrId = null;
         $this->resetPage();
@@ -137,7 +151,13 @@ class Hub extends Component
     {
         $this->selectedPpmpItemIds = [];
         $this->ppmpItemOverrides = [];
+        $this->resetLots();
         $this->resetPage();
+    }
+
+    public function updatedItemMode(): void
+    {
+        $this->resetLots();
     }
 
     public function setTab(string $tab): void
@@ -189,6 +209,7 @@ class Hub extends Component
                 fn (int $id): bool => $id !== $ppmpItemId
             ));
             unset($this->ppmpItemOverrides[$ppmpItemId]);
+            $this->removeMemberKeyFromLots($this->ppmpMemberKey($ppmpItemId));
 
             return;
         }
@@ -216,11 +237,128 @@ class Hub extends Component
 
     public function removeManualItem(int $index): void
     {
+        $key = $this->manualItems[$index]['key'] ?? null;
+
         unset($this->manualItems[$index]);
         $this->manualItems = array_values($this->manualItems);
 
+        if (is_string($key) && $key !== '') {
+            $this->removeMemberKeyFromLots($key);
+        }
+
         if ($this->manualItems === []) {
             $this->manualItems[] = $this->emptyManualItem();
+        }
+    }
+
+    public function openLotForm(?string $lotId = null): void
+    {
+        if ($lotId !== null) {
+            $lot = collect($this->lots)->firstWhere('id', $lotId);
+
+            if (! $lot) {
+                return;
+            }
+
+            $this->editingLotId = $lotId;
+            $this->lotFormName = $lot['name'];
+            $this->lotFormMemberKeys = $lot['member_keys'];
+        } else {
+            $this->editingLotId = null;
+            $this->lotFormName = '';
+            $this->lotFormMemberKeys = [];
+        }
+
+        $this->showLotForm = true;
+        $this->resetErrorBag(['lotFormName', 'lotFormMemberKeys']);
+    }
+
+    public function closeLotForm(): void
+    {
+        $this->showLotForm = false;
+        $this->editingLotId = null;
+        $this->lotFormName = '';
+        $this->lotFormMemberKeys = [];
+        $this->resetErrorBag(['lotFormName', 'lotFormMemberKeys']);
+    }
+
+    public function toggleLotFormMember(string $memberKey): void
+    {
+        if (in_array($memberKey, $this->lotFormMemberKeys, true)) {
+            $this->lotFormMemberKeys = array_values(array_filter(
+                $this->lotFormMemberKeys,
+                fn (string $key): bool => $key !== $memberKey
+            ));
+
+            return;
+        }
+
+        $this->lotFormMemberKeys[] = $memberKey;
+    }
+
+    public function saveLot(): void
+    {
+        $this->validate([
+            'lotFormName' => ['required', 'string', 'max:255'],
+            'lotFormMemberKeys' => ['required', 'array', 'min:2'],
+            'lotFormMemberKeys.*' => ['required', 'string'],
+        ], [
+            'lotFormMemberKeys.min' => 'Select at least 2 items to create a lot.',
+            'lotFormMemberKeys.required' => 'Select at least 2 items to create a lot.',
+        ], [
+            'lotFormName' => 'lot name',
+            'lotFormMemberKeys' => 'lot items',
+        ]);
+
+        $eligibleKeys = collect($this->availableLotMemberOptions($this->editingLotId))
+            ->pluck('key')
+            ->all();
+
+        $memberKeys = array_values(array_unique(array_filter(
+            $this->lotFormMemberKeys,
+            fn (string $key): bool => in_array($key, $eligibleKeys, true)
+        )));
+
+        if (count($memberKeys) < 2) {
+            throw ValidationException::withMessages([
+                'lotFormMemberKeys' => 'Select at least 2 available items to create a lot.',
+            ]);
+        }
+
+        $name = trim($this->lotFormName);
+
+        if ($this->editingLotId !== null) {
+            $this->lots = array_map(function (array $lot) use ($name, $memberKeys): array {
+                if ($lot['id'] !== $this->editingLotId) {
+                    return $lot;
+                }
+
+                return [
+                    'id' => $lot['id'],
+                    'name' => $name,
+                    'member_keys' => $memberKeys,
+                ];
+            }, $this->lots);
+        } else {
+            $this->lots[] = [
+                'id' => (string) Str::uuid(),
+                'name' => $name,
+                'member_keys' => $memberKeys,
+            ];
+        }
+
+        $this->closeLotForm();
+    }
+
+    public function removeLot(string $lotId): void
+    {
+        $this->lots = array_values(array_filter(
+            $this->lots,
+            fn (array $lot): bool => $lot['id'] !== $lotId
+        ));
+
+        if ($this->editingLotId === $lotId) {
+            $this->closeLotForm();
         }
     }
 
@@ -271,8 +409,7 @@ class Hub extends Component
         $this->selectedPpmpItemIds = [];
         $this->ppmpItemOverrides = [];
         $this->manualItems = [$this->emptyManualItem()];
-        $this->groupAsLot = false;
-        $this->lotName = '';
+        $this->resetLots();
 
         $this->js('window.appToast({ type: "success", message: '.json_encode('Created '.$purchaseRequest->pr_number).' })');
     }
@@ -522,15 +659,74 @@ class Hub extends Component
             'overview' => $overview,
             'statuses' => DevToolsPurchaseRequestService::STATUSES,
             'jumpPresets' => DevToolsPurchaseRequestService::JUMP_PRESETS,
+            'lotMemberOptions' => $this->availableLotMemberOptions($this->editingLotId),
+            'ungroupedLotMemberCount' => count($this->availableLotMemberOptions()),
+            'lotMemberLabels' => $this->allLotMemberLabels(),
         ]);
     }
 
     /**
-     * @return list<array{item_name: string, unit_of_measure: string, quantity_requested: int|string, estimated_unit_cost: float|string, detailed_specifications: string}>
+     * Labels for every currently selectable line item (including those already in lots).
+     *
+     * @return array<string, string>
+     */
+    protected function allLotMemberLabels(): array
+    {
+        $labels = [];
+
+        if ($this->itemMode === 'manual') {
+            foreach ($this->manualItems as $item) {
+                $key = (string) ($item['key'] ?? '');
+
+                if ($key === '') {
+                    continue;
+                }
+
+                $name = trim((string) ($item['item_name'] ?? ''));
+                $labels[$key] = ($name !== '' ? $name : 'Untitled item')
+                    .' · '.(int) ($item['quantity_requested'] ?? 0)
+                    .' '.(string) ($item['unit_of_measure'] ?? '');
+            }
+
+            return $labels;
+        }
+
+        if ($this->selectedPpmpItemIds === []) {
+            return [];
+        }
+
+        $ppmpItems = PpmpItem::query()
+            ->with('appItem')
+            ->whereIn('id', $this->selectedPpmpItemIds)
+            ->get()
+            ->keyBy('id');
+
+        foreach ($this->selectedPpmpItemIds as $ppmpItemId) {
+            /** @var PpmpItem|null $ppmpItem */
+            $ppmpItem = $ppmpItems->get($ppmpItemId);
+
+            if (! $ppmpItem?->appItem) {
+                continue;
+            }
+
+            $override = $this->ppmpItemOverrides[$ppmpItemId] ?? [];
+            $quantity = (int) ($override['quantity'] ?? 1);
+
+            $labels[$this->ppmpMemberKey($ppmpItemId)] = $ppmpItem->appItem->item_name
+                .' · '.$quantity
+                .' '.$ppmpItem->appItem->unit_of_measure;
+        }
+
+        return $labels;
+    }
+
+    /**
+     * @return list<array{key: string, item_name: string, unit_of_measure: string, quantity_requested: int|string, estimated_unit_cost: float|string, detailed_specifications: string}>
      */
     protected function emptyManualItem(): array
     {
         return [
+            'key' => (string) Str::uuid(),
             'item_name' => '',
             'unit_of_measure' => 'pcs',
             'quantity_requested' => 1,
@@ -539,19 +735,188 @@ class Hub extends Component
         ];
     }
 
+    protected function resetLots(): void
+    {
+        $this->lots = [];
+        $this->closeLotForm();
+    }
+
+    protected function ppmpMemberKey(int $ppmpItemId): string
+    {
+        return 'ppmp:'.$ppmpItemId;
+    }
+
+    protected function removeMemberKeyFromLots(string $memberKey): void
+    {
+        $this->lots = array_values(array_filter(array_map(function (array $lot) use ($memberKey): array {
+            $lot['member_keys'] = array_values(array_filter(
+                $lot['member_keys'],
+                fn (string $key): bool => $key !== $memberKey
+            ));
+
+            return $lot;
+        }, $this->lots), fn (array $lot): bool => count($lot['member_keys']) >= 2));
+
+        $this->lotFormMemberKeys = array_values(array_filter(
+            $this->lotFormMemberKeys,
+            fn (string $key): bool => $key !== $memberKey
+        ));
+    }
+
+    /**
+     * Items eligible for the lot form: ungrouped, or already in the lot being edited.
+     *
+     * @return list<array{key: string, label: string}>
+     */
+    protected function availableLotMemberOptions(?string $editingLotId = null): array
+    {
+        $assignedElsewhere = [];
+
+        foreach ($this->lots as $lot) {
+            if ($editingLotId !== null && $lot['id'] === $editingLotId) {
+                continue;
+            }
+
+            foreach ($lot['member_keys'] as $key) {
+                $assignedElsewhere[$key] = true;
+            }
+        }
+
+        $options = [];
+
+        if ($this->itemMode === 'manual') {
+            foreach ($this->manualItems as $item) {
+                $key = (string) ($item['key'] ?? '');
+
+                if ($key === '' || isset($assignedElsewhere[$key])) {
+                    continue;
+                }
+
+                $name = trim((string) ($item['item_name'] ?? ''));
+                $options[] = [
+                    'key' => $key,
+                    'label' => ($name !== '' ? $name : 'Untitled item')
+                        .' · '.(int) ($item['quantity_requested'] ?? 0)
+                        .' '.(string) ($item['unit_of_measure'] ?? ''),
+                ];
+            }
+
+            return $options;
+        }
+
+        if ($this->selectedPpmpItemIds === []) {
+            return [];
+        }
+
+        $ppmpItems = PpmpItem::query()
+            ->with('appItem')
+            ->whereIn('id', $this->selectedPpmpItemIds)
+            ->get()
+            ->keyBy('id');
+
+        foreach ($this->selectedPpmpItemIds as $ppmpItemId) {
+            $key = $this->ppmpMemberKey($ppmpItemId);
+
+            if (isset($assignedElsewhere[$key])) {
+                continue;
+            }
+
+            /** @var PpmpItem|null $ppmpItem */
+            $ppmpItem = $ppmpItems->get($ppmpItemId);
+
+            if (! $ppmpItem?->appItem) {
+                continue;
+            }
+
+            $override = $this->ppmpItemOverrides[$ppmpItemId] ?? [];
+            $quantity = (int) ($override['quantity'] ?? 1);
+
+            $options[] = [
+                'key' => $key,
+                'label' => $ppmpItem->appItem->item_name
+                    .' · '.$quantity
+                    .' '.$ppmpItem->appItem->unit_of_measure,
+            ];
+        }
+
+        return $options;
+    }
+
     /**
      * @return list<array<string, mixed>>
      */
     protected function buildItemsPayload(): array
     {
-        if ($this->groupAsLot) {
-            $this->validate([
-                'lotName' => ['required', 'string', 'max:255'],
-            ], [], [
-                'lotName' => 'lot name',
-            ]);
+        $keyedItems = $this->buildKeyedLineItems();
+
+        if ($keyedItems === []) {
+            return [];
         }
 
+        $this->validateLotsAgainstItems(array_keys($keyedItems));
+
+        $payload = [];
+        $assignedKeys = [];
+
+        foreach ($this->lots as $lot) {
+            $memberKeys = array_values(array_filter(
+                $lot['member_keys'],
+                fn (string $key): bool => isset($keyedItems[$key])
+            ));
+
+            if (count($memberKeys) < 2) {
+                throw ValidationException::withMessages([
+                    'lots' => 'Each lot needs at least 2 items. Remove incomplete lots or add more items.',
+                ]);
+            }
+
+            $lotTotal = 0.0;
+
+            foreach ($memberKeys as $memberKey) {
+                $item = $keyedItems[$memberKey];
+                $lotTotal += (float) $item['quantity_requested'] * (float) $item['estimated_unit_cost'];
+            }
+
+            $lotIndex = count($payload);
+
+            $payload[] = [
+                'ppmp_item_id' => null,
+                'item_code' => null,
+                'item_name' => $lot['name'],
+                'detailed_specifications' => null,
+                'unit_of_measure' => 'lot',
+                'quantity_requested' => 1,
+                'estimated_unit_cost' => round($lotTotal, 2),
+                'is_lot' => true,
+                'lot_name' => $lot['name'],
+            ];
+
+            foreach ($memberKeys as $memberKey) {
+                $child = $keyedItems[$memberKey];
+                $child['is_lot'] = false;
+                $child['parent_lot_index'] = $lotIndex;
+                $payload[] = $child;
+                $assignedKeys[$memberKey] = true;
+            }
+        }
+
+        foreach ($keyedItems as $key => $item) {
+            if (isset($assignedKeys[$key])) {
+                continue;
+            }
+
+            $item['is_lot'] = false;
+            $payload[] = $item;
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    protected function buildKeyedLineItems(): array
+    {
         if ($this->itemMode === 'manual') {
             $this->validate([
                 'manualItems' => ['required', 'array', 'min:1'],
@@ -562,8 +927,16 @@ class Hub extends Component
                 'manualItems.*.detailed_specifications' => ['nullable', 'string', 'max:2000'],
             ]);
 
-            $items = collect($this->manualItems)
-                ->map(fn (array $item): array => [
+            $items = [];
+
+            foreach ($this->manualItems as $item) {
+                $key = (string) ($item['key'] ?? '');
+
+                if ($key === '') {
+                    continue;
+                }
+
+                $items[$key] = [
                     'ppmp_item_id' => null,
                     'item_code' => null,
                     'item_name' => $item['item_name'],
@@ -572,11 +945,10 @@ class Hub extends Component
                     'quantity_requested' => (int) $item['quantity_requested'],
                     'estimated_unit_cost' => (float) $item['estimated_unit_cost'],
                     'is_lot' => false,
-                ])
-                ->values()
-                ->all();
+                ];
+            }
 
-            return $this->maybeWrapItemsAsLot($items);
+            return $items;
         }
 
         if ($this->selectedPpmpItemIds === []) {
@@ -609,7 +981,7 @@ class Hub extends Component
                 ]);
             }
 
-            $items[] = [
+            $items[$this->ppmpMemberKey($ppmpItemId)] = [
                 'ppmp_item_id' => $ppmpItem->id,
                 'item_code' => $ppmpItem->appItem->item_code,
                 'item_name' => $ppmpItem->appItem->item_name,
@@ -621,51 +993,46 @@ class Hub extends Component
             ];
         }
 
-        return $this->maybeWrapItemsAsLot($items);
+        return $items;
     }
 
     /**
-     * @param  list<array<string, mixed>>  $items
-     * @return list<array<string, mixed>>
+     * @param  list<string>  $validKeys
      */
-    protected function maybeWrapItemsAsLot(array $items): array
+    protected function validateLotsAgainstItems(array $validKeys): void
     {
-        if (! $this->groupAsLot || $items === []) {
-            return $items;
+        if ($this->lots === []) {
+            return;
         }
 
-        if (count($items) < 1) {
-            throw ValidationException::withMessages([
-                'lotName' => 'Select at least one item to group into a lot.',
-            ]);
+        $this->validate([
+            'lots' => ['array'],
+            'lots.*.name' => ['required', 'string', 'max:255'],
+            'lots.*.member_keys' => ['required', 'array', 'min:2'],
+        ], [], [
+            'lots.*.name' => 'lot name',
+            'lots.*.member_keys' => 'lot items',
+        ]);
+
+        $seen = [];
+
+        foreach ($this->lots as $lot) {
+            foreach ($lot['member_keys'] as $memberKey) {
+                if (! in_array($memberKey, $validKeys, true)) {
+                    throw ValidationException::withMessages([
+                        'lots' => 'A lot references an item that is no longer selected. Edit or remove that lot.',
+                    ]);
+                }
+
+                if (isset($seen[$memberKey])) {
+                    throw ValidationException::withMessages([
+                        'lots' => 'An item cannot belong to more than one lot.',
+                    ]);
+                }
+
+                $seen[$memberKey] = true;
+            }
         }
-
-        $lotTotal = 0.0;
-
-        foreach ($items as $item) {
-            $lotTotal += (float) $item['quantity_requested'] * (float) $item['estimated_unit_cost'];
-        }
-
-        $lotHeader = [
-            'ppmp_item_id' => null,
-            'item_code' => null,
-            'item_name' => $this->lotName,
-            'detailed_specifications' => null,
-            'unit_of_measure' => 'lot',
-            'quantity_requested' => 1,
-            'estimated_unit_cost' => round($lotTotal, 2),
-            'is_lot' => true,
-            'lot_name' => $this->lotName,
-        ];
-
-        $children = array_map(function (array $item): array {
-            $item['parent_lot_index'] = 0;
-            $item['is_lot'] = false;
-
-            return $item;
-        }, $items);
-
-        return array_merge([$lotHeader], $children);
     }
 
     /**
