@@ -86,6 +86,16 @@
                     </x-nav-link>
 
                     @auth
+                        @if(auth()->user()->hasRole('System Admin') && config('dev-tools.enabled'))
+                            <x-nav-link :href="route('dev-tools.index')" :active="request()->routeIs('dev-tools.*')" class="text-gray-700 hover:text-cagsu-maroon">
+                                <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                                {{ __('Dev Tools') }}
+                            </x-nav-link>
+                        @endif
+
                         @if(! auth()->user()->hasRole('System Admin'))
                             <x-nav-link :href="route('purchase-requests.index')" :active="request()->routeIs('purchase-requests.*')" class="text-gray-700 hover:text-cagsu-maroon">
                                 <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -444,6 +454,12 @@
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
+
+            @if(auth()->user()->hasRole('System Admin') && config('dev-tools.enabled'))
+                <x-responsive-nav-link :href="route('dev-tools.index')" :active="request()->routeIs('dev-tools.*')">
+                    {{ __('Dev Tools') }}
+                </x-responsive-nav-link>
+            @endif
 
             @if(auth()->user()->hasRole('Budget Office'))
                 <x-responsive-nav-link :href="route('budget.purchase-requests.index')" :active="request()->routeIs('budget.purchase-requests.*')">

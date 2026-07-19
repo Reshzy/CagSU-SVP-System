@@ -276,4 +276,12 @@ Route::middleware('auth')->group(function () {
     });
 });
 
+// System Admin Dev Tools (flag-gated)
+Route::middleware(['auth', 'role:System Admin', 'dev-tools'])
+    ->prefix('dev-tools')
+    ->name('dev-tools.')
+    ->group(function () {
+        Route::view('/', 'dev-tools.index')->name('index');
+    });
+
 require __DIR__.'/auth.php';
