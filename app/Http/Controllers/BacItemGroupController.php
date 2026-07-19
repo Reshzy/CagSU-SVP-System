@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\PrItemGroup;
 use App\Models\PurchaseRequest;
+use App\Models\PurchaseRequestItem;
 use App\Services\PurchaseRequestActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -19,9 +21,12 @@ class BacItemGroupController extends Controller
     {
         abort_unless($purchaseRequest->canManageGroups(), 403, 'PR must be in BAC evaluation or partial PO generation stage to split items.');
 
-        $purchaseRequest->load('items', 'itemGroups.items');
+        $purchaseRequest->load('items.lotChildren', 'itemGroups.items');
 
-        return view('bac.item-groups.create', compact('purchaseRequest'));
+        $quotableItems = $this->quotableItems($purchaseRequest);
+        $quotableItemsPayload = $this->quotableItemsPayload($quotableItems);
+
+        return view('bac.item-groups.create', compact('purchaseRequest', 'quotableItems', 'quotableItemsPayload'));
     }
 
     /**
@@ -55,17 +60,12 @@ class BacItemGroupController extends Controller
                     'display_order' => $index + 1,
                 ]);
 
-                // Assign items to this group
-                foreach ($groupData['items'] as $itemId) {
-                    DB::table('purchase_request_items')
-                        ->where('id', $itemId)
-                        ->update(['pr_item_group_id' => $group->id]);
-                }
+                $assignedCount = $this->assignItemsToGroup($purchaseRequest, $group, $groupData['items']);
 
                 $groupsInfo[] = [
                     'group_code' => $groupCode,
                     'group_name' => $groupData['name'],
-                    'item_count' => count($groupData['items']),
+                    'item_count' => $assignedCount,
                 ];
             }
         });
@@ -86,9 +86,12 @@ class BacItemGroupController extends Controller
     {
         abort_unless($purchaseRequest->canManageGroups(), 403, 'PR must be in BAC evaluation or partial PO generation stage to edit groups.');
 
-        $purchaseRequest->load('items', 'itemGroups.items');
+        $purchaseRequest->load('items.lotChildren', 'itemGroups.items');
 
-        return view('bac.item-groups.edit', compact('purchaseRequest'));
+        $quotableItems = $this->quotableItems($purchaseRequest);
+        $quotableItemsPayload = $this->quotableItemsPayload($quotableItems);
+
+        return view('bac.item-groups.edit', compact('purchaseRequest', 'quotableItems', 'quotableItemsPayload'));
     }
 
     /**
@@ -127,17 +130,12 @@ class BacItemGroupController extends Controller
                     'display_order' => $index + 1,
                 ]);
 
-                // Assign items to this group
-                foreach ($groupData['items'] as $itemId) {
-                    DB::table('purchase_request_items')
-                        ->where('id', $itemId)
-                        ->update(['pr_item_group_id' => $group->id]);
-                }
+                $assignedCount = $this->assignItemsToGroup($purchaseRequest, $group, $groupData['items']);
 
                 $groupsInfo[] = [
                     'group_code' => $groupCode,
                     'group_name' => $groupData['name'],
-                    'item_count' => count($groupData['items']),
+                    'item_count' => $assignedCount,
                 ];
             }
         });
@@ -171,5 +169,92 @@ class BacItemGroupController extends Controller
         return redirect()
             ->route('bac.quotations.manage', $purchaseRequest)
             ->with('status', 'All groups have been removed.');
+    }
+
+    /**
+     * Bid-grain items for grouping UI: lot headers and standalones only.
+     *
+     * @return Collection<int, PurchaseRequestItem>
+     */
+    private function quotableItems(PurchaseRequest $purchaseRequest): Collection
+    {
+        return $purchaseRequest->items
+            ->filter(fn (PurchaseRequestItem $item) => ! $item->isLotChild())
+            ->sortBy('id')
+            ->values();
+    }
+
+    /**
+     * JSON-friendly payload for dynamic "Add Another Group" checkboxes.
+     *
+     * @param  Collection<int, PurchaseRequestItem>  $quotableItems
+     * @return list<array<string, mixed>>
+     */
+    private function quotableItemsPayload(Collection $quotableItems): array
+    {
+        return $quotableItems->map(function (PurchaseRequestItem $item): array {
+            return [
+                'id' => $item->id,
+                'item_name' => $item->isLotHeader()
+                    ? ($item->lot_name ?? $item->item_name)
+                    : $item->item_name,
+                'quantity_requested' => $item->quantity_requested,
+                'unit_of_measure' => $item->unit_of_measure,
+                'estimated_total_cost' => (float) $item->estimated_total_cost,
+                'is_lot' => $item->isLotHeader(),
+                'lot_children' => $item->isLotHeader()
+                    ? $item->lotChildren->sortBy('id')->values()->map(fn (PurchaseRequestItem $child): array => [
+                        'id' => $child->id,
+                        'item_name' => $child->item_name,
+                        'quantity_requested' => $child->quantity_requested,
+                        'unit_of_measure' => $child->unit_of_measure,
+                        'estimated_unit_cost' => (float) $child->estimated_unit_cost,
+                    ])->all()
+                    : [],
+            ];
+        })->values()->all();
+    }
+
+    /**
+     * Assign submitted quotable item IDs to a group, cascading lot children.
+     *
+     * @param  array<int, int|string>  $itemIds
+     */
+    private function assignItemsToGroup(PurchaseRequest $purchaseRequest, PrItemGroup $group, array $itemIds): int
+    {
+        $itemsById = PurchaseRequestItem::query()
+            ->with('lotChildren')
+            ->where('purchase_request_id', $purchaseRequest->id)
+            ->whereIn('id', $itemIds)
+            ->get()
+            ->keyBy('id');
+
+        $assignedIds = [];
+
+        foreach ($itemIds as $itemId) {
+            $item = $itemsById->get((int) $itemId);
+
+            if (! $item || $item->isLotChild()) {
+                continue;
+            }
+
+            $assignedIds[] = $item->id;
+
+            if ($item->isLotHeader()) {
+                foreach ($item->lotChildren as $child) {
+                    $assignedIds[] = $child->id;
+                }
+            }
+        }
+
+        $assignedIds = array_values(array_unique($assignedIds));
+
+        if ($assignedIds !== []) {
+            PurchaseRequestItem::query()
+                ->whereIn('id', $assignedIds)
+                ->update(['pr_item_group_id' => $group->id]);
+        }
+
+        return count($assignedIds);
     }
 }

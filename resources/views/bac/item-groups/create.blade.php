@@ -13,6 +13,7 @@
                         <p class="text-gray-700">
                             Group similar items together (e.g., separate food items from appliances, office supplies from IT equipment).
                             Each group will have its own RFQ, quotations, AOQ, and Purchase Order.
+                            Lots are selected as a single unit — expand a lot to see its individual items.
                         </p>
                     </div>
 
@@ -50,17 +51,11 @@
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Items in this Group</label>
                                     <div class="space-y-2 max-h-96 overflow-y-auto border border-gray-200 rounded p-3 bg-gray-50">
-                                        @foreach($purchaseRequest->items as $item)
-                                            <label class="flex items-start p-2 hover:bg-white rounded cursor-pointer">
-                                                <input type="checkbox" name="groups[0][items][]" value="{{ $item->id }}" class="mt-1 mr-3 item-checkbox" data-item-id="{{ $item->id }}">
-                                                <div class="flex-1">
-                                                    <div class="font-medium text-gray-900">{{ $item->item_name }}</div>
-                                                    <div class="text-sm text-gray-600">
-                                                        Qty: {{ $item->quantity_requested }} {{ $item->unit_of_measure }} | 
-                                                        ABC: ₱{{ number_format((float)$item->estimated_unit_cost, 2) }}
-                                                    </div>
-                                                </div>
-                                            </label>
+                                        @foreach($quotableItems as $item)
+                                            @include('bac.item-groups.partials.quotable-item-checkbox', [
+                                                'item' => $item,
+                                                'inputName' => 'groups[0][items][]',
+                                            ])
                                         @endforeach
                                     </div>
                                     @error('groups.0.items')
@@ -93,7 +88,80 @@
     @push('scripts')
     <script>
         let groupIndex = 1;
-        const items = @json($purchaseRequest->items);
+        const items = @json($quotableItemsPayload);
+
+        function formatMoney(value) {
+            return parseFloat(value).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+
+        function escapeHtml(text) {
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function buildItemCheckboxHtml(item, nameAttr) {
+            const children = item.lot_children || [];
+            let childrenHtml = '';
+
+            if (item.is_lot && children.length > 0) {
+                childrenHtml = `
+                    <div x-show="open" x-cloak class="mt-2 ml-8 space-y-1 border-l-2 border-indigo-100 pl-3">
+                        ${children.map(child => `
+                            <div class="text-sm text-gray-700">
+                                <span class="font-medium">${escapeHtml(child.item_name)}</span>
+                                <span class="text-gray-500">
+                                    — Qty: ${child.quantity_requested} ${escapeHtml(child.unit_of_measure)} |
+                                    ABC: ₱${formatMoney(child.estimated_unit_cost)}
+                                </span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            const expandButton = item.is_lot && children.length > 0
+                ? `
+                    <button
+                        type="button"
+                        class="ml-2 mt-1 inline-flex items-center gap-1 text-xs font-medium text-blue-700 hover:text-blue-900 shrink-0"
+                        @click="open = !open"
+                        :aria-expanded="open.toString()"
+                    >
+                        <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-90': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                        <span x-text="open ? 'Hide items' : 'Show items'"></span>
+                    </button>
+                `
+                : '';
+
+            const lotCount = item.is_lot
+                ? `<span class="text-gray-500">(${children.length} items)</span>`
+                : '';
+
+            return `
+                <div class="p-2 hover:bg-white rounded" ${item.is_lot ? 'x-data="{ open: false }"' : ''}>
+                    <div class="flex items-start">
+                        <label class="flex items-start flex-1 cursor-pointer min-w-0">
+                            <input type="checkbox" name="${nameAttr}" value="${item.id}" class="mt-1 mr-3 item-checkbox" data-item-id="${item.id}">
+                            <div class="flex-1 min-w-0">
+                                <div class="font-medium text-gray-900">${escapeHtml(item.item_name)}</div>
+                                <div class="text-sm text-gray-600">
+                                    Qty: ${item.quantity_requested} ${escapeHtml(item.unit_of_measure)} |
+                                    ABC: ₱${formatMoney(item.estimated_total_cost)}
+                                    ${lotCount}
+                                </div>
+                            </div>
+                        </label>
+                        ${expandButton}
+                    </div>
+                    ${childrenHtml}
+                </div>
+            `;
+        }
 
         document.getElementById('addGroupBtn').addEventListener('click', function() {
             const container = document.getElementById('groupsContainer');
@@ -101,21 +169,7 @@
             newGroup.className = 'group-card mb-6 border border-gray-300 rounded-lg p-4';
             newGroup.dataset.groupIndex = groupIndex;
 
-            let itemsHtml = '';
-            items.forEach(item => {
-                itemsHtml += `
-                    <label class="flex items-start p-2 hover:bg-white rounded cursor-pointer">
-                        <input type="checkbox" name="groups[${groupIndex}][items][]" value="${item.id}" class="mt-1 mr-3 item-checkbox" data-item-id="${item.id}">
-                        <div class="flex-1">
-                            <div class="font-medium text-gray-900">${item.item_name}</div>
-                            <div class="text-sm text-gray-600">
-                                Qty: ${item.quantity_requested} ${item.unit_of_measure} | 
-                                ABC: ₱${parseFloat(item.estimated_unit_cost).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                            </div>
-                        </div>
-                    </label>
-                `;
-            });
+            const itemsHtml = items.map(item => buildItemCheckboxHtml(item, `groups[${groupIndex}][items][]`)).join('');
 
             newGroup.innerHTML = `
                 <div class="flex justify-between items-center mb-4">
@@ -152,7 +206,7 @@
 
         function updateRemoveButtons() {
             const groups = document.querySelectorAll('.group-card');
-            groups.forEach((group, index) => {
+            groups.forEach((group) => {
                 const removeBtn = group.querySelector('.remove-group-btn');
                 if (groups.length > 1) {
                     removeBtn.classList.remove('hidden');
@@ -162,7 +216,6 @@
             });
         }
 
-        // Warn about items in multiple groups
         document.getElementById('groupingForm').addEventListener('submit', function(e) {
             const checkedItems = {};
             const checkboxes = document.querySelectorAll('.item-checkbox:checked');
@@ -183,8 +236,7 @@
                 return false;
             }
 
-            // Check if all items are assigned
-            const totalItems = {{ $purchaseRequest->items->count() }};
+            const totalItems = {{ $quotableItems->count() }};
             const assignedItems = Object.keys(checkedItems).length;
 
             if (assignedItems < totalItems) {
