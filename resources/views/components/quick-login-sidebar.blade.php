@@ -152,7 +152,20 @@
                         </svg>
                     </div>
                 </button>
-
+                
+                <button type="button"
+                    onclick="quickLogin('bac.vicechairman2@cagsu.edu.ph', 'password123')"
+                    class="group w-full text-left px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 rounded-lg text-sm transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border border-orange-400/50">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="font-semibold">BAC Vice Chairman 2</div>
+                            <div class="text-xs text-orange-100/80">Atty. Jan Leandro P. Verzon</div>
+                        </div>
+                        <svg class="w-4 h-4 text-orange-200 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </button>
                 <button type="button"
                     onclick="quickLogin('bac.member1@cagsu.edu.ph', 'password123')"
                     class="group w-full text-left px-4 py-3 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 rounded-lg text-sm transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border border-amber-500/50">
@@ -202,6 +215,20 @@
                         <div>
                             <div class="font-semibold">BAC Secretary</div>
                             <div class="text-xs text-yellow-100/80">Chanda T. Aquino</div>
+                        </div>
+                        <svg class="w-4 h-4 text-yellow-200 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </button>
+
+                <button type="button"
+                    onclick="quickLogin('bac.secretary2@cagsu.edu.ph', 'password123')"
+                    class="group w-full text-left px-4 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 rounded-lg text-sm transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 border border-yellow-400/50">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="font-semibold">BAC Secretary 2</div>
+                            <div class="text-xs text-yellow-100/80">Ronel S. Fillomena</div>
                         </div>
                         <svg class="w-4 h-4 text-yellow-200 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>

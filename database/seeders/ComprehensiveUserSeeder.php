@@ -203,7 +203,7 @@ class ComprehensiveUserSeeder extends Seeder
         $bacSecretary2 = User::updateOrCreate(
             ['email' => 'bac.secretary2@cagsu.edu.ph'],
             [
-                'name' => 'Ronel Fillomena',
+                'name' => 'Ronel S. Fillomena',
                 'password' => $password,
                 'department_id' => $adminDept->id,
                 'employee_id' => 'CAGSU-BAC-SEC-002',
