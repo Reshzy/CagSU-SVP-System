@@ -125,6 +125,23 @@ class ComprehensiveUserSeeder extends Seeder
         );
         $bacViceChairman->syncRoles(['BAC Chair']); // Vice Chairman uses same role
 
+        // 6b. BAC Vice Chairman
+        $bacViceChairman2 = User::updateOrCreate(
+            ['email' => 'bac.vicechairman2@cagsu.edu.ph'],
+            [
+                'name' => 'Atty. Jan Leandro P. Verzon',
+                'password' => $password,
+                'department_id' => $adminDept->id,
+                'employee_id' => 'CAGSU-BAC-VICE-002',
+                'position_id' => $positions['BAC Chairman'] ?? null, // Same position, different role
+                'phone' => '+63-917-555-0007',
+                'is_active' => true,
+                'approval_status' => 'approved',
+                'email_verified_at' => now(),
+            ]
+        );
+        $bacViceChairman2->syncRoles(['BAC Chair']); // Vice Chairman uses same role
+
         // 7-9. BAC Members (3 members)
         $bacMembers = [
             [
@@ -182,6 +199,23 @@ class ComprehensiveUserSeeder extends Seeder
         );
         $bacSecretary->syncRoles(['BAC Secretariat']);
 
+        // 10b. BAC Secretary
+        $bacSecretary2 = User::updateOrCreate(
+            ['email' => 'bac.secretary2@cagsu.edu.ph'],
+            [
+                'name' => 'Ronel Fillomena',
+                'password' => $password,
+                'department_id' => $adminDept->id,
+                'employee_id' => 'CAGSU-BAC-SEC-002',
+                'position_id' => $positions['BAC Secretary'] ?? null,
+                'phone' => '+63-917-777-0013',
+                'is_active' => true,
+                'approval_status' => 'approved',
+                'email_verified_at' => now(),
+            ]
+        );
+        $bacSecretary2->syncRoles(['BAC Secretariat']);
+
         // 11. Accounting Officer
         $accountingOfficer = User::updateOrCreate(
             ['email' => 'accounting@cagsu.edu.ph'],
@@ -233,11 +267,11 @@ class ComprehensiveUserSeeder extends Seeder
         foreach ($colleges as $index => $collegeData) {
             // Find or create the college department - check by both code and name
             $college = Department::where('code', $collegeData['code'])->first();
-            
+
             // If not found by code, check by name
-            if (!$college) {
+            if (! $college) {
                 $college = Department::where('name', $collegeData['name'])->first();
-                
+
                 // If found by name but code differs, update the code
                 if ($college && $college->code !== $collegeData['code']) {
                     $college->update([
@@ -249,7 +283,7 @@ class ComprehensiveUserSeeder extends Seeder
                 }
             }
 
-            if (!$college) {
+            if (! $college) {
                 $college = Department::create([
                     'name' => $collegeData['name'],
                     'code' => $collegeData['code'],
@@ -282,9 +316,9 @@ class ComprehensiveUserSeeder extends Seeder
         $this->command->info('   - 1 Supply Officer');
         $this->command->info('   - 1 Budget Officer');
         $this->command->info('   - 1 Executive Officer');
-        $this->command->info('   - 2 BAC Chairman (Chairman & Vice Chairman)');
+        $this->command->info('   - 3 BAC Chairman (Chairman & 2 Vice Chairmen)');
         $this->command->info('   - 3 BAC Members');
-        $this->command->info('   - 1 BAC Secretary');
+        $this->command->info('   - 2 BAC Secretaries');
         $this->command->info('   - 1 Accounting Officer');
         $this->command->info('   - 1 Canvassing Officer');
         $this->command->info('   - 10 College Deans');
