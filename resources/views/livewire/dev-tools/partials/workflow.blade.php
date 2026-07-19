@@ -1,7 +1,7 @@
 <div class="space-y-6">
     <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950/30">
         <p class="text-sm text-amber-900 dark:text-amber-200">
-            Status jumps skip intermediate approvals. The PR observer may still adjust budget when status changes — by design for testing.
+            Status jumps skip intermediate approvals. Jumping to BAC (or later) auto-sets Small Value Procurement, generates a resolution number/document, and creates a CEO approval record so BAC pages do not 500.
         </p>
     </div>
 

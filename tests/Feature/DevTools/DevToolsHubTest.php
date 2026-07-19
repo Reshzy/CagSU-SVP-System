@@ -6,13 +6,16 @@ use App\Livewire\DevTools\Hub;
 use App\Models\AppItem;
 use App\Models\Department;
 use App\Models\DepartmentBudget;
+use App\Models\Document;
 use App\Models\Ppmp;
 use App\Models\PpmpItem;
 use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestActivity;
 use App\Models\User;
+use App\Models\WorkflowApproval;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -161,6 +164,52 @@ class DevToolsHubTest extends TestCase
         $this->assertSame('Test Stapler', $pr->items()->first()->item_name);
     }
 
+    public function test_can_create_purchase_request_with_lot(): void
+    {
+        Livewire::test(Hub::class)
+            ->set('departmentId', $this->department->id)
+            ->set('requesterId', $this->requester->id)
+            ->set('purpose', 'Lot PR test')
+            ->set('justification', 'Lot grouping via Dev Tools')
+            ->set('landingStatus', 'supply_office_review')
+            ->set('itemMode', 'manual')
+            ->set('groupAsLot', true)
+            ->set('lotName', 'Office Supplies Lot')
+            ->set('manualItems', [
+                [
+                    'item_name' => 'Bond Paper',
+                    'unit_of_measure' => 'ream',
+                    'quantity_requested' => 5,
+                    'estimated_unit_cost' => 200,
+                    'detailed_specifications' => '',
+                ],
+                [
+                    'item_name' => 'Ballpen',
+                    'unit_of_measure' => 'box',
+                    'quantity_requested' => 3,
+                    'estimated_unit_cost' => 100,
+                    'detailed_specifications' => '',
+                ],
+            ])
+            ->set('createStep', 4)
+            ->call('createPurchaseRequest')
+            ->assertHasNoErrors();
+
+        $pr = PurchaseRequest::query()->where('purpose', 'Lot PR test')->first();
+        $this->assertNotNull($pr);
+
+        $lotHeader = $pr->items()->where('is_lot', true)->first();
+        $this->assertNotNull($lotHeader);
+        $this->assertSame('Office Supplies Lot', $lotHeader->lot_name);
+        $this->assertSame('lot', $lotHeader->unit_of_measure);
+        $this->assertEquals(1300.0, (float) $lotHeader->estimated_unit_cost);
+
+        $children = $pr->items()->where('parent_lot_id', $lotHeader->id)->get();
+        $this->assertCount(2, $children);
+        $this->assertTrue($children->contains(fn ($item) => $item->item_name === 'Bond Paper'));
+        $this->assertTrue($children->contains(fn ($item) => $item->item_name === 'Ballpen'));
+    }
+
     public function test_can_set_department_budget(): void
     {
         Livewire::test(Hub::class)
@@ -227,6 +276,52 @@ class DevToolsHubTest extends TestCase
         $this->assertSame('bac_evaluation', $pr->fresh()->status);
     }
 
+    public function test_jump_to_bac_sets_procurement_method_and_generates_resolution(): void
+    {
+        Storage::fake('local');
+
+        if (! is_dir(storage_path('app/temp'))) {
+            mkdir(storage_path('app/temp'), 0777, true);
+        }
+
+        $pr = PurchaseRequest::factory()->create([
+            'requester_id' => $this->requester->id,
+            'department_id' => $this->department->id,
+            'status' => 'ceo_approval',
+            'estimated_total' => 2500,
+            'purpose' => 'BAC jump test',
+            'procurement_method' => null,
+            'resolution_number' => null,
+        ]);
+
+        Livewire::test(Hub::class)
+            ->call('selectPurchaseRequest', $pr->id)
+            ->call('jumpPreset', 'bac')
+            ->assertHasNoErrors();
+
+        $pr->refresh();
+
+        $this->assertSame('bac_evaluation', $pr->status);
+        $this->assertSame('small_value_procurement', $pr->procurement_method);
+        $this->assertNotEmpty($pr->resolution_number);
+
+        $this->assertTrue(
+            WorkflowApproval::query()
+                ->where('purchase_request_id', $pr->id)
+                ->where('step_name', 'ceo_initial_approval')
+                ->where('status', 'approved')
+                ->exists()
+        );
+
+        $this->assertTrue(
+            Document::query()
+                ->where('documentable_type', PurchaseRequest::class)
+                ->where('documentable_id', $pr->id)
+                ->where('document_type', 'bac_resolution')
+                ->exists()
+        );
+    }
+
     public function test_can_validate_ppmp_from_hub(): void
     {
         $ppmp = Ppmp::factory()->create([
@@ -286,6 +381,75 @@ class DevToolsHubTest extends TestCase
                 ->where('fiscal_year', (int) date('Y'))
                 ->exists()
         );
+    }
+
+    public function test_system_admin_can_view_another_department_ppmp_summary(): void
+    {
+        $adminDepartment = Department::factory()->create([
+            'name' => 'Administrative Office',
+            'code' => 'ADMIN',
+            'is_active' => true,
+        ]);
+
+        $this->admin->update(['department_id' => $adminDepartment->id]);
+
+        Ppmp::factory()->create([
+            'department_id' => $adminDepartment->id,
+            'fiscal_year' => (int) date('Y'),
+            'status' => 'validated',
+            'total_estimated_cost' => 500,
+        ]);
+
+        $targetDepartment = Department::factory()->create([
+            'name' => 'Calayan Extension',
+            'code' => 'CALAYAN',
+            'is_active' => true,
+        ]);
+
+        DepartmentBudget::factory()->create([
+            'department_id' => $targetDepartment->id,
+            'fiscal_year' => (int) date('Y'),
+            'allocated_budget' => 100000,
+        ]);
+
+        $targetPpmp = Ppmp::factory()->create([
+            'department_id' => $targetDepartment->id,
+            'fiscal_year' => (int) date('Y'),
+            'status' => 'validated',
+            'total_estimated_cost' => 1000,
+        ]);
+
+        $this->actingAs($this->admin)
+            ->get(route('ppmp.summary', $targetPpmp))
+            ->assertOk()
+            ->assertSee('PPMP Summary', false)
+            ->assertSee('Calayan Extension', false);
+    }
+
+    public function test_end_user_cannot_view_another_department_ppmp_summary(): void
+    {
+        $otherDepartment = Department::factory()->create([
+            'name' => 'Other College',
+            'code' => 'OTHER',
+            'is_active' => true,
+        ]);
+
+        DepartmentBudget::factory()->create([
+            'department_id' => $otherDepartment->id,
+            'fiscal_year' => (int) date('Y'),
+            'allocated_budget' => 100000,
+        ]);
+
+        $otherPpmp = Ppmp::factory()->create([
+            'department_id' => $otherDepartment->id,
+            'fiscal_year' => (int) date('Y'),
+            'status' => 'validated',
+            'total_estimated_cost' => 1000,
+        ]);
+
+        $this->actingAs($this->requester)
+            ->get(route('ppmp.summary', $otherPpmp))
+            ->assertRedirect(route('ppmp.index'));
     }
 
     /**

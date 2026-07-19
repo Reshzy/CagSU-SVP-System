@@ -50,6 +50,10 @@ class Hub extends Component
 
     public string $itemMode = 'ppmp';
 
+    public bool $groupAsLot = false;
+
+    public string $lotName = '';
+
     /** @var list<int> */
     public array $selectedPpmpItemIds = [];
 
@@ -267,6 +271,8 @@ class Hub extends Component
         $this->selectedPpmpItemIds = [];
         $this->ppmpItemOverrides = [];
         $this->manualItems = [$this->emptyManualItem()];
+        $this->groupAsLot = false;
+        $this->lotName = '';
 
         $this->js('window.appToast({ type: "success", message: '.json_encode('Created '.$purchaseRequest->pr_number).' })');
     }
@@ -534,18 +540,18 @@ class Hub extends Component
     }
 
     /**
-     * @return list<array{
-     *     ppmp_item_id?: int|null,
-     *     item_code?: string|null,
-     *     item_name: string,
-     *     detailed_specifications?: string|null,
-     *     unit_of_measure: string,
-     *     quantity_requested: int,
-     *     estimated_unit_cost: float
-     * }>
+     * @return list<array<string, mixed>>
      */
     protected function buildItemsPayload(): array
     {
+        if ($this->groupAsLot) {
+            $this->validate([
+                'lotName' => ['required', 'string', 'max:255'],
+            ], [], [
+                'lotName' => 'lot name',
+            ]);
+        }
+
         if ($this->itemMode === 'manual') {
             $this->validate([
                 'manualItems' => ['required', 'array', 'min:1'],
@@ -556,7 +562,7 @@ class Hub extends Component
                 'manualItems.*.detailed_specifications' => ['nullable', 'string', 'max:2000'],
             ]);
 
-            return collect($this->manualItems)
+            $items = collect($this->manualItems)
                 ->map(fn (array $item): array => [
                     'ppmp_item_id' => null,
                     'item_code' => null,
@@ -565,9 +571,12 @@ class Hub extends Component
                     'unit_of_measure' => $item['unit_of_measure'],
                     'quantity_requested' => (int) $item['quantity_requested'],
                     'estimated_unit_cost' => (float) $item['estimated_unit_cost'],
+                    'is_lot' => false,
                 ])
                 ->values()
                 ->all();
+
+            return $this->maybeWrapItemsAsLot($items);
         }
 
         if ($this->selectedPpmpItemIds === []) {
@@ -608,10 +617,55 @@ class Hub extends Component
                 'unit_of_measure' => $ppmpItem->appItem->unit_of_measure,
                 'quantity_requested' => $quantity,
                 'estimated_unit_cost' => $unitCost,
+                'is_lot' => false,
             ];
         }
 
-        return $items;
+        return $this->maybeWrapItemsAsLot($items);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $items
+     * @return list<array<string, mixed>>
+     */
+    protected function maybeWrapItemsAsLot(array $items): array
+    {
+        if (! $this->groupAsLot || $items === []) {
+            return $items;
+        }
+
+        if (count($items) < 1) {
+            throw ValidationException::withMessages([
+                'lotName' => 'Select at least one item to group into a lot.',
+            ]);
+        }
+
+        $lotTotal = 0.0;
+
+        foreach ($items as $item) {
+            $lotTotal += (float) $item['quantity_requested'] * (float) $item['estimated_unit_cost'];
+        }
+
+        $lotHeader = [
+            'ppmp_item_id' => null,
+            'item_code' => null,
+            'item_name' => $this->lotName,
+            'detailed_specifications' => null,
+            'unit_of_measure' => 'lot',
+            'quantity_requested' => 1,
+            'estimated_unit_cost' => round($lotTotal, 2),
+            'is_lot' => true,
+            'lot_name' => $this->lotName,
+        ];
+
+        $children = array_map(function (array $item): array {
+            $item['parent_lot_index'] = 0;
+            $item['is_lot'] = false;
+
+            return $item;
+        }, $items);
+
+        return array_merge([$lotHeader], $children);
     }
 
     /**

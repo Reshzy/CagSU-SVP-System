@@ -106,6 +106,29 @@
 
             @error('items') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
 
+            <div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                <label class="flex items-center gap-2 text-sm font-medium text-gray-800 dark:text-gray-200">
+                    <input type="checkbox" wire:model.live="groupAsLot" class="rounded border-gray-300 text-cagsu-maroon focus:ring-cagsu-maroon" />
+                    Group items into a lot
+                </label>
+                @if ($groupAsLot)
+                    <div class="mt-3">
+                        <label for="lotName" class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">Lot name</label>
+                        <input
+                            id="lotName"
+                            type="text"
+                            wire:model="lotName"
+                            placeholder="e.g. Office Furniture Lot"
+                            class="block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-cagsu-maroon focus:ring-cagsu-maroon dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                        />
+                        @error('lotName') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Creates one lot header plus child line items (same structure as the end-user PR form).
+                        </p>
+                    </div>
+                @endif
+            </div>
+
             @if ($itemMode === 'ppmp')
                 @if (! $ppmp || $ppmp->status !== 'validated')
                     <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
@@ -189,6 +212,9 @@
                     <dt class="text-xs uppercase tracking-wide text-gray-500">Items</dt>
                     <dd class="font-medium text-gray-900 dark:text-white">
                         {{ $itemMode === 'ppmp' ? count($selectedPpmpItemIds).' PPMP item(s)' : count($manualItems).' manual row(s)' }}
+                        @if ($groupAsLot)
+                            <span class="text-cagsu-maroon">· Lot: {{ $lotName ?: '(unnamed)' }}</span>
+                        @endif
                     </dd>
                 </div>
             </dl>

@@ -3,14 +3,19 @@
 namespace App\Services\DevTools;
 
 use App\Models\DepartmentBudget;
+use App\Models\Document;
 use App\Models\PpmpItem;
 use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestItem;
 use App\Models\User;
+use App\Models\WorkflowApproval;
 use App\Notifications\PurchaseRequestSubmitted;
+use App\Services\BacResolutionService;
 use App\Services\PpmpQuarterlyTracker;
 use App\Services\PurchaseRequestActivityLogger;
+use App\Services\WorkflowRouter;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class DevToolsPurchaseRequestService
@@ -48,9 +53,26 @@ class DevToolsPurchaseRequestService
         'completed' => 'completed',
     ];
 
+    /**
+     * Statuses that require BAC procurement method + resolution side effects.
+     *
+     * @var list<string>
+     */
+    public const BAC_READY_STATUSES = [
+        'bac_evaluation',
+        'bac_approved',
+        'partial_po_generation',
+        'po_generation',
+        'po_approved',
+        'supplier_processing',
+        'delivered',
+        'completed',
+    ];
+
     public function __construct(
         protected PurchaseRequestActivityLogger $activityLogger,
         protected PpmpQuarterlyTracker $quarterlyTracker,
+        protected BacResolutionService $bacResolutionService,
     ) {}
 
     /**
@@ -61,15 +83,7 @@ class DevToolsPurchaseRequestService
      *     justification: string,
      *     date_needed?: string|null,
      *     status?: string,
-     *     items: list<array{
-     *         ppmp_item_id?: int|null,
-     *         item_code?: string|null,
-     *         item_name: string,
-     *         detailed_specifications?: string|null,
-     *         unit_of_measure: string,
-     *         quantity_requested: int|float,
-     *         estimated_unit_cost: float|int|string
-     *     }>,
+     *     items: list<array<string, mixed>>,
      *     notify_officers?: bool
      * }  $data
      */
@@ -147,27 +161,32 @@ class DevToolsPurchaseRequestService
                 $this->notifySupplyOffice($purchaseRequest);
             }
 
-            return $purchaseRequest->fresh(['items', 'requester', 'department']);
+            $purchaseRequest = $purchaseRequest->fresh(['items', 'requester', 'department']);
+
+            if ($this->statusRequiresBacSetup($status)) {
+                $this->prepareForBacEvaluation($purchaseRequest, $admin);
+                $purchaseRequest = $purchaseRequest->fresh(['items', 'requester', 'department']);
+            }
+
+            return $purchaseRequest;
         });
     }
 
     /**
-     * @param  list<array{
-     *     ppmp_item_id?: int|null,
-     *     item_code?: string|null,
-     *     item_name: string,
-     *     detailed_specifications?: string|null,
-     *     unit_of_measure: string,
-     *     quantity_requested: int|float,
-     *     estimated_unit_cost: float|int|string
-     * }>  $items
+     * @param  list<array<string, mixed>>  $items
      */
     public function calculateTotalCost(array $items): float
     {
         $total = 0.0;
 
         foreach ($items as $item) {
-            $quantity = (float) ($item['quantity_requested'] ?? 0);
+            // Lot children are rolled into the lot header total.
+            if ($this->isLotChildPayload($item)) {
+                continue;
+            }
+
+            $isLot = ! empty($item['is_lot']);
+            $quantity = $isLot ? 1.0 : (float) ($item['quantity_requested'] ?? 0);
             $unitCost = (float) ($item['estimated_unit_cost'] ?? 0);
             $total += $quantity * $unitCost;
         }
@@ -186,7 +205,11 @@ class DevToolsPurchaseRequestService
         $oldStatus = $purchaseRequest->status;
 
         if ($oldStatus === $status) {
-            return $purchaseRequest;
+            if ($this->statusRequiresBacSetup($status)) {
+                $this->prepareForBacEvaluation($purchaseRequest, $admin);
+            }
+
+            return $purchaseRequest->fresh();
         }
 
         $purchaseRequest->status = $status;
@@ -214,6 +237,10 @@ class DevToolsPurchaseRequestService
             'user_id' => $admin->id,
         ]);
 
+        if ($this->statusRequiresBacSetup($status)) {
+            $this->prepareForBacEvaluation($purchaseRequest->fresh(), $admin);
+        }
+
         return $purchaseRequest->fresh();
     }
 
@@ -229,22 +256,88 @@ class DevToolsPurchaseRequestService
     }
 
     /**
-     * @param  list<array{
-     *     ppmp_item_id?: int|null,
-     *     item_code?: string|null,
-     *     item_name: string,
-     *     detailed_specifications?: string|null,
-     *     unit_of_measure: string,
-     *     quantity_requested: int|float,
-     *     estimated_unit_cost: float|int|string
-     * }>  $items
+     * Mirror CEO approval side effects so BAC manage/RFQ pages do not 500.
+     */
+    public function prepareForBacEvaluation(PurchaseRequest $purchaseRequest, User $admin): void
+    {
+        $needsMethod = empty($purchaseRequest->procurement_method);
+        $needsResolutionNumber = empty($purchaseRequest->resolution_number);
+        $hasResolutionDocument = Document::query()
+            ->where('documentable_type', PurchaseRequest::class)
+            ->where('documentable_id', $purchaseRequest->id)
+            ->where('document_type', 'bac_resolution')
+            ->exists();
+
+        if ($needsMethod) {
+            $purchaseRequest->procurement_method = 'small_value_procurement';
+            $purchaseRequest->procurement_method_set_at = now();
+            $purchaseRequest->procurement_method_set_by = $admin->id;
+        }
+
+        if ($needsResolutionNumber) {
+            $purchaseRequest->resolution_number = PurchaseRequest::generateNextResolutionNumber();
+        }
+
+        if ($needsMethod || $needsResolutionNumber) {
+            $purchaseRequest->save();
+        }
+
+        WorkflowApproval::updateOrCreate(
+            [
+                'purchase_request_id' => $purchaseRequest->id,
+                'step_name' => 'ceo_initial_approval',
+            ],
+            [
+                'step_order' => 2,
+                'approver_id' => $admin->id,
+                'approved_by' => $admin->id,
+                'status' => 'approved',
+                'comments' => 'Auto-approved via Dev Tools for BAC testing',
+                'assigned_at' => now()->subDay(),
+                'responded_at' => now(),
+                'days_to_respond' => 1,
+            ]
+        );
+
+        if (! $hasResolutionDocument) {
+            try {
+                $purchaseRequest->loadMissing(['requester', 'department']);
+                $this->bacResolutionService->generateResolution($purchaseRequest, null);
+                $this->activityLogger->logResolutionGenerated(
+                    $purchaseRequest,
+                    $purchaseRequest->resolution_number,
+                    $admin->id
+                );
+            } catch (\Throwable $e) {
+                Log::error('Dev Tools failed to generate BAC resolution for PR '.$purchaseRequest->pr_number.': '.$e->getMessage());
+            }
+        }
+
+        try {
+            WorkflowRouter::createPendingForRole($purchaseRequest, 'bac_evaluation', 'BAC Secretariat');
+        } catch (\Throwable) {
+            // BAC Secretariat role may be missing in sparse test DBs.
+        }
+    }
+
+    public function statusRequiresBacSetup(string $status): bool
+    {
+        return in_array($status, self::BAC_READY_STATUSES, true);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $items
      */
     protected function createItems(PurchaseRequest $purchaseRequest, array $items): void
     {
         $currentQuarter = $this->quarterlyTracker->getQuarterFromDate();
 
-        foreach ($items as $itemData) {
-            $quantity = (int) $itemData['quantity_requested'];
+        /** @var array<int, PurchaseRequestItem> */
+        $createdByIndex = [];
+
+        foreach ($items as $index => $itemData) {
+            $isLot = ! empty($itemData['is_lot']);
+            $quantity = $isLot ? 1 : (int) $itemData['quantity_requested'];
             $estimatedTotal = (float) $itemData['estimated_unit_cost'] * $quantity;
 
             $prItemData = [
@@ -253,16 +346,26 @@ class DevToolsPurchaseRequestService
                 'item_code' => $itemData['item_code'] ?? null,
                 'item_name' => $itemData['item_name'] ?? null,
                 'detailed_specifications' => $itemData['detailed_specifications'] ?? null,
-                'unit_of_measure' => $itemData['unit_of_measure'] ?? null,
+                'unit_of_measure' => $isLot ? 'lot' : ($itemData['unit_of_measure'] ?? null),
                 'quantity_requested' => $quantity,
                 'estimated_unit_cost' => $itemData['estimated_unit_cost'],
                 'estimated_total_cost' => $estimatedTotal,
                 'ppmp_quarter' => $currentQuarter,
-                'is_lot' => false,
+                'is_lot' => $isLot,
+                'lot_name' => $isLot ? ($itemData['lot_name'] ?? null) : null,
+                'parent_lot_id' => null,
                 'item_category' => null,
             ];
 
-            if (! empty($itemData['ppmp_item_id'])) {
+            if (
+                isset($itemData['parent_lot_index'])
+                && $itemData['parent_lot_index'] !== ''
+                && isset($createdByIndex[(int) $itemData['parent_lot_index']])
+            ) {
+                $prItemData['parent_lot_id'] = $createdByIndex[(int) $itemData['parent_lot_index']]->id;
+            }
+
+            if (! $isLot && ! empty($itemData['ppmp_item_id'])) {
                 $ppmpItem = PpmpItem::with('appItem')->find($itemData['ppmp_item_id']);
 
                 if ($ppmpItem?->appItem) {
@@ -272,8 +375,18 @@ class DevToolsPurchaseRequestService
                 }
             }
 
-            PurchaseRequestItem::create($prItemData);
+            $createdByIndex[$index] = PurchaseRequestItem::create($prItemData);
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    protected function isLotChildPayload(array $item): bool
+    {
+        return isset($item['parent_lot_index'])
+            && $item['parent_lot_index'] !== ''
+            && $item['parent_lot_index'] !== null;
     }
 
     protected function notifySupplyOffice(PurchaseRequest $purchaseRequest): void

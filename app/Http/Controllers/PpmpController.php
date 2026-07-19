@@ -303,7 +303,10 @@ class PpmpController extends Controller
     {
         $user = Auth::user();
 
-        if ($ppmp->department_id !== $user->department_id) {
+        if (
+            ! $user->hasRole('System Admin')
+            && $ppmp->department_id !== $user->department_id
+        ) {
             return redirect()->route('ppmp.index')
                 ->withErrors(['error' => 'You can only view your own department PPMP.']);
         }

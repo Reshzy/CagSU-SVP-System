@@ -43,6 +43,10 @@
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
                 <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">Current PPMP</h3>
+                <p class="mt-1 text-sm font-medium text-gray-800 dark:text-gray-200">
+                    {{ $departments->firstWhere('id', $departmentId)?->name ?? 'No department selected' }}
+                    <span class="font-normal text-gray-500 dark:text-gray-400">· FY {{ $fiscalYear }}</span>
+                </p>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                     @if ($ppmp)
                         Status: <span class="font-semibold {{ $ppmp->status === 'validated' ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400' }}">{{ $ppmp->status }}</span>
