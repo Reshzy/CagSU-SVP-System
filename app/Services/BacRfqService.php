@@ -241,7 +241,7 @@ class BacRfqService
     }
 
     /**
-     * Build RFQ table rows: lot headers (bid lines) with indented children for display,
+     * Build RFQ table rows: lot headers (bid lines) with child detail rows,
      * plus standalone items.
      *
      * @param  Collection<int, PurchaseRequestItem>  $items
@@ -251,21 +251,28 @@ class BacRfqService
     {
         $rows = [];
 
-        foreach ($items->filter(fn (PurchaseRequestItem $item) => ! $item->isLotChild())->values() as $item) {
+        $topLevelItems = $items
+            ->filter(fn (PurchaseRequestItem $item) => ! $item->isLotChild())
+            ->sortBy('id')
+            ->values();
+
+        foreach ($topLevelItems as $item) {
+            $isLotHeader = $item->isLotHeader();
+
             $rows[] = [
                 'unit_of_measure' => $item->unit_of_measure,
-                'item_name' => $item->isLotHeader()
+                'item_name' => $isLotHeader
                     ? ($item->lot_name ?? $item->item_name)
                     : $item->item_name,
-                'quantity_requested' => $item->quantity_requested,
+                'quantity_requested' => $isLotHeader ? '' : $item->quantity_requested,
                 'is_bid_line' => true,
             ];
 
-            if ($item->isLotHeader()) {
-                foreach ($item->lotChildren as $child) {
+            if ($isLotHeader) {
+                foreach ($item->lotChildren->sortBy('id')->values() as $child) {
                     $rows[] = [
                         'unit_of_measure' => $child->unit_of_measure,
-                        'item_name' => '  - '.$child->item_name,
+                        'item_name' => $child->item_name,
                         'quantity_requested' => $child->quantity_requested,
                         'is_bid_line' => false,
                     ];

@@ -72,10 +72,23 @@ class BacRfqLotItemNumberTest extends TestCase
         $rows = $method->invoke(new BacRfqService, $items);
 
         $this->assertCount(4, $rows);
+
         $this->assertTrue($rows[0]['is_bid_line']);
+        $this->assertSame('Painting Works', $rows[0]['item_name']);
+        $this->assertSame('lot', $rows[0]['unit_of_measure']);
+        $this->assertSame('', $rows[0]['quantity_requested']);
+
         $this->assertFalse($rows[1]['is_bid_line']);
+        $this->assertSame('Exterior Paint', $rows[1]['item_name']);
+        $this->assertSame(5, (int) $rows[1]['quantity_requested']);
+
         $this->assertFalse($rows[2]['is_bid_line']);
+        $this->assertSame('Primer', $rows[2]['item_name']);
+        $this->assertSame(2, (int) $rows[2]['quantity_requested']);
+
         $this->assertTrue($rows[3]['is_bid_line']);
+        $this->assertSame('Office Chair', $rows[3]['item_name']);
+        $this->assertSame(2, (int) $rows[3]['quantity_requested']);
 
         $this->assertSame(['1', '', '', '2'], BacRfqService::resolveItemNumbers($rows));
     }
